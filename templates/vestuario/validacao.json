@@ -1,0 +1,72 @@
+[
+  {
+    "id": "branco",
+    "frames": 240,
+    "max_face_difference": 2.699,
+    "max_background_difference": 1.967,
+    "decode": "ok"
+  },
+  {
+    "id": "azul-marinho",
+    "frames": 240,
+    "max_face_difference": 2.72,
+    "max_background_difference": 1.961,
+    "decode": "ok"
+  },
+  {
+    "id": "petroleo",
+    "frames": 240,
+    "max_face_difference": 2.716,
+    "max_background_difference": 1.969,
+    "decode": "ok"
+  },
+  {
+    "id": "esmeralda",
+    "frames": 240,
+    "max_face_difference": 2.695,
+    "max_background_difference": 1.967,
+    "decode": "ok"
+  },
+  {
+    "id": "bordo",
+    "frames": 240,
+    "max_face_difference": 2.706,
+    "max_background_difference": 1.96,
+    "decode": "ok"
+  },
+  {
+    "id": "ameixa",
+    "frames": 240,
+    "max_face_difference": 2.701,
+    "max_background_difference": 1.963,
+    "decode": "ok"
+  },
+  {
+    "id": "grafite",
+    "frames": 240,
+    "max_face_difference": 2.706,
+    "max_background_difference": 1.966,
+    "decode": "ok"
+  },
+  {
+    "id": "azul",
+    "frames": 240,
+    "max_face_difference": 2.714,
+    "max_background_difference": 1.965,
+    "decode": "ok"
+  },
+  {
+    "id": "terracota",
+    "frames": 240,
+    "max_face_difference": 2.709,
+    "max_background_difference": 1.968,
+    "decode": "ok"
+  },
+  {
+    "id": "oliva",
+    "frames": 240,
+    "max_face_difference": 2.7,
+    "max_background_difference": 1.961,
+    "decode": "ok"
+  }
+]

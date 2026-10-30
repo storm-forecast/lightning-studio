@@ -1,0 +1,24 @@
+{
+  "python": "3.11.5",
+  "torch": "2.6.0+cpu",
+  "cuda_enabled": false,
+  "tests_passed": 27,
+  "short_render_decode": "ok",
+  "bootstrap_http_zip_download": "ok",
+  "http_health": "ok",
+  "docker_build": "not_run_docker_unavailable",
+  "checkpoint_sha256": "a629f0a5277ed8ce475b3ba5509911378a4810af5de64699b10fa0534d7a57d7",
+  "packages": {
+    "fastapi": "0.162.0",
+    "uvicorn": "0.54.0",
+    "numpy": "1.26.4",
+    "scipy": "1.13.1",
+    "librosa": "0.10.2.post1",
+    "opencv-python-headless": "4.11.0.86",
+    "playwright": "1.64.1",
+    "edge-tts": "7.3.1",
+    "python-dotenv": "1.2.4",
+    "gdown": "5.2.2"
+  },
+  "google_drive_download": "verified_against_checkpoint_sha256"
+}

@@ -1,0 +1,74 @@
+[
+  {
+    "path": "output/boletim-agente-ecens.mp4",
+    "bytes": 3035177
+  },
+  {
+    "path": "output/previa-template-voz-feminina.mp4",
+    "bytes": 5528416
+  },
+  {
+    "path": "output/previa-ritmo-original.mp4",
+    "bytes": 6321233
+  },
+  {
+    "path": "output/boletim-ecens-demo.mp4",
+    "bytes": 637101
+  },
+  {
+    "path": "output/boletim-apresentadora-movimento.mp4",
+    "bytes": 1533172
+  },
+  {
+    "path": "output/boletim-com-apresentadora.mp4",
+    "bytes": 1625148
+  },
+  {
+    "path": "output/previa-ritmo-original-com-musica.mp4",
+    "bytes": 6352598
+  },
+  {
+    "path": "output/previa-template-ritmo-ajustado.mp4",
+    "bytes": 6320368
+  },
+  {
+    "path": "output/boletim-apresentadora-gestos.mp4",
+    "bytes": 442499120
+  },
+  {
+    "path": "output/boletim-profissional.mp4",
+    "bytes": 3950857
+  },
+  {
+    "path": "output/boletim-regional.mp4",
+    "bytes": 1341335
+  },
+  {
+    "path": "output/previa-template-legivel.mp4",
+    "bytes": 4238302
+  },
+  {
+    "path": "output/previa-apresentadora-sincronizada.mp4",
+    "bytes": 6554525
+  },
+  {
+    "path": "output/lipsync/apresentadora-sincronizada.mp4",
+    "bytes": 4381516
+  },
+  {
+    "path": "output/lipsync/movimento.mp4",
+    "bytes": 292433
+  },
+  {
+    "path": "output/lipsync/movimento-original.mp4",
+    "bytes": 329017
+  },
+  {
+    "path": "output/lipsync/apresentadora-ritmo-original.mp4",
+    "bytes": 4189029
+  },
+  {
+    "path": "templates/apresentadora-base-anterior.mp4",
+    "bytes": 4190454
+  }
+]

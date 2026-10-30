@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: lightning-studio
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: LIGHTNING_API_URL
+        value: https://lightning-agent.onrender.com
+      - key: LIGHTNING_APP_URL
+        value: https://lightning-agent.onrender.com/app/
+      - key: VIDEO_VISUAL_MODE
+        value: app
+      - key: VIDEO_ENGINE_TOKEN
+        generateValue: true
+      - key: VIDEO_INTERVAL_HOURS
+        value: "2"
+      - key: VIDEO_TIMEZONE
+        value: America/Belem
+      - key: TTS_PROVIDER
+        value: edge
+      - key: EDGE_TTS_VOICE
+        value: pt-BR-FranciscaNeural
+      - key: PRESENTER_SPEED
+        value: "1.0"
+      - key: NARRATION_SPEED
+        value: "0.90"
+      - key: WAV2LIP_CHECKPOINT_URL
+        value: https://drive.google.com/file/d/1UC_U4l66nZbQE5Fz0SaQ77Oxa6JBGfRf/view?usp=drive_link
+      - key: VIDEO_OUTPUT_DIR
+        value: /data/output

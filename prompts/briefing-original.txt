@@ -1,0 +1,92 @@
+Gerar uma apresentação meteorológica profissional utilizando as visualizações disponíveis na API da página, sincronizando as ações de navegação, imagens, mapas e narração.
+A apresentação deve mostrar as previsões para a América do Sul, destacar o Brasil, apresentar as condições atuais por meio do Nowcasting e finalizar com os riscos e recomendações à população.
+Execute as seguintes ações na interface:
+1. Abra o menu de camadas.
+2. Desabilite a opção Raios.
+3. Entre na seção Previsão.
+4. Selecione Chuva.
+5. Feche o menu para remover as barras e deixar o mapa limpo.
+Com a imagem carregada, faça a narração sobre:
+- Países e regiões com maiores volumes de chuva previstos.
+- Áreas com precipitação intensa.
+- Regiões com possibilidade de acumulados elevados.
+- Locais com potencial de alagamentos.
+Priorize as áreas de maior precipitação na América do Sul.
+Execute a sequência:
+1. Abra novamente o menu.
+2. Ative Raios.
+3. Feche o menu para ocultar os controles da interface.
+4. Aguarde a atualização da visualização.
+Apresente a previsão determinística de raios do ECENS.
+Destaque:
+- Países com maior atividade elétrica prevista.
+- Regiões com maior concentração de raios.
+- Áreas com potencial de tempestades elétricas.
+- Locais onde chuva intensa e raios coincidem.
+Não mostrar radar. Utilizar exclusivamente a visualização de raios correspondente à previsão.
+Selecione a opção Área de Risco.
+Identifique e destaque as regiões com maior potencial de tempo severo na América do Sul.
+Priorize:
+- Tempestades severas.
+- Chuva intensa.
+- Descargas elétricas.
+- Regiões com maior potencial de impactos.
+Explique os riscos de cada área com base nos dados disponíveis.
+Ao iniciar a análise brasileira, aproxime o mapa das regiões com maior relevância meteorológica.
+Quando a narração mencionar um local específico com previsão de extremos de chuva ou raios:
+1. Envie o nome do local ao agente.
+2. O agente deverá localizar geograficamente a área.
+3. A página deverá centralizar e aproximar o mapa automaticamente.
+4. Mostrar a visualização correspondente ao fenômeno mencionado.
+Utilize esse recurso preferencialmente para um ou dois pontos de maior destaque, evitando excesso de movimentação e aproximações desnecessárias.
+Priorize estados, municípios e regiões brasileiras com os maiores riscos previstos.
+Após concluir as previsões, acesse a seção Nowcasting.
+Explique que a análise agora mudou: o objetivo é apresentar as condições meteorológicas observadas e monitoradas neste momento.
+Mostre:
+- Regiões com tempestades em andamento.
+- Polígonos de tempo severo.
+- Áreas com atividade elétrica observada.
+- Regiões com chuva intensa.
+- Locais com potencial de agravamento das condições.
+Durante a narração, mantenha os polígonos de tempo severo visíveis e destaque as localidades mais importantes.
+Não confunda previsão futura com condições observadas.
+Dentro do Nowcasting:
+1. Abra as opções de visualização.
+2. Selecione Alagamento.
+3. Feche o menu para limpar a visualização.
+4. Mostre as áreas identificadas com risco de alagamento.
+Na narração, enfatize claramente:
+"Esta é uma previsão de risco de alagamento para as condições atuais, baseada no monitoramento e na análise de curtíssimo prazo."
+Identifique as localidades de maior atenção e explique os possíveis impactos para a população.
+Não apresente o risco como alagamento confirmado.
+Depois da análise de alagamentos, apresente a opção Extrapolação de Raios.
+Mostre a evolução prevista da atividade elétrica para as próximas duas horas.
+Explique:
+- Onde a atividade elétrica está concentrada.
+- Para quais regiões as descargas podem se deslocar.
+- Quais localidades podem ser afetadas.
+- Quais áreas exigem maior atenção.
+Deixe explícito durante a narração:
+"Esta é uma extrapolação da atividade de raios para as próximas duas horas, indicando a possível evolução e deslocamento das áreas de atividade elétrica."
+Não apresentar extrapolação como observação confirmada ou previsão determinística do ECENS.
+Finalize destacando as regiões com maior risco de descargas elétricas e alagamentos.
+Apresente recomendações práticas:
+- Evitar áreas abertas durante tempestades elétricas.
+- Não permanecer debaixo de árvores.
+- Evitar praias, rios, piscinas e campos abertos durante a ocorrência de raios.
+- Procurar abrigo seguro em construções fechadas.
+- Evitar atravessar ruas alagadas e áreas inundadas.
+- Manter distância de córregos e rios durante elevação do nível da água.
+- Acompanhar os avisos e alertas da Defesa Civil.
+Relacione cada recomendação às localidades de maior risco identificadas durante a apresentação.
+1. Executar as ações de interface na ordem estabelecida.
+2. Aguardar a atualização do mapa após cada mudança de camada.
+3. Fechar os menus após selecionar cada visualização, deixando a imagem limpa.
+4. Não mostrar barras, menus ou controles durante a narração principal.
+5. Sincronizar cada imagem com a respectiva fala.
+6. Centralizar o mapa automaticamente quando houver destaque de uma localidade específica.
+7. Evitar zoom excessivo e movimentações desnecessárias.
+8. Não utilizar imagens genéricas quando houver visualização meteorológica disponível na API.
+9. Diferenciar previsão ECENS, observação, nowcasting e extrapolação.
+10. Nunca inventar dados ou apresentar fenômenos previstos como ocorrências confirmadas.
+RESULTADO ESPERADO: Uma apresentação meteorológica automatizada, com navegação inteligente pela API, imagens limpas, mapas corretamente enquadrados, transições sincronizadas com a narração e informações meteorológicas tecnicamente coerentes.

@@ -1,0 +1,10 @@
+.git
+.local
+output
+**/__pycache__
+*.pyc
+.env
+.env.*
+!.env.example
+
+deploy-assets/

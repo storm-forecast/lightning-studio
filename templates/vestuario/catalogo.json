@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "kind": "same_blouse_color_variants",
+  "source_sha256": "869000171a330b704889490d170e2eb3fa8810283d2aa2978b3b8157ea6e24fa",
+  "anchor_date": "2026-01-01",
+  "timezone": "America/Belem",
+  "variants": [
+    {
+      "id": "branco",
+      "name": "Branco",
+      "color": null,
+      "file": "branco.mp4",
+      "sha256": "b255e13dbb21987e3069cfdc9496b341790783a904d8694a4a05444abb9d6c7b"
+    },
+    {
+      "id": "azul-marinho",
+      "name": "Azul-marinho",
+      "color": "#233f67",
+      "file": "azul-marinho.mp4",
+      "sha256": "5fd2f7203df8a5c301aa6248db8bbdcb7417ee211131f1bf86bb0716c2161ca9"
+    },
+    {
+      "id": "petroleo",
+      "name": "Azul-petróleo",
+      "color": "#246775",
+      "file": "petroleo.mp4",
+      "sha256": "8378286a7fef6097610f4723bf8b1cb0d5fd1f83359fafac9de06b791ba1a12d"
+    },
+    {
+      "id": "esmeralda",
+      "name": "Verde-esmeralda",
+      "color": "#26705e",
+      "file": "esmeralda.mp4",
+      "sha256": "405492c4f5f2f87a152962fde1bcdcd9539e24f067d3a34616d1602c520e071b"
+    },
+    {
+      "id": "bordo",
+      "name": "Bordô",
+      "color": "#803b53",
+      "file": "bordo.mp4",
+      "sha256": "f50ca604d916a267531a3f3ba7bb5ff8245937409072d3edca49ca4f361decc8"
+    },
+    {
+      "id": "ameixa",
+      "name": "Ameixa",
+      "color": "#644477",
+      "file": "ameixa.mp4",
+      "sha256": "88416eeabeb81c7ee639681cc566ed41e2d3be5469f58cce52a461a987c67e06"
+    },
+    {
+      "id": "grafite",
+      "name": "Grafite",
+      "color": "#505866",
+      "file": "grafite.mp4",
+      "sha256": "681182caff4ee3d752048d41e6dfcfd794594b9d63447142c6469f4a9e0ba40e"
+    },
+    {
+      "id": "azul",
+      "name": "Azul executivo",
+      "color": "#365e9b",
+      "file": "azul.mp4",
+      "sha256": "967c3d19945ffb4f5002cc02e9499156eabfd7a50bc10ffa50c4d7266036838f"
+    },
+    {
+      "id": "terracota",
+      "name": "Terracota",
+      "color": "#9a5d4d",
+      "file": "terracota.mp4",
+      "sha256": "5a3e7f1271352260985e231e8a2066432431827bc728a8304a559cd8b229beb3"
+    },
+    {
+      "id": "oliva",
+      "name": "Verde-oliva",
+      "color": "#66704a",
+      "file": "oliva.mp4",
+      "sha256": "59a3f230b2b64686b8a1c4b0d361ea5dd91d2075dd94d0ab606ad7f094550bc7"
+    }
+  ]
+}

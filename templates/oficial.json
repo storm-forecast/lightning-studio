@@ -1,0 +1,16 @@
+{
+  "status": "approved",
+  "reference_video": "output/boletim-oficial.mp4",
+  "reference_is_archived_weather": true,
+  "presenter": "templates/apresentadora-base.mp4",
+  "music": "templates/fundo-musical.wav",
+  "reference_synced_presenter": "templates/apresentadora-referencia-sincronizada.mp4",
+  "reference_narration": "templates/narracao-referencia.wav",
+  "voice": "pt-BR-FranciscaNeural",
+  "presenter_speed": 1.0,
+  "narration_speed": 0.9,
+  "lip_sync": "per-narration-local-wav2lip",
+  "reference_sha256": "e6c3e98547f9196a9b6de3c6a0399786288a4b12568f41fc5f5115d308cac0e4",
+  "forecast_source": "ecens",
+  "lightning_method": "Modelo de inteligência artificial usando parâmetros convectivos do ECENS"
+}

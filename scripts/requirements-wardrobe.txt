@@ -1,0 +1,5 @@
+# Offline preparation only; prebuilt wardrobe clips need none of these at runtime.
+numpy>=1.26,<2
+opencv-python>=4.8,<4.12
+onnxruntime>=1.17,<2
+pillow>=11

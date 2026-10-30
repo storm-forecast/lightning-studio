@@ -110,6 +110,8 @@ class Jobs:
                 job.state = State.done
             except Exception as exc:  # return a job error; never kill the worker thread
                 job.state, job.error = State.failed, str(exc)
+                import logging
+                logging.exception("falha ao gerar vídeo %s", job.id)
             job.updated_at = datetime.now(timezone.utc).isoformat()
             self.persist(job)
 

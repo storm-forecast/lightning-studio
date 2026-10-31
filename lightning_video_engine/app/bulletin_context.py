@@ -1,5 +1,5 @@
 """Concrete Brazilian places and spoken time references for each product."""
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import re
 
 
@@ -37,6 +37,10 @@ def time_reference(scene):
     if not scene.available:
         return ''
     if scene.category in ('previsao', 'destaque'):
+        window = scene.metadata.get('forecast_window') or {}
+        start, end = spoken_utc(window.get('inicio')), spoken_utc(window.get('fim'))
+        if start and end:
+            return f'Validade desta previsão: de {start} até {end}.'
         period = str(scene.metadata.get('period', '')).strip()
         if period and period.casefold() not in ('consulte a validade na legenda', 'não informado', 'none'):
             return f'Validade desta previsão: {period.rstrip(".")}.'
@@ -88,8 +92,25 @@ def local_recommendations(segments):
 _ISO_TIMESTAMP = re.compile(r'\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})\b')
 
 
-def readable_times(text):
+def readable_times(text, include_brasilia=False):
     """Normalize presentation copy only; retain raw timestamps in evidence."""
     text = _ISO_TIMESTAMP.sub(lambda m: spoken_utc(m.group()) or m.group(), str(text))
     text = re.sub(r'\b(\d{1,2}:\d{2}(?::\d{2})?)\s*Z\b', r'\1 UTC', text)
-    return re.sub(r'\bUTC(?:\s+UTC)+\b', 'UTC', text)
+    text = re.sub(r'\bUTC(?:\s+UTC)+\b', 'UTC', text)
+    if include_brasilia:
+        from zoneinfo import ZoneInfo
+        def full_time(match):
+            date = datetime.strptime(match.group(1), '%d/%m/%Y às %H:%M').replace(tzinfo=timezone.utc)
+            local = date.astimezone(ZoneInfo('America/Sao_Paulo'))
+            return match.group() + local.strftime(' (%H:%M de %d/%m/%Y, horário de Brasília)')
+        text = re.sub(r'(\d{2}/\d{2}/\d{4} às \d{2}:\d{2}) UTC(?! \()', full_time, text)
+        def clock(match):
+            hour, minute = int(match.group(1)), int(match.group(2))
+            if hour > 23 or minute > 59:
+                return match.group()
+            minutes = hour * 60 + minute - 180
+            local = minutes % 1440
+            day = ', do dia anterior' if minutes < 0 else ''
+            return match.group() + f' ({local // 60:02d}:{local % 60:02d} no horário de Brasília{day})'
+        text = re.sub(r'\b(\d{1,2}):(\d{2}) UTC(?! \()', clock, text)
+    return text

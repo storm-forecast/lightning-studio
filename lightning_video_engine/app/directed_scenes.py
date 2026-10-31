@@ -99,7 +99,7 @@ def capture_segments(app_url: str, segments: list[Segment], directory: Path):
                     page.evaluate('setObservedOn(true);showFrame(FRAME_COUNT-1,true)')
                 page.wait_for_function('''()=>[...document.querySelectorAll('.leaflet-tile')].every(i=>i.complete)&&!document.querySelector('.leaflet-zoom-anim')''',timeout=30000)
                 s.metadata = page.evaluate('''()=>({view:currentView,source:fonte,product,period:document.querySelector('#period').textContent,
-                    map:mapInfo,rain:rainInfo,nowcast:nowcastInfo,legend:document.querySelector('#legend').innerText,
+                    map:mapInfo,rain:rainInfo,nowcast:nowcastInfo,forecast_window:mapInfo?.janelas?.[shownStep()]||null,legend:document.querySelector('#legend').innerText,
                     polygon_count:severeLayer?.getLayers().filter(x=>x.options.fill!==false&&map.getBounds().intersects(x.getBounds())).length||0,
                     polygon_evidence:severeLayer?.getLayers().filter(x=>x.options.fill!==false&&map.getBounds().intersects(x.getBounds())).map(x=>({
                         color:x.options.fillColor||x.options.color,
@@ -127,6 +127,14 @@ def capture_segments(app_url: str, segments: list[Segment], directory: Path):
                 style = page.add_style_tag(content=CLEAN_CSS)
                 page.evaluate("""()=>{map.invalidateSize({animate:false});renderLegend();
                 }""")
+                if s.view == 'probabilidade':
+                    page.evaluate('''()=>{
+                        const window=mapInfo?.janelas?.[shownStep()];
+                        if(window && Date.parse(window.fim)-Date.parse(window.inicio)>=86400000){
+                            const title=document.querySelector('.legend-title');
+                            if(title)title.textContent='Probabilidade diária de raios';
+                        }
+                    }''')
                 # Normalize only visible legend copy, never source data or layer URLs.
                 page.evaluate(r'''()=>{
                     const root=document.querySelector('.legend');if(!root)return;

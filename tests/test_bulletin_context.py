@@ -98,3 +98,23 @@ class BulletinPeriodDedupTests(unittest.TestCase):
         seen = {'Validade desta previsão: 31/10/2026 UTC.'}
         add_time_reference(scene, seen)
         self.assertEqual(scene.narration, 'Belém é destaque.')
+
+
+class BrasiliaPresentationTests(unittest.TestCase):
+    def test_utc_has_explicit_brasilia_conversion(self):
+        from lightning_video_engine.app.bulletin_context import readable_times
+        self.assertEqual(readable_times('15:00 UTC', include_brasilia=True),
+                         '15:00 UTC (12:00 no horário de Brasília)')
+
+    def test_conversion_preserves_previous_date_and_is_idempotent(self):
+        from lightning_video_engine.app.bulletin_context import readable_times
+        text = readable_times('2026-11-01T01:30:00Z', include_brasilia=True)
+        self.assertIn('22:30 de 31/10/2026, horário de Brasília', text)
+        self.assertEqual(readable_times(text, include_brasilia=True), text)
+        self.assertIn('dia anterior', readable_times('01:00 UTC', include_brasilia=True))
+
+    def test_structured_window_takes_precedence_over_ambiguous_label(self):
+        scene=Segment('rain', 'Chuva', 'previsao', 'chuva-prevista', metadata={
+            'period': 'hoje', 'forecast_window': {'inicio':'2026-10-31T00:00:00Z','fim':'2026-11-01T00:00:00Z'}})
+        self.assertIn('31/10/2026 às 00:00 UTC', time_reference(scene))
+        self.assertIn('01/11/2026 às 00:00 UTC', time_reference(scene))

@@ -254,3 +254,18 @@ primeira previsão e quando mudar o período; não repita a mesma validade em
 cada local ou produto com período idêntico. O gerador controla essa inserção:
 o agente não deve repetir datas e horários por conta própria na fala da cena.
 A referência das observações continua distinta da validade das previsões.
+
+## Chuva regional e horários acessíveis
+
+A ausência de uma cidade ou região na lista de maiores acumulados não significa
+que não há chuva. Não afirme “sem previsão de chuva” no Centro-Oeste ou em
+qualquer região com base em uma lista parcial. Use a previsão exibida; se faltar
+análise regional completa, informe falta de detalhamento, sem negar precipitação.
+
+Na legenda diária de probabilidade, use “Probabilidade diária de raios”. A
+estatística e as cores do produto continuam preservadas nos dados.
+Ao apresentar UTC, mostre também a conversão para o horário de Brasília.
+Para horários atuais, Brasília está três horas atrás de UTC: 15:00 UTC é
+12:00 em Brasília. Inclua a data anterior quando a conversão atravessar a
+meia-noite, e use as datas reais da janela para não confundir o dia previsto.
+A validade continua sendo narrada apenas na abertura do período ou quando mudar.

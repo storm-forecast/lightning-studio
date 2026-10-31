@@ -49,3 +49,19 @@ class SceneEvidenceTests(unittest.TestCase):
         text = fallback_narration(scene, '31/10/2026')
         self.assertIn('apresenta áreas classificadas', text)
         self.assertIn('não permite atribuir', text)
+
+    def test_regional_rain_denials_are_rejected_without_exhaustive_analysis(self):
+        for text in ('Não há previsão de chuva no Centro-Oeste.',
+                     'O Centro-Oeste está sem previsão de chuva.',
+                     'No Centro-Oeste não está prevista precipitação.'):
+            with self.subTest(text=text):
+                scene=Segment('01-chuva','Chuva','previsao','chuva-prevista',narration=text)
+                with self.assertRaisesRegex(ValueError, 'ausência de chuva'):
+                    validate_scene_evidence(scene)
+                scene.narration=fallback_narration(scene,'31/10/2026')
+                validate_scene_evidence(scene)
+
+    def test_regional_missing_detail_is_not_a_claim_of_no_rain(self):
+        scene=Segment('01-chuva','Chuva','previsao','chuva-prevista',
+                      narration='Há chuva prevista. Falta detalhamento regional para o Centro-Oeste.')
+        validate_scene_evidence(scene)

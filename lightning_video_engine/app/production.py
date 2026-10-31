@@ -53,16 +53,18 @@ def stamp(s):
     from PIL import Image,ImageDraw,ImageFont
     im=Image.open(s.image).convert('RGB');d=ImageDraw.Draw(im)
     font='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
-    d.rectangle((0,0,1440,75),fill='#102337')
-    d.text((22,7),s.title,font=ImageFont.truetype(font,27),fill='white')
     period=s.metadata.get('period','Consulte a validade na legenda')
     if s.category in ('nowcasting','observacao','alagamento','extrapolacao'):
         n=s.metadata.get('nowcast') or {}
         period=f"Raios até {n.get('raios_ate','não informado')} | Nuvens: {n.get('nuvens_de','não informado')}"
     if s.category in ('previsao','destaque') and s.view in ('deterministico','risco','probabilidade'):
         period = LIGHTNING_METHOD + ' | ' + period
-    period = readable_times(period)
-    d.text((22,43),textwrap.shorten(period,145),font=ImageFont.truetype(font,17),fill='#b9d6e2')
+    period = readable_times(period, include_brasilia=True)
+    lines = textwrap.wrap(period, width=140) or ['']
+    d.rectangle((0,0,1440,55+22*len(lines)),fill='#102337')
+    d.text((22,7),s.title,font=ImageFont.truetype(font,27),fill='white')
+    for i, line in enumerate(lines):
+        d.text((22,43+22*i),line,font=ImageFont.truetype(font,17),fill='#b9d6e2')
     im.save(s.image)
 
 
@@ -243,7 +245,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             textfile.write_text(s.narration)
         else:
             directives={
-                '01-chuva':f'Abra com uma introdução jornalística curta usando a data {presentation_date}. Diga que a prioridade é informar a população para prevenção de riscos, proteção de vidas e redução dos impactos de eventos extremos. Na primeira menção, escreva explicitamente “{ECENS_EDITORIAL_NAME}”. Em seguida, fale somente de chuva prevista por esse modelo priorizando o Brasil, citando os acumulados e regiões que estão visíveis na camada. A camada está disponível: nunca diga que não há acumulados, que os valores estão indisponíveis ou que não é possível avaliar a chuva quando a legenda/mapa exibir valores. Não associe alagamento confirmado.',
+                '01-chuva':f'Abra com uma introdução jornalística curta usando a data {presentation_date}. Diga que a prioridade é informar a população para prevenção de riscos, proteção de vidas e redução dos impactos de eventos extremos. Na primeira menção, escreva explicitamente “{ECENS_EDITORIAL_NAME}”. Em seguida, fale somente de chuva prevista por esse modelo priorizando o Brasil, citando os acumulados e regiões que estão visíveis na camada. A lista de cidades é parcial e não permite afirmar ausência de chuva em nenhuma região, especialmente no Centro-Oeste. Se uma região não estiver na lista, declare apenas que faltou detalhamento regional. A camada está disponível: nunca diga que não há acumulados, que os valores estão indisponíveis ou que não é possível avaliar a chuva quando a legenda/mapa exibir valores. Não associe alagamento confirmado.',
                 '02-ecens':'Comece com Previsão de Raios. Fale exclusivamente da quantidade prevista de raios na camada determinística, ou da probabilidade de raios em porcentagem se a camada selecionada for probabilidade. Destaque primeiro cidades e regiões brasileiras confirmadas; use a América do Sul apenas como contexto breve. Não fale de chuva, acumulados de precipitação, ECENS, ECMWF, parâmetros convectivos ou inteligência artificial. Não use raios observados.',
                 '03-risco':'Apresente as áreas de risco de raios e as classes da legenda. Destaque somente regiões confirmadas. Não fale de chuva, modelos, inteligência artificial ou parâmetros convectivos; não use percentuais nesta cena nem declare granizo com base nessa camada.',
                 '05-agora':'Consulte os polígonos atuais e destaque as localidades e regiões brasileiras com maior severidade confirmada. Comece: Agora passamos das previsões para as condições atuais monitoradas. Explique os polígonos de severidade no Brasil sustentados pelos dados, sem radar na imagem.',
@@ -263,7 +265,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             narration_evidence = {
                 'scene_id': s.id, 'view': s.view, 'local': s.place,
                 'metadata': {k:v for k,v in s.metadata.items() if k in
-                    ('view','product','period','legend','polygon_count','polygon_evidence','analysis_bounds','nowcast','bounds')},
+                    ('view','product','period','legend','forecast_window','polygon_count','polygon_evidence','analysis_bounds','nowcast','bounds')},
                 'destaques': s.evidence,
                 'lugares_turisticos_com_evidencia': tourism_evidence(s),
             }
@@ -312,7 +314,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             validate_forecast_text(s)
         add_time_reference(s, spoken_periods)
         validate_scene_evidence(s)
-        s.narration = readable_times(channel_narration(s.narration, s.id))
+        s.narration = readable_times(channel_narration(s.narration, s.id), include_brasilia=True)
         textfile.write_text(s.narration)
         if any(x in s.narration.lower() for x in ('groq não respondeu','muitas perguntas','tente de novo')):
             raise RuntimeError(f'{s.id}: resposta técnica não pode ser narrada')

@@ -89,6 +89,13 @@ def validate_scene_evidence(scene):
             raise ValueError('a narração omitiu a cidade do destaque local')
         if city and 'destaque' not in text:
             raise ValueError('identifique o local como lugar de destaque')
+    if scene.available and scene.view == 'chuva-prevista':
+        # A top-city list is not an exhaustive regional rainfall analysis.
+        for sentence in re.split(r'[.!?;]', text):
+            rain = re.search(r'chuva|precipita|acumulad|pluviom', sentence)
+            denial = re.search(r'nao (?:ha|hav[a-z]*|existe[a-z]*|tem|tera|deve[a-z]*|esta prevista|estao previstas|se preve|apresenta[a-z]*)|sem (?:previsao de |registro de )?(?:chuva|precipita)|nenhum[a]? (?:chuva|precipita)', sentence)
+            if rain and denial:
+                raise ValueError('ausência de chuva não comprovada por análise regional completa')
     if scene.id in ('05-agora', '07-alagamento'):
         # A rendered viewport, including an empty one, never certifies absence
         # throughout a macroregion. Prefer a scoped limitation to a false negative.

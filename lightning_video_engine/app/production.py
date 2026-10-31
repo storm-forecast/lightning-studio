@@ -20,6 +20,7 @@ from .forecast_policy import ECENS_EDITORIAL_NAME, LIGHTNING_METHOD, validate_fo
 
 ROOT = Path(__file__).resolve().parents[2]
 BRIEF = ROOT/'prompts/boletim-meteorologico.md'
+CLOSING_CTA = 'Inscreva-se no canal TROVOX TEMPO e ative o sino para receber novos avisos e atualizações. Curta o vídeo e compartilhe com amigos, familiares e grupos para que as informações meteorológicas cheguem a mais pessoas.'
 
 
 def card(path, title, lines):
@@ -208,11 +209,11 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
                 '08-extrap-0':'Diga exatamente: Esta é uma extrapolação da atividade de raios para as próximas duas horas, indicando a possível evolução e deslocamento das áreas de atividade elétrica. Acrescente que a camada combina raios e nuvens, e que este quadro mostra o ponto inicial, não uma previsão ECENS.',
                 '09-extrap-60':'A imagem é de +60 minutos. Explique que são áreas deslocadas pelo movimento medido, sem garantir formação ou enfraquecimento. Não invente direção ou localidades sem evidência.',
                 '10-extrap-120':'A imagem é de +120 minutos. Enfatize incerteza e natureza de extrapolação, não uma ocorrência confirmada nem previsão ECENS. Não afirme que a intensidade permanecerá igual.',
-                '11-recomendacoes':'Finalize com recomendações práticas de raios e alagamentos, relacionadas às regiões antes identificadas quando confirmadas. Não atravesse vias alagadas; abrigo fechado; evite árvores, áreas abertas, praias e piscinas; acompanhe a Defesa Civil.',
+                '11-recomendacoes':'O canal se chama TROVOX TEMPO. A chamada para inscrição, sino, curtida e compartilhamento será acrescentada automaticamente após esta fala; produza somente as recomendações meteorológicas. Finalize com recomendações práticas de raios e alagamentos, relacionadas às regiões antes identificadas quando confirmadas. Não atravesse vias alagadas; abrigo fechado; evite árvores, áreas abertas, praias e piscinas; acompanhe a Defesa Civil.',
             }
             instruction=directives.get(s.id,f'Explique somente a probabilidade de raios (%) da IA com parâmetros convectivos do {ECENS_EDITORIAL_NAME} para o local estruturado informado. Apresente este local como um dos principais pontos brasileiros de maior potencial de descargas elétricas na previsão. Não mencione contagens ou acumulados de raios. Confirme nome/estado e não use uma cidade diferente.')
             question=(f'Siga as regras do prompt editorial salvo:\n{prompt.split("## Regras de evidência")[1].split("## Sequência editorial")[0]}\n\nAGORA produza SOMENTE a fala da cena {s.id}, sem títulos, markdown, JSON ou listas. '
-                'Use português brasileiro natural, 2 frases e no máximo 45 palavras, exceto as frases obrigatórias. Faça um destaque breve e concreto coerente com esta imagem; não repita outras seções. '
+                'O nome do canal é TROVOX TEMPO; use esse nome ao mencionar o canal. Use português brasileiro natural, 2 frases e no máximo 45 palavras, exceto as frases obrigatórias. Faça um destaque breve e concreto coerente com esta imagem; não repita outras seções. '
                 'O escopo geográfico obrigatório é América do Sul, com atenção especial ao Brasil. Nunca cite localidades, países, dados ou fenômenos de outros continentes. '
                 f'{instruction} Camada selecionada: {s.view}. Probabilidade em porcentagem exige probabilidade; quantidade/acumulado de raios exige deterministico. Nunca misture as duas métricas numa cena.\nA imagem validada contém estes metadados: '+json.dumps({k:v for k,v in s.metadata.items() if k in ('view','product','period','legend','polygon_count','bounds')},ensure_ascii=False)+
                 '\nDestaque local/evidências: '+json.dumps(s.evidence,ensure_ascii=False))
@@ -248,6 +249,10 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             s.narration=fallback_narration(s,presentation_date)
             textfile.write_text(s.narration)
             validate_forecast_text(s)
+        s.narration = s.narration.replace('Lightning Agent', 'TROVOX TEMPO')
+        if s.id == '11-recomendacoes' and CLOSING_CTA not in s.narration:
+            s.narration = s.narration.rstrip() + '\n\n' + CLOSING_CTA
+        textfile.write_text(s.narration)
         if any(x in s.narration.lower() for x in ('groq não respondeu','muitas perguntas','tente de novo')):
             raise RuntimeError(f'{s.id}: resposta técnica não pode ser narrada')
         if evidence_file.is_file():

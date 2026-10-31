@@ -83,7 +83,7 @@ def compose(scenes: list[Path], audio: Path, destination: Path, *, title: str,
             ('LIGHTNING AGENT', 32, 25, 25, '0x65e0d0'),
             (textwrap.shorten(title, width=64, placeholder='…'), 32, 65, 36, 'white'),
             (textwrap.shorten(subtitle, width=110, placeholder='…'), 32, 985, 24, 'white'),
-            ('Mapas e legendas: Lightning Agent | Apresentação virtual', 32, 1030, 20, '0xb9c8d9'),
+            ('Mapas e legendas: TROVOX TEMPO | Apresentação virtual', 32, 1030, 20, '0xb9c8d9'),
         ]
         if presenter:
             labels.append(('APRESENTAÇÃO VIRTUAL', 1504, 100, 19, '0xb9c8d9'))

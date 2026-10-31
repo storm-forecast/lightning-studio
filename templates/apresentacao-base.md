@@ -1,4 +1,4 @@
-# Template oficial — Lightning Agent
+# Template oficial — TROVOX TEMPO
 
 Vídeo aprovado: `output/boletim-oficial.mp4`.
 Manifesto dos arquivos e parâmetros: `templates/oficial.json`.
@@ -30,7 +30,7 @@ Este vídeo é a referência visual aprovada. Seus mapas são de arquivo de
 
 O compositor usa o clipe e a música incluídos no projeto. Não depende dos
 arquivos em Downloads. A imagem do cenário da apresentadora é decorativa;
-os dados meteorológicos vêm exclusivamente do Lightning Agent.
+os dados meteorológicos vêm exclusivamente do TROVOX TEMPO.
 
 ## Gerar próximo boletim
 
@@ -107,3 +107,23 @@ Quantidade/contagem/acumulado de raios usam Determinística. Classes de risco
 usam Área de Risco. Se a fala mudar de métrica, capturar a nova camada antes
 da síntese e da montagem. Se houver ambas as métricas no mesmo trecho, separar
 em cenas. A validação bloqueia imagem divergente ou captura indisponível.
+
+## Identidade do canal e encerramento obrigatório
+
+O nome do canal é **TROVOX TEMPO**. Use esse nome na apresentação, na
+narração, nos títulos e nos elementos visuais de todos os novos vídeos.
+Preserve as atribuições técnicas dos dados e os endereços da API.
+
+Após as recomendações meteorológicas, encerre cada vídeo de forma natural,
+objetiva e convidativa. Convide o público a se inscrever no canal, ativar o sino
+para receber novos avisos e atualizações, curtir o vídeo e compartilhar com
+amigos, familiares e grupos, ampliando o alcance das informações meteorológicas.
+Não prometa horários de publicação garantidos.
+
+Fala de encerramento:
+
+“Inscreva-se no canal TROVOX TEMPO e ative o sino para receber novos avisos e atualizações. Curta o vídeo e compartilhe com amigos, familiares e grupos para que as informações meteorológicas cheguem a mais pessoas.”
+
+Inclua toda a fala de encerramento na síntese de voz, na sincronização labial
+e na duração da cena final. A chamada vem depois das recomendações, inclusive
+nos perfis reduzidos e nos roteiros de reserva.

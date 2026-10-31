@@ -14,6 +14,7 @@ from .segments import Segment, join_audio, save_plan
 from .directed_scenes import capture_segments
 from .lightning_agent import LightningAgentClient
 from .speech import narrate
+from .bulletin_context import brazilian_highlights, add_time_reference, local_recommendations
 from .editorial import regional_scene_direction, validate_scene_evidence
 from .official import render_official
 from .wardrobe import wardrobe_for_job
@@ -75,7 +76,7 @@ def fallback_narration(scene, presentation_date):
     captured official layer remains on screen and the bulletin can complete.
     """
     editorial=scene.evidence.get('editorial',{})
-    rain=editorial.get('chuva',{}).get('regioes',[])[:2]
+    rain=[x for x in editorial.get('chuva',{}).get('regioes',[]) if str(x.get('pais','')).casefold() in ('brasil','brazil')][:3]
     lightning=editorial.get('raios',{}).get('regioes',[])[:3]
     def names(rows):
         return ', '.join(f"{x.get('cidade')} ({x.get('pais')})" for x in rows if x.get('cidade'))
@@ -108,12 +109,13 @@ def fallback_narration(scene, presentation_date):
             return f"Entre os destaques de raios observados estão {highlights}. As contagens são de áreas próximas a essas cidades, na janela de {observed['inicio']} a {observed['fim']}."
     if scene.category in ('previsao', 'destaque') and scene.view in ('deterministico', 'probabilidade', 'risco'):
         metric = {'deterministico': 'a quantidade prevista de raios', 'probabilidade': 'a probabilidade de raios em porcentagem', 'risco': 'as áreas de risco de raios'}[scene.view]
-        location = f" na área de {scene.place['nome']}" if scene.place and scene.place.get('nome') else ''
+        local_names = brazilian_highlights(scene)
+        location = f" na área de {scene.place['nome']}" if scene.place and scene.place.get('nome') else ('; entre os destaques brasileiros estão ' + ', '.join(local_names) if local_names else '')
         return f'Previsão de Raios: este mapa apresenta {metric}{location} para o período indicado. Acompanhe a distribuição e as classes exibidas na legenda.'
     return copy.get(scene.id,'Consulte a legenda e os avisos oficiais para acompanhar esta condição meteorológica.')
 
 
-def produce(directory: Path, *, api='https://lightning-agent.onrender.com', title='Boletim meteorológico | América do Sul', capture_only=False, app_url=None, presentation_at=None):
+def produce(directory: Path, *, api='https://lightning-agent.onrender.com', title='Boletim meteorológico | Brasil', capture_only=False, app_url=None, presentation_at=None):
     directory=directory.resolve();directory.mkdir(parents=True,exist_ok=True)
     profile=os.environ.get('VIDEO_PROFILE','full').strip().lower()
     if profile not in {'full','balanced','lite'}:
@@ -237,8 +239,8 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             textfile.write_text(s.narration)
         else:
             directives={
-                '01-chuva':f'Abra com uma introdução jornalística curta usando a data {presentation_date}. Diga que a prioridade é informar a população para prevenção de riscos, proteção de vidas e redução dos impactos de eventos extremos. Na primeira menção, escreva explicitamente “{ECENS_EDITORIAL_NAME}”. Em seguida, fale somente de chuva prevista por esse modelo para América do Sul, citando os acumulados e regiões que estão visíveis na camada. A camada está disponível: nunca diga que não há acumulados, que os valores estão indisponíveis ou que não é possível avaliar a chuva quando a legenda/mapa exibir valores. Não associe alagamento confirmado.',
-                '02-ecens':'Comece com Previsão de Raios. Fale exclusivamente da quantidade prevista de raios na camada determinística, ou da probabilidade de raios em porcentagem se a camada selecionada for probabilidade. Destaque regiões confirmadas da América do Sul. Não fale de chuva, acumulados de precipitação, ECENS, ECMWF, parâmetros convectivos ou inteligência artificial. Não use raios observados.',
+                '01-chuva':f'Abra com uma introdução jornalística curta usando a data {presentation_date}. Diga que a prioridade é informar a população para prevenção de riscos, proteção de vidas e redução dos impactos de eventos extremos. Na primeira menção, escreva explicitamente “{ECENS_EDITORIAL_NAME}”. Em seguida, fale somente de chuva prevista por esse modelo priorizando o Brasil, citando os acumulados e regiões que estão visíveis na camada. A camada está disponível: nunca diga que não há acumulados, que os valores estão indisponíveis ou que não é possível avaliar a chuva quando a legenda/mapa exibir valores. Não associe alagamento confirmado.',
+                '02-ecens':'Comece com Previsão de Raios. Fale exclusivamente da quantidade prevista de raios na camada determinística, ou da probabilidade de raios em porcentagem se a camada selecionada for probabilidade. Destaque primeiro cidades e regiões brasileiras confirmadas; use a América do Sul apenas como contexto breve. Não fale de chuva, acumulados de precipitação, ECENS, ECMWF, parâmetros convectivos ou inteligência artificial. Não use raios observados.',
                 '03-risco':'Apresente as áreas de risco de raios e as classes da legenda. Destaque somente regiões confirmadas. Não fale de chuva, modelos, inteligência artificial ou parâmetros convectivos; não use percentuais nesta cena nem declare granizo com base nessa camada.',
                 '05-agora':'Consulte os polígonos atuais e destaque as localidades e regiões brasileiras com maior severidade confirmada. Comece: Agora passamos das previsões para as condições atuais monitoradas. Explique os polígonos de severidade no Brasil sustentados pelos dados, sem radar na imagem.',
                 '06-observado':'Consulte o resumo de raios observados e destaque os locais com mais descargas por região brasileira, com contagens e janela do detector quando disponíveis. Não atribua contagens de uma área inteira a uma cidade. Só mencione previsão anterior com comparação explicitamente comprovada para o mesmo local e período. Não afirme que o evento ocorreu sem previsão prévia, pois essa comparação não é sustentada por esta camada.',
@@ -252,17 +254,26 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             regional_direction = regional_scene_direction(s.id)
             question=(f'Siga as regras do prompt editorial salvo:\n{prompt.split("## Regras de evidência")[1].split("## Sequência editorial")[0]}\n\nAGORA produza SOMENTE a fala da cena {s.id}, sem títulos, markdown, JSON ou listas. '
                 'Não pronuncie o nome do canal nesta cena; ele será dito uma única vez na CTA final. Vá direto à informação meteorológica. Use português brasileiro natural, dinâmico e profissional. Faça destaques concretos coerentes com esta imagem; não repita outras seções. '
-                'O escopo geográfico obrigatório é América do Sul, com atenção especial ao Brasil. Nunca cite localidades, países, dados ou fenômenos de outros continentes. '
-                f'{regional_direction} {instruction} Camada selecionada: {s.view}. Probabilidade em porcentagem exige probabilidade; quantidade/acumulado de raios exige deterministico. Nunca misture as duas métricas numa cena.\nA imagem validada contém estes metadados: '+json.dumps({k:v for k,v in s.metadata.items() if k in ('view','product','period','legend','polygon_count','polygon_evidence','analysis_bounds','nowcast','bounds')},ensure_ascii=False)+
-                '\nLocal obrigatório: '+json.dumps(s.place,ensure_ascii=False)+'\nDestaque local/evidências: '+json.dumps(s.evidence,ensure_ascii=False))
+                'O foco do boletim é o Brasil, suas cidades, estados e cinco regiões. A América do Sul serve apenas como contexto breve. Nunca cite localidades, países, dados ou fenômenos de outros continentes. '
+                f'{regional_direction} {instruction} Camada selecionada: {s.view}. Probabilidade em porcentagem exige probabilidade; quantidade/acumulado de raios exige deterministico. Nunca misture as duas métricas numa cena.')
+            narration_evidence = {
+                'scene_id': s.id, 'view': s.view, 'local': s.place,
+                'metadata': {k:v for k,v in s.metadata.items() if k in
+                    ('view','product','period','legend','polygon_count','polygon_evidence','analysis_bounds','nowcast','bounds')},
+                'destaques': s.evidence,
+            }
             try:
-                result=client.perguntar(question)
+                result=client.narrar(question, narration_evidence)
             except RuntimeError as exc:
                 s.evidence['narrator_fallback']={'reason':str(exc)}
                 result={'resposta':fallback_narration(s,presentation_date),'fallback':True}
             evidence_file.write_text(json.dumps(result,ensure_ascii=False,indent=2))
             s.evidence['narrator']=result
             s.narration=plain(result['resposta']);textfile.write_text(s.narration)
+        if s.id == '11-recomendacoes':
+            contextual_advice = local_recommendations(specs)
+            if contextual_advice:
+                s.narration = contextual_advice
         try:
             validate_scene_evidence(s)
         except ValueError as exc:
@@ -294,6 +305,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             s.narration=fallback_narration(s,presentation_date)
             textfile.write_text(s.narration)
             validate_forecast_text(s)
+        add_time_reference(s)
         validate_scene_evidence(s)
         s.narration = channel_narration(s.narration, s.id)
         textfile.write_text(s.narration)

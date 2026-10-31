@@ -60,6 +60,7 @@ def regional_scene_direction(scene_id):
         'Use de 5 a 7 frases curtas e no máximo 120 palavras, incluindo a abertura. '
         f'Neste panorama de {product}, ao entrar no Brasil, cubra as cinco regiões: '
         + ', '.join(BRAZIL_REGIONS) + '. '
+        'Priorize o Brasil desde a abertura; a América do Sul é apenas contexto breve. '
         'Comece pela região de maior atenção quando os dados permitirem comparar '
         'o mesmo produto e período; caso contrário use a ordem Sul, Sudeste, Nordeste, '
         'Centro-Oeste e Norte, sem inventar um ranking. Dê mais espaço aos destaques '
@@ -98,3 +99,9 @@ def validate_scene_evidence(scene):
             raise ValueError('ausência de severidade ou risco não comprovada pela captura')
         if re.search(r'foram previstos|ja (?:estavam|haviam sido) previst|previsao acertou', text):
             raise ValueError('acerto de previsão sem verificação temporal estruturada')
+
+    if scene.available:
+        from .bulletin_context import brazilian_highlights
+        highlights = brazilian_highlights(scene)
+        if highlights and not any(folded(name) in text for name in highlights):
+            raise ValueError('a fala omitiu todos os destaques brasileiros fornecidos')

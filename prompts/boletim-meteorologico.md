@@ -29,8 +29,8 @@ nos perfis reduzidos e nos roteiros de reserva.
 
 ## Objetivo
 
-Apresentar, nesta ordem, as previsões para a América do Sul, os destaques do
-Brasil, as condições atuais monitoradas, o potencial de alagamento, a
+Apresentar, nesta ordem, as previsões com prioridade para o Brasil e breve
+contexto sul-americano, as condições atuais monitoradas, o potencial de alagamento, a
 extrapolação de raios para até duas horas e as recomendações à população.
 A fala deve coincidir com a imagem e com o período de validade exibido.
 
@@ -44,7 +44,7 @@ mesma lista de locais em todas as cenas.
 
 Inicie a apresentação com uma frase curta, no estilo de um jornalista de
 previsão do tempo. Informe a data atual e introduza os principais destaques
-meteorológicos da América do Sul, mencionando chuva, raios e áreas com
+meteorológicos do Brasil, mencionando chuva, raios e áreas com
 potencial de tempo severo, com atenção especial ao Brasil.
 
 Utilize linguagem profissional, natural, objetiva e dinâmica, como em um
@@ -155,7 +155,7 @@ e os assuntos da análise. Em seguida, inicie a primeira camada de previsão.
 Abra o menu, desative raios observados, entre em Previsão, selecione ECENS e depois Chuva.
 Confirme a fonte, a unidade e o período. Aguarde a camada carregar. Feche ou
 oculte menus e controles, preservando legenda, validade e créditos.
-Mostre a América do Sul e descreva os países e regiões com maiores acumulados,
+Mostre o panorama e descreva primeiro as cidades e regiões brasileiras com maiores acumulados,
 a intensidade prevista e o potencial de impactos sustentado pela análise.
 Não declare alagamentos confirmados com base em chuva prevista.
 
@@ -309,3 +309,21 @@ Polígonos sem cidades geograficamente associadas não autorizam inventar nomes.
 Uma captura sem polígonos não comprova ausência de severidade em todo o Brasil
 ou em suas regiões. Na falta de cobertura e localidades verificadas, informe a
 limitação da consulta, sem afirmar que não há tempestades, severidade ou risco.
+
+## Prioridade editorial: utilidade para o público brasileiro
+
+O Brasil é o assunto principal desde a abertura; a América do Sul oferece
+somente contexto breve. Dê primeiro o destaque brasileiro comprovado mais
+relevante e identifique cidades e estados quando conhecidos. Não substitua
+localidades disponíveis por frases genéricas sobre o mapa.
+
+Toda cena de previsão deve informar na fala sua validade real, conforme o
+produto capturado; a data de geração não substitui a validade. No nowcasting,
+informe a referência das observações e das nuvens. Se o horário não puder ser
+confirmado, diga isso em vez de apresentar a informação como atual.
+
+Conecte os cuidados aos perigos: nas localidades destacadas para raios, buscar
+abrigo fechado e evitar áreas abertas durante tempestades; diante de potencial
+de alagamento, evitar vias alagadas. Não declare que a cidade já foi atingida
+com base em previsão nem atribua risco de alagamento a uma previsão de raios.
+Mantenha a distinção entre dados locais, áreas próximas e cobertura regional.

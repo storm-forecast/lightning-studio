@@ -7,6 +7,7 @@ import shutil
 import subprocess
 from pathlib import Path
 from urllib.parse import urlencode
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
@@ -66,6 +67,27 @@ class LightningAgentClient:
         subprocess.run([binary, "--headless=new", "--no-sandbox", "--disable-gpu", "--hide-scrollbars",
                         "--window-size=1920,1080", "--virtual-time-budget=10000",
                         f"--screenshot={destination}", self.app_url], check=True, timeout=45)
+
+    def narrar(self, instrucoes: str, evidencias: dict) -> dict:
+        """Use the one-pass narrator; old deployments retain the existing chat path."""
+        if getattr(self, '_bulletin_supported', True):
+            request = Request(self.base_url + '/chat/boletim',
+                data=json.dumps({'instrucoes': instrucoes, 'evidencias': evidencias}, ensure_ascii=False).encode(),
+                headers={'Content-Type': 'application/json', 'Accept': 'application/json'}, method='POST')
+            try:
+                self._pace()
+                with urlopen(request, timeout=60) as response:
+                    result = json.loads(response.read().decode('utf-8'))
+                if not isinstance(result.get('resposta'), str) or not result['resposta'].strip():
+                    raise RuntimeError('narrador devolveu uma fala vazia')
+                return result
+            except HTTPError as exc:
+                if exc.code not in (404, 405):
+                    raise RuntimeError(f'narrador indisponível (HTTP {exc.code})') from exc
+                self._bulletin_supported = False
+            except (URLError, TimeoutError, ValueError) as exc:
+                raise RuntimeError('narrador não respondeu com evidências válidas') from exc
+        return self.perguntar(instrucoes + '\nEvidências estruturadas: ' + json.dumps(evidencias, ensure_ascii=False))
 
     def perguntar(self, pergunta: str, session_id: str | None = None) -> dict:
         """Ask the same public agent used by /app/, retaining its conversation id.

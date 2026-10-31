@@ -176,3 +176,21 @@ Polígonos sem cidades geograficamente associadas não autorizam inventar nomes.
 Uma captura sem polígonos não comprova ausência de severidade em todo o Brasil
 ou em suas regiões. Na falta de cobertura e localidades verificadas, informe a
 limitação da consulta, sem afirmar que não há tempestades, severidade ou risco.
+
+## Prioridade editorial: utilidade para o público brasileiro
+
+O Brasil é o assunto principal desde a abertura; a América do Sul oferece
+somente contexto breve. Dê primeiro o destaque brasileiro comprovado mais
+relevante e identifique cidades e estados quando conhecidos. Não substitua
+localidades disponíveis por frases genéricas sobre o mapa.
+
+Toda cena de previsão deve informar na fala sua validade real, conforme o
+produto capturado; a data de geração não substitui a validade. No nowcasting,
+informe a referência das observações e das nuvens. Se o horário não puder ser
+confirmado, diga isso em vez de apresentar a informação como atual.
+
+Conecte os cuidados aos perigos: nas localidades destacadas para raios, buscar
+abrigo fechado e evitar áreas abertas durante tempestades; diante de potencial
+de alagamento, evitar vias alagadas. Não declare que a cidade já foi atingida
+com base em previsão nem atribua risco de alagamento a uma previsão de raios.
+Mantenha a distinção entre dados locais, áreas próximas e cobertura regional.

@@ -189,3 +189,21 @@ Destaques locais têm marcador e nome permanente, com enquadramento do entorno
 e espaço reservado para a legenda. Os panoramas mantêm a cobertura continental
 ou brasileira, conforme a pauta. A imagem permanece estável durante a fala;
 a mudança de enquadramento ocorre entre cenas, sem efeitos sobre os dados.
+
+## Prioridade editorial: utilidade para o público brasileiro
+
+O Brasil é o assunto principal desde a abertura; a América do Sul oferece
+somente contexto breve. Dê primeiro o destaque brasileiro comprovado mais
+relevante e identifique cidades e estados quando conhecidos. Não substitua
+localidades disponíveis por frases genéricas sobre o mapa.
+
+Toda cena de previsão deve informar na fala sua validade real, conforme o
+produto capturado; a data de geração não substitui a validade. No nowcasting,
+informe a referência das observações e das nuvens. Se o horário não puder ser
+confirmado, diga isso em vez de apresentar a informação como atual.
+
+Conecte os cuidados aos perigos: nas localidades destacadas para raios, buscar
+abrigo fechado e evitar áreas abertas durante tempestades; diante de potencial
+de alagamento, evitar vias alagadas. Não declare que a cidade já foi atingida
+com base em previsão nem atribua risco de alagamento a uma previsão de raios.
+Mantenha a distinção entre dados locais, áreas próximas e cobertura regional.

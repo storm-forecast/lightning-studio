@@ -1,7 +1,10 @@
 """Forecast attribution contract: ECENS only; lightning is an AI-derived product."""
 import re
 
-LIGHTNING_METHOD = 'Modelo de IA com parâmetros convectivos do ECENS'
+# Editorial name used on screen and in narration. The final acronym preserves
+# the exact technical source identifier validated below.
+ECENS_EDITORIAL_NAME = 'modelo do Centro Europeu de Previsões Meteorológicas a Médio Prazo (ECMWF), o ECENS'
+LIGHTNING_METHOD = 'Modelo de IA com parâmetros convectivos do ' + ECENS_EDITORIAL_NAME
 
 
 def validate_forecasts(segments):

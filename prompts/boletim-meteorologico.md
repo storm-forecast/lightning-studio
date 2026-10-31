@@ -57,8 +57,10 @@ ao Brasil.”
 
 - Todas as previsões de modelo deste boletim devem usar exclusivamente a fonte
   ECENS, incluindo chuva. Não usar GFS nem fazer substituição automática.
-- Nomear a chuva como chuva prevista pelo ECENS. Nomear os raios como previsão
-  do modelo de inteligência artificial usando parâmetros convectivos do ECENS.
+- Na primeira menção, nomear a chuva como chuva prevista pelo **modelo do Centro
+  Europeu de Previsões Meteorológicas a Médio Prazo (ECMWF), o ECENS**. Nomear
+  os raios como previsão do modelo de inteligência artificial usando parâmetros
+  convectivos desse modelo. Nas menções posteriores, pode usar apenas ECENS.
   Não apresentar a saída da IA como previsão direta de raios do ECENS.
 - Explicar o método na fala de abertura da previsão de raios e mantê-lo escrito
   nos títulos/legendas de todas as cenas de previsão de raios e risco, inclusive

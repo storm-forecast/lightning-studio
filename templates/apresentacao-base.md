@@ -77,7 +77,8 @@ ocorrem nos limites de cada fala, sem dividir o áudio total igualmente entre ma
 
 ## Fonte das previsões e atribuição da IA
 
-Todas as previsões usam exclusivamente ECENS, inclusive chuva. Se a chuva ECENS
+Todas as previsões usam exclusivamente o modelo do Centro Europeu de Previsões
+Meteorológicas a Médio Prazo (ECMWF), o ECENS, inclusive chuva. Se a chuva ECENS
 não estiver disponível, informar a ausência sem substituir por GFS. A previsão
 de raios e suas áreas de risco são geradas pelo modelo de inteligência artificial
 usando parâmetros convectivos do ECENS; não são uma saída direta de raios do

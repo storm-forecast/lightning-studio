@@ -15,7 +15,7 @@ from .lightning_agent import LightningAgentClient
 from .speech import narrate
 from .official import render_official
 from .wardrobe import wardrobe_for_job
-from .forecast_policy import LIGHTNING_METHOD, validate_forecasts, validate_forecast_text, narration_view
+from .forecast_policy import ECENS_EDITORIAL_NAME, LIGHTNING_METHOD, validate_forecasts, validate_forecast_text, narration_view
 
 ROOT = Path(__file__).resolve().parents[2]
 BRIEF = ROOT/'prompts/boletim-meteorologico.md'
@@ -87,9 +87,9 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
                 places.append({'place':local,'evidence':result,'selection':option})
         discovery.write_text(json.dumps(places,ensure_ascii=False,indent=2))
     specs=[
-        Segment('01-chuva','Chuva prevista | ECENS','previsao','chuva-prevista','ecens'),
-        Segment('02-ecens','Raios previstos | IA com parâmetros convectivos do ECENS','previsao','deterministico','ecens'),
-        Segment('03-risco','Risco de raios | IA com parâmetros convectivos do ECENS','previsao','risco','ecens'),
+        Segment('01-chuva','Chuva prevista | ECMWF (ECENS)','previsao','chuva-prevista','ecens'),
+        Segment('02-ecens','Raios previstos | IA e parâmetros convectivos do ECMWF (ECENS)','previsao','deterministico','ecens'),
+        Segment('03-risco','Risco de raios | IA e parâmetros convectivos do ECMWF (ECENS)','previsao','risco','ecens'),
     ]
     for i,p in enumerate(places):
         specs.append(Segment(f'04-local-{i+1}','Probabilidade de raios | '+p['place']['nome'],'destaque','probabilidade','ecens',place=p['place'],evidence=p))
@@ -149,9 +149,9 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             textfile.write_text(s.narration)
         else:
             directives={
-                '01-chuva':'Fale somente de chuva prevista exclusivamente pelo ECENS para América do Sul: países/regiões com acumulados relevantes confirmados. Não associe alagamento confirmado.',
-                '02-ecens':'Explique que os raios são previstos pelo modelo de inteligência artificial usando parâmetros convectivos do ECENS, não uma saída direta de raios do modelo meteorológico. Para América do Sul, destacando países/regiões confirmados. Não use raios observados.',
-                '03-risco':'Explique as áreas de risco de raios geradas pela IA com parâmetros convectivos do ECENS; não declare severidade ou granizo com base nessa camada.',
+                '01-chuva':f'Fale somente de chuva prevista exclusivamente pelo {ECENS_EDITORIAL_NAME} para América do Sul: países/regiões com acumulados relevantes confirmados. Não associe alagamento confirmado.',
+                '02-ecens':f'Explique que os raios são previstos pelo modelo de inteligência artificial usando parâmetros convectivos do {ECENS_EDITORIAL_NAME}, não uma saída direta de raios do modelo meteorológico. Para América do Sul, destacando países/regiões confirmados. Não use raios observados.',
+                '03-risco':f'Explique as áreas de risco de raios geradas pela IA com parâmetros convectivos do {ECENS_EDITORIAL_NAME}; não declare severidade ou granizo com base nessa camada.',
                 '05-agora':'Comece: Agora passamos das previsões para as condições atuais monitoradas. Explique os polígonos de severidade no Brasil sustentados pelos dados, sem radar na imagem.',
                 '06-observado':'Descreva atividade elétrica observada no Brasil confirmada pelos dados e horário do detector, sem misturar com previsão.',
                 '07-alagamento':'Comece exatamente: Esta é uma previsão de risco de alagamento para as condições atuais, baseada no monitoramento e na análise de curtíssimo prazo. Não diga que alagou. Se não houver dados locais confirmados, diga isso.',
@@ -160,7 +160,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
                 '10-extrap-120':'A imagem é de +120 minutos. Enfatize incerteza e natureza de extrapolação, não uma ocorrência confirmada nem previsão ECENS. Não afirme que a intensidade permanecerá igual.',
                 '11-recomendacoes':'Finalize com recomendações práticas de raios e alagamentos, relacionadas às regiões antes identificadas quando confirmadas. Não atravesse vias alagadas; abrigo fechado; evite árvores, áreas abertas, praias e piscinas; acompanhe a Defesa Civil.',
             }
-            instruction=directives.get(s.id,'Explique somente a probabilidade de raios (%) da IA com parâmetros convectivos do ECENS para o local estruturado informado. Não mencione contagens ou acumulados de raios. Confirme nome/estado e não use uma cidade diferente.')
+            instruction=directives.get(s.id,f'Explique somente a probabilidade de raios (%) da IA com parâmetros convectivos do {ECENS_EDITORIAL_NAME} para o local estruturado informado. Não mencione contagens ou acumulados de raios. Confirme nome/estado e não use uma cidade diferente.')
             question=(f'Siga as regras do prompt editorial salvo:\n{prompt.split("## Regras de evidência")[1].split("## Sequência editorial")[0]}\n\nAGORA produza SOMENTE a fala da cena {s.id}, sem títulos, markdown, JSON ou listas. '
                 'Use português brasileiro natural, 2 frases e no máximo 45 palavras, exceto as frases obrigatórias. Não repita outras seções. '
                 f'{instruction} Camada selecionada: {s.view}. Probabilidade em porcentagem exige probabilidade; quantidade/acumulado de raios exige deterministico. Nunca misture as duas métricas numa cena.\nA imagem validada contém estes metadados: '+json.dumps({k:v for k,v in s.metadata.items() if k in ('view','product','period','legend','polygon_count','bounds')},ensure_ascii=False)+
@@ -174,7 +174,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             previous_view=s.view
             s.view=expected_view
             label='Probabilidade de raios' if expected_view=='probabilidade' else 'Quantidade prevista de raios'
-            s.title=label+' | '+(s.place['nome'] if s.place else 'IA com parâmetros convectivos do ECENS')
+            s.title=label+' | '+(s.place['nome'] if s.place else 'IA com parâmetros convectivos do ECMWF (ECENS)')
             capture_segments(app_url or api+'/app/',[s],directory/'cenas')
             if not s.available:
                 save_plan(specs,directory/'plano-cenas.json')

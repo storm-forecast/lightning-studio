@@ -57,6 +57,27 @@ def plain(text):
     return re.sub(r'\s+',' ',text).strip()
 
 
+def fallback_narration(scene, presentation_date):
+    """Safe continuity copy when the public editorial agent is rate-limited.
+
+    It intentionally names no unverified city, value, alert or movement. The
+    captured official layer remains on screen and the bulletin can complete.
+    """
+    copy={
+        '01-chuva':f'Hoje, {presentation_date}, a prioridade é informar a população para prevenção de riscos, proteção de vidas e redução dos impactos de eventos extremos. A chuva prevista pelo {ECENS_EDITORIAL_NAME} está apresentada nesta camada; consulte a legenda para os acumulados e o período válido.',
+        '02-ecens':f'Esta previsão de raios é gerada por inteligência artificial usando parâmetros convectivos do {ECENS_EDITORIAL_NAME}; não é uma saída direta de raios do modelo meteorológico. A legenda mostra a distribuição prevista para o período indicado.',
+        '03-risco':f'Este mapa mostra as áreas de risco de raios geradas pela inteligência artificial com parâmetros convectivos do {ECENS_EDITORIAL_NAME}. Use as classes da legenda para acompanhar as áreas que exigem maior atenção.',
+        '05-agora':'Agora passamos das previsões para as condições atuais monitoradas. Este quadro mostra as áreas analisadas no momento; acompanhe os avisos oficiais da Defesa Civil.',
+        '06-observado':'Este quadro apresenta a atividade elétrica observada no Brasil no horário indicado. Observação e previsão são produtos diferentes; acompanhe a atualização mais recente.',
+        '07-alagamento':'Esta é uma previsão de risco de alagamento para as condições atuais, baseada no monitoramento e na análise de curtíssimo prazo. Não atravesse vias inundadas e acompanhe a Defesa Civil.',
+        '08-extrap-0':'Esta é uma extrapolação da atividade de raios para as próximas duas horas. A camada combina raios e nuvens e este quadro mostra o ponto inicial, não uma previsão ECENS.',
+        '09-extrap-60':'Esta imagem mostra uma extrapolação para sessenta minutos baseada no movimento medido. Ela indica possível deslocamento das áreas, sem garantir formação ou enfraquecimento.',
+        '10-extrap-120':'Esta imagem mostra uma extrapolação para cento e vinte minutos. A incerteza aumenta com o tempo, portanto acompanhe as atualizações e os avisos oficiais.',
+        '11-recomendacoes':'Durante tempestades, procure abrigo em construção fechada, evite árvores, áreas abertas, praias e piscinas. Não atravesse vias alagadas e acompanhe a Defesa Civil.',
+    }
+    return copy.get(scene.id,'Consulte a legenda e os avisos oficiais para acompanhar esta condição meteorológica.')
+
+
 def produce(directory: Path, *, api='https://lightning-agent.onrender.com', title='Boletim meteorológico | América do Sul', capture_only=False, app_url=None, presentation_at=None):
     directory=directory.resolve();directory.mkdir(parents=True,exist_ok=True)
     profile=os.environ.get('VIDEO_PROFILE','full').strip().lower()
@@ -75,13 +96,19 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
         places=json.loads(discovery.read_text())
     else:
         selection_prompt='Selecione de dois a três municípios ou regiões brasileiras com maior potencial previsto de descargas elétricas pela IA com parâmetros convectivos do ECENS. Use somente a evidência atual. Responda SOMENTE JSON válido, sem markdown nem texto adicional: {"locais":[{"nome":"Cidade, UF","fenomeno":"raios","motivo":"evidência curta"}]}. Não invente. Se insuficiente, use os locais confirmados disponíveis.'
-        selection=client.perguntar(selection_prompt)
+        try:
+            selection=client.perguntar(selection_prompt)
+        except RuntimeError as exc:
+            selection={'resposta':'', 'error':str(exc)}
         (directory/'selecao-agente.json').write_text(json.dumps(selection,ensure_ascii=False,indent=2))
         try:
             options=json.loads(selection['resposta'].strip().removeprefix('```json').removesuffix('```')).get('locais',[])[:3]
         except (ValueError,AttributeError): options=[]
-        if not options:
-            selection=client.perguntar(selection_prompt+' A resposta anterior não pôde ser lida; devolva somente o JSON solicitado.')
+        if not options and not selection.get('error'):
+            try:
+                selection=client.perguntar(selection_prompt+' A resposta anterior não pôde ser lida; devolva somente o JSON solicitado.')
+            except RuntimeError as exc:
+                selection={'resposta':'', 'error':str(exc)}
             (directory/'selecao-agente-tentativa-2.json').write_text(json.dumps(selection,ensure_ascii=False,indent=2))
             try:
                 options=json.loads(selection['resposta'].strip().removeprefix('```json').removesuffix('```')).get('locais',[])[:3]
@@ -173,7 +200,11 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
                 'Use português brasileiro natural, 2 frases e no máximo 45 palavras, exceto as frases obrigatórias. Não repita outras seções. '
                 f'{instruction} Camada selecionada: {s.view}. Probabilidade em porcentagem exige probabilidade; quantidade/acumulado de raios exige deterministico. Nunca misture as duas métricas numa cena.\nA imagem validada contém estes metadados: '+json.dumps({k:v for k,v in s.metadata.items() if k in ('view','product','period','legend','polygon_count','bounds')},ensure_ascii=False)+
                 '\nDestaque local/evidências: '+json.dumps(s.evidence,ensure_ascii=False))
-            result=client.perguntar(question)
+            try:
+                result=client.perguntar(question)
+            except RuntimeError as exc:
+                s.evidence['narrator_fallback']={'reason':str(exc)}
+                result={'resposta':fallback_narration(s,presentation_date),'fallback':True}
             evidence_file.write_text(json.dumps(result,ensure_ascii=False,indent=2))
             s.evidence['narrator']=result
             s.narration=plain(result['resposta']);textfile.write_text(s.narration)

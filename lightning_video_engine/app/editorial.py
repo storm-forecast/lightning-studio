@@ -87,6 +87,8 @@ def validate_scene_evidence(scene):
         city = folded(scene.place.get('nome', '').split(',')[0].strip())
         if city and city not in text:
             raise ValueError('a narração omitiu a cidade do destaque local')
+        if city and 'destaque' not in text:
+            raise ValueError('identifique o local como lugar de destaque')
     if scene.id in ('05-agora', '07-alagamento'):
         # A rendered viewport, including an empty one, never certifies absence
         # throughout a macroregion. Prefer a scoped limitation to a false negative.

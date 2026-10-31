@@ -17,7 +17,7 @@ class SceneEvidenceTests(unittest.TestCase):
 
     def test_missing_city_handles_accents_and_case(self):
         scene = Segment('04-local-1', 'Local', 'destaque', 'probabilidade',
-                        place={'nome': 'São Luís, MA'}, narration='Em SAO LUIS, acompanhe a probabilidade de raios.')
+                        place={'nome': 'São Luís, MA'}, narration='Entre os lugares de destaque está SAO LUIS; acompanhe a probabilidade de raios.')
         validate_scene_evidence(scene)
 
     def test_rejects_false_negative_even_with_empty_polygons(self):

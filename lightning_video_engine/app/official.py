@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 import subprocess
 import tempfile
+import wave
 
 from .broadcast import compose
 from .wardrobe import wardrobe_for_job
@@ -32,8 +33,20 @@ def render_official(scenes, audio, destination, *, title, subtitle,
                         '-an', '-vf', f"setpts=(PTS-STARTPTS)/{speed},"
                         "crop=w='if(gt(iw/ih,1),trunc(ih*0.72/2)*2,iw)':h=ih,scale=384:-2,fps=25",
                         '-threads', '2', str(face)], check=True, timeout=120)
-        subprocess.run([ffmpeg, '-y', '-v', 'error', '-i', str(audio), '-af', f'atempo={rate}',
-                        '-ar', '16000', '-ac', '1', str(speech)], check=True, timeout=120)
+        # The producer already emits final mono PCM at 16 kHz. Reuse it exactly;
+        # standalone callers with another format still take the conversion path.
+        reusable = False
+        if narration_final:
+            try:
+                with wave.open(str(audio), 'rb') as source:
+                    reusable = (source.getnchannels(), source.getsampwidth(), source.getframerate(), source.getcomptype()) == (1, 2, 16000, 'NONE')
+            except (wave.Error, EOFError):
+                pass
+        if reusable:
+            speech = Path(audio).resolve()
+        else:
+            subprocess.run([ffmpeg, '-y', '-v', 'error', '-i', str(audio), '-af', f'atempo={rate}',
+                            '-ar', '16000', '-ac', '1', str(speech)], check=True, timeout=120)
         subprocess.run([str(python), str(ROOT / 'scripts/sync_presenter.py'),
                         '--face', str(face), '--audio', str(speech), '--output', str(synced)],
                        check=True, timeout=3600)

@@ -13,7 +13,8 @@ import textwrap
 from .segments import Segment, join_audio, save_plan
 from .directed_scenes import capture_segments
 from .lightning_agent import LightningAgentClient
-from .speech import narrate
+from .speech import prepare_scene_audios
+from .tourism import tourism_direction, tourism_evidence
 from .bulletin_context import brazilian_highlights, add_time_reference, local_recommendations, readable_times
 from .editorial import regional_scene_direction, validate_scene_evidence
 from .official import render_official
@@ -112,7 +113,8 @@ def fallback_narration(scene, presentation_date):
         metric = {'deterministico': 'a quantidade prevista de raios', 'probabilidade': 'a probabilidade de raios em porcentagem', 'risco': 'as áreas de risco de raios'}[scene.view]
         local_names = brazilian_highlights(scene)
         location = f" na área de {scene.place['nome']}" if scene.place and scene.place.get('nome') else ('; entre os destaques brasileiros estão ' + ', '.join(local_names) if local_names else '')
-        return f'Previsão de Raios: este mapa apresenta {metric}{location} para o período indicado. Acompanhe a distribuição e as classes exibidas na legenda.'
+        intro = f"Entre os lugares de destaque está {scene.place['nome']}. " if scene.place and scene.place.get('nome') else ''
+        return intro + f'Previsão de Raios: este mapa apresenta {metric}{location} para o período indicado. Acompanhe a distribuição e as classes exibidas na legenda.'
     return copy.get(scene.id,'Consulte a legenda e os avisos oficiais para acompanhar esta condição meteorológica.')
 
 
@@ -251,8 +253,8 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
                 '10-extrap-120':'A imagem é de +120 minutos. Enfatize incerteza e natureza de extrapolação, não uma ocorrência confirmada nem previsão ECENS. Não afirme que a intensidade permanecerá igual.',
                 '11-recomendacoes':'O canal se chama TROVOX TEMPO. A chamada para inscrição, sino, curtida e compartilhamento será acrescentada automaticamente após esta fala; produza somente as recomendações meteorológicas. Finalize com recomendações práticas de raios e alagamentos, relacionadas às regiões antes identificadas quando confirmadas. Não atravesse vias alagadas; abrigo fechado; evite árvores, áreas abertas, praias e piscinas; acompanhe a Defesa Civil.',
             }
-            instruction=directives.get(s.id,f'Explique somente a probabilidade de raios (%) para o local estruturado informado. Use o nome Previsão de Raios, sem mencionar modelos, inteligência artificial, parâmetros convectivos ou chuva. Apresente este local como um dos principais pontos brasileiros de maior potencial de descargas elétricas na previsão. Não mencione contagens ou acumulados de raios. Confirme nome/estado e não use uma cidade diferente.')
-            regional_direction = regional_scene_direction(s.id)
+            instruction=directives.get(s.id,f'Explique somente a probabilidade de raios (%) para o local estruturado informado. Use o nome Previsão de Raios, sem mencionar modelos, inteligência artificial, parâmetros convectivos ou chuva. Diga apenas: Entre os lugares de destaque está, seguido do nome deste local. Não o classifique como um dos maiores riscos sem comparação comprovada. Não mencione contagens ou acumulados de raios. Confirme nome/estado e não use uma cidade diferente.')
+            regional_direction = regional_scene_direction(s.id) + ' ' + tourism_direction(s)
             question=(f'Siga as regras do prompt editorial salvo:\n{prompt.split("## Regras de evidência")[1].split("## Sequência editorial")[0]}\n\nAGORA produza SOMENTE a fala da cena {s.id}, sem títulos, markdown, JSON ou listas. '
                 'Não pronuncie o nome do canal nesta cena; ele será dito uma única vez na CTA final. Vá direto à informação meteorológica. Use português brasileiro natural, dinâmico e profissional. Faça destaques concretos coerentes com esta imagem; não repita outras seções. '
                 'O foco do boletim é o Brasil, suas cidades, estados e cinco regiões. A América do Sul serve apenas como contexto breve. Nunca cite localidades, países, dados ou fenômenos de outros continentes. '
@@ -262,6 +264,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
                 'metadata': {k:v for k,v in s.metadata.items() if k in
                     ('view','product','period','legend','polygon_count','polygon_evidence','analysis_bounds','nowcast','bounds')},
                 'destaques': s.evidence,
+                'lugares_turisticos_com_evidencia': tourism_evidence(s),
             }
             try:
                 result=client.narrar(question, narration_evidence)
@@ -316,21 +319,8 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             s.evidence['narrator_raw'] = json.loads(evidence_file.read_text())
         s.evidence['final_text_sha256'] = hashlib.sha256(s.narration.encode()).hexdigest()
         print('Narração:',s.id,s.narration,flush=True)
-        raw=audios/f'{s.id}-raw.wav';final=audios/f'{s.id}.wav'
-        rate=float(os.environ.get('NARRATION_SPEED','0.90'))
-        fingerprint = hashlib.sha256((s.narration + os.environ.get('EDGE_TTS_VOICE','pt-BR-FranciscaNeural') + str(rate)).encode()).hexdigest()
-        cache = audios/f'{s.id}.sha256'
-        if final.is_file() and cache.is_file() and cache.read_text() != fingerprint:
-            final.unlink()
-            if raw.is_file():raw.unlink()
-        if not final.is_file():
-            if not raw.is_file():narrate(s.narration,raw)
-            rate=float(os.environ.get('NARRATION_SPEED','0.90'))
-            subprocess.run(['ffmpeg','-y','-v','error','-i',str(raw),'-af',f'atempo={rate}',
-                '-ar','16000','-ac','1',str(final)],check=True)
-        cache.write_text(fingerprint)
-        s.audio=str(final)
         save_plan(specs,directory/'plano-cenas.json')
+    prepare_scene_audios(specs, audios, workers=int(os.environ.get('VIDEO_TTS_WORKERS', '2')))
     final_audio=directory/'narracao-final.wav'
     total=join_audio(specs,final_audio)
     save_plan(specs,directory/'plano-cenas.json')

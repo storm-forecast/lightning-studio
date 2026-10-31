@@ -333,3 +333,21 @@ Mantenha a distinção entre dados locais, áreas próximas e cobertura regional
 Use sempre UTC nos horários exibidos e narrados. Converta datas técnicas como
 2026-10-31T14:30:00Z para 31/10/2026 às 14:30 UTC; não leia a letra Z.
 Preserve o instante real, a data e o período. Metadados técnicos podem manter ISO.
+
+## Lugares de destaque e cidades turísticas
+
+Em cenas locais, diga apenas “Entre os lugares de destaque está [cidade]”.
+Não use “maior risco” como sinônimo de destaque editorial.
+
+A lista de atenção está em `templates/cidades-turisticas.json`: Rio de Janeiro,
+São Paulo, Salvador, Florianópolis, Foz do Iguaçu, Fortaleza, Natal, Recife,
+Gramado, Canela, Ouro Preto, Paraty, Manaus, Belém, Bonito (MS) e Brasília.
+Nas previsões diárias e no curto prazo, cite essas cidades quando houver
+informação meteorológica relevante comprovada no produto e período exibidos.
+Não é obrigatório percorrer a lista nem citar atrações turísticas. A prioridade
+continua sendo a relevância meteorológica, inclusive fora desses destinos.
+Sem dados, não declare tempo bom, ausência de risco ou ocorrência confirmada.
+A ausência na lista dos máximos não comprova ausência de fenômenos na cidade.
+Polígonos sem associação geográfica não autorizam citar cidades. A seleção
+atual usa as evidências já disponíveis; não representa consulta completa de
+todos os destinos em cada atualização.

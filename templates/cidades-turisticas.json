@@ -1,0 +1,66 @@
+[
+  {
+    "cidade": "Rio de Janeiro",
+    "uf": "RJ"
+  },
+  {
+    "cidade": "São Paulo",
+    "uf": "SP"
+  },
+  {
+    "cidade": "Salvador",
+    "uf": "BA"
+  },
+  {
+    "cidade": "Florianópolis",
+    "uf": "SC"
+  },
+  {
+    "cidade": "Foz do Iguaçu",
+    "uf": "PR"
+  },
+  {
+    "cidade": "Fortaleza",
+    "uf": "CE"
+  },
+  {
+    "cidade": "Natal",
+    "uf": "RN"
+  },
+  {
+    "cidade": "Recife",
+    "uf": "PE"
+  },
+  {
+    "cidade": "Gramado",
+    "uf": "RS"
+  },
+  {
+    "cidade": "Canela",
+    "uf": "RS"
+  },
+  {
+    "cidade": "Ouro Preto",
+    "uf": "MG"
+  },
+  {
+    "cidade": "Paraty",
+    "uf": "RJ"
+  },
+  {
+    "cidade": "Manaus",
+    "uf": "AM"
+  },
+  {
+    "cidade": "Belém",
+    "uf": "PA"
+  },
+  {
+    "cidade": "Bonito",
+    "uf": "MS"
+  },
+  {
+    "cidade": "Brasília",
+    "uf": "DF"
+  }
+]

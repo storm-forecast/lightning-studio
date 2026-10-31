@@ -215,3 +215,32 @@ Mantenha a distinção entre dados locais, áreas próximas e cobertura regional
 Use sempre UTC nos horários exibidos e narrados. Converta datas técnicas como
 2026-10-31T14:30:00Z para 31/10/2026 às 14:30 UTC; não leia a letra Z.
 Preserve o instante real, a data e o período. Metadados técnicos podem manter ISO.
+
+## Lugares de destaque e cidades turísticas
+
+Em cenas locais, diga apenas “Entre os lugares de destaque está [cidade]”.
+Não use “maior risco” como sinônimo de destaque editorial.
+
+A lista de atenção está em `templates/cidades-turisticas.json`: Rio de Janeiro,
+São Paulo, Salvador, Florianópolis, Foz do Iguaçu, Fortaleza, Natal, Recife,
+Gramado, Canela, Ouro Preto, Paraty, Manaus, Belém, Bonito (MS) e Brasília.
+Nas previsões diárias e no curto prazo, cite essas cidades quando houver
+informação meteorológica relevante comprovada no produto e período exibidos.
+Não é obrigatório percorrer a lista nem citar atrações turísticas. A prioridade
+continua sendo a relevância meteorológica, inclusive fora desses destinos.
+Sem dados, não declare tempo bom, ausência de risco ou ocorrência confirmada.
+A ausência na lista dos máximos não comprova ausência de fenômenos na cidade.
+Polígonos sem associação geográfica não autorizam citar cidades. A seleção
+atual usa as evidências já disponíveis; não representa consulta completa de
+todos os destinos em cada atualização.
+
+## Otimização sem redução editorial
+
+Todas as cenas, mapas, falas e métricas são preservados. A síntese de voz usa
+até duas cenas simultâneas (VIDEO_TTS_WORKERS=1 desativa o paralelismo), e os
+áudios voltam à ordem original antes da montagem. O cache verifica texto, voz
+e velocidade; alteração de velocidade reaproveita só o áudio bruto correto.
+O áudio final PCM mono de 16 kHz é reutilizado sem reconversão antes do Wav2Lip.
+O workflow reaproveita downloads de dependências e o checkpoint, mantendo a
+verificação SHA-256 do modelo na instalação. Dados meteorológicos não são
+reutilizados entre boletins por esse cache.

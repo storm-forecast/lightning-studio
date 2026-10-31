@@ -1,4 +1,4 @@
-# Vestuário diário e boletins a cada duas horas
+# Vestuário diário e agendamento
 
 ## O que foi preparado
 
@@ -74,3 +74,12 @@ O download do modelo utilizado foi:
 O modelo labial permanece necessário no worker, com as limitações e licença
 já documentadas no template oficial. O vestuário diário não resolve essa etapa
 nem reduz o custo de sincronizar novas falas.
+
+## Agenda ativa no GitHub Actions
+
+Seis gerações por dia, no horário de Brasília (America/Sao_Paulo):
+05:30, 09:00, 12:00, 13:00, 14:00 e 15:00.
+Os cron correspondentes são 08:30 UTC e 12:00, 15:00, 16:00, 17:00 e 18:00 UTC.
+O upload ocorre após a renderização; disparos podem atrasar no GitHub.
+A opção de intervalo do worker local/Render descrita acima permanece opcional
+e não deve ser ativada simultaneamente para evitar gerações duplicadas.

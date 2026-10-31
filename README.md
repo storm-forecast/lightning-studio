@@ -84,9 +84,15 @@ O deploy online depende de conectar este repositório ao provedor de hospedagem.
 
 ## Geração gratuita no GitHub Actions
 
-O workflow remoto gera um boletim leve a cada duas horas e publica um artefato
+O workflow remoto inicia boletins diariamente às **05:30, 09:00, 12:00, 13:00,
+14:00 e 15:00, no horário de Brasília**, e publica um artefato
 temporário por 1 dia na aba **Actions**. Em **Settings → Secrets and variables
 → Actions**, crie `WAV2LIP_CHECKPOINT_URL` com o link público do pacote do
 modelo. Não envie o ZIP nem tokens ao Git. O agendamento é uma conveniência:
 execute também manualmente em **Actions → Generate weather bulletin → Run workflow**
 quando precisar de uma publicação imediata.
+
+Os horários acima são de início da geração. O envio ao YouTube ocorre após
+concluir o vídeo. O GitHub Actions pode atrasar disparos; não há garantia de
+publicação no minuto marcado. O agendamento remoto substitui a antiga cadência
+de duas horas e mantém a execução manual disponível.

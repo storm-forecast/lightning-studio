@@ -133,8 +133,7 @@ demais regiões, sem dar duração igual a todas.
 Use de 5 a 7 frases curtas, até 120 palavras por panorama nacional. Cite estados
 e localidades apenas com evidência e enquadramento regional confirmados.
 Uma lista de máximos locais não representa cobertura completa das cinco regiões.
-Agrupe as regiões sem dados e informe essa limitação uma vez, sem afirmar que
-estão sem risco ou com tempo tranquilo. Não invente um destaque para preencher
+Omita regiões sem dados no panorama, sem afirmar que estão sem risco ou com tempo tranquilo. Não invente um destaque para preencher
 uma região. Nos roteiros de reserva, preserve a mesma cautela, sem criar
 informações regionais ausentes.
 
@@ -238,7 +237,7 @@ análise regional completa, informe falta de detalhamento, sem negar precipitaç
 
 Na legenda diária de probabilidade, use “Probabilidade diária de raios”. A
 estatística e as cores do produto continuam preservadas nos dados.
-Ao apresentar UTC, mostre também a conversão para o horário de Brasília.
+Na narração, apresente somente o horário de Brasília. UTC permanece nos metadados técnicos.
 Para horários atuais, Brasília está três horas atrás de UTC: 15:00 UTC é
 12:00 em Brasília. Inclua a data anterior quando a conversão atravessar a
 meia-noite, e use as datas reais da janela para não confundir o dia previsto.
@@ -265,3 +264,16 @@ Raios observados exigem contagem positiva na janela indicada; contagens de área
 próximas não representam todo o município. Não misture os três produtos nem
 transfira risco de um estado inteiro para uma cidade. A seleção não garante
 cobertura de todos os destinos fora dos polígonos capturados ou dos dados recebidos.
+
+## Narração simples, com destaques e precaução
+
+Na fala, use somente o horário de Brasília, com a data local correta quando
+houver mudança de dia. Não leia UTC, Z nem a conversão entre dois fusos.
+Mantenha a validade uma vez por período; preserve UTC nos dados técnicos.
+Não enumere regiões sem dados: destaque apenas locais com informações
+confirmadas. Isso não autoriza dizer que nas demais regiões não há risco.
+Se toda uma cena estiver indisponível, informe a limitação brevemente.
+Nas regiões com raios observados ou severidade, oriente a população a se
+precaver e buscar abrigo seguro. Nas áreas com potencial de alagamento,
+oriente a evitar vias alagadas e acompanhar a Defesa Civil, sem afirmar
+que o alagamento ocorreu nem criar um alerta oficial.

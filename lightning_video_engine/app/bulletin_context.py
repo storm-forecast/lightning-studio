@@ -114,3 +114,42 @@ def readable_times(text, include_brasilia=False):
             return match.group() + f' ({local // 60:02d}:{local % 60:02d} no horário de Brasília{day})'
         text = re.sub(r'\b(\d{1,2}):(\d{2}) UTC(?! \()', clock, text)
     return text
+
+
+def spoken_brasilia(text):
+    """Use a single timezone in speech, including resumed ISO/dual-time scripts."""
+    text = readable_times(text, include_brasilia=True)
+    # Prefer the already-computed local date, especially around midnight.
+    text = re.sub(r'\d{2}/\d{2}/\d{4} às \d{2}:\d{2} UTC \((\d{2}:\d{2}) de (\d{2}/\d{2}/\d{4}), horário de Brasília\)',
+                  r'\2 às \1, no horário de Brasília', text)
+    text = re.sub(r'\b\d{1,2}:\d{2} UTC \((\d{2}:\d{2}) no horário de Brasília([^)]*)\)',
+                  r'\1 no horário de Brasília\2', text)
+    return text
+
+
+def focus_on_available_regions(text):
+    """Omit regional no-data filler; never reinterpret it as a negative forecast."""
+    import unicodedata
+    parts = re.split(r'(?<=[.!?;])\s+', text)
+    kept = []
+    for part in parts:
+        normalized = ''.join(c for c in unicodedata.normalize('NFD', part.casefold())
+                             if unicodedata.category(c) != 'Mn')
+        region = re.search(r'\b(?:sul|sudeste|nordeste|centro[- ]oeste|norte)\b', normalized)
+        missing = re.search(r'sem (?:dados|informacoes|detalhamento)|nao (?:ha|temos|existem|dispomos de) (?:dados|informacoes)|falt[a-z]* (?:dados|informacoes|detalhamento)|nao foi possivel (?:confirmar|detalhar)', normalized)
+        if region and missing:
+            continue
+        kept.append(part)
+    return ' '.join(kept).strip()
+
+
+def observed_precaution(scene):
+    if scene.id != '06-observado' or not scene.available:
+        return ''
+    rows = scene.evidence.get('observed', {}).get('regioes', [])
+    names = [x['cidade'] for x in rows if x.get('pais') == 'Brasil' and x.get('cidade')
+             and isinstance(x.get('raios'), (int, float)) and x['raios'] > 0][:3]
+    if not names:
+        return ''
+    return ('À população nas áreas próximas a ' + ', '.join(dict.fromkeys(names)) +
+            ': procure abrigo em construção fechada e evite árvores, áreas abertas, praias e piscinas durante os raios.')

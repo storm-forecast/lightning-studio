@@ -22,7 +22,10 @@ def flood_copy(scene):
         return ''
     product = 'severidade no monitoramento' if scene.id == '05-agora' else 'potencial de alagamento'
     caveat = ('que já ocorreu alagamento' if scene.id == '07-alagamento' else 'danos confirmados')
+    precaution = ('À população dessas regiões: evite vias alagadas e acompanhe os avisos da Defesa Civil.'
+                  if scene.id == '07-alagamento' else
+                  'À população dessas regiões: redobre a atenção, procure abrigo seguro durante tempestades e acompanhe os avisos da Defesa Civil.')
     return ('As áreas destacadas para análise de ' + product + ' ficam na região de ' +
             '; '.join(names) + '. Essas localidades são referências geográficas próximas às áreas '
             'do mapa; não significa que todo o município será afetado nem confirma ' + caveat + '. '
-            'Não atravesse vias alagadas e acompanhe os avisos da Defesa Civil.')
+            + precaution)

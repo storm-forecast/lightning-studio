@@ -16,7 +16,7 @@ from .lightning_agent import LightningAgentClient
 from .speech import prepare_scene_audios
 from .flood_narration import flood_copy
 from .tourism import tourism_direction, tourism_evidence, observed_tourism_copy
-from .bulletin_context import brazilian_highlights, add_time_reference, local_recommendations, readable_times
+from .bulletin_context import brazilian_highlights, add_time_reference, local_recommendations, readable_times, spoken_brasilia, focus_on_available_regions, observed_precaution
 from .editorial import regional_scene_direction, validate_scene_evidence
 from .official import render_official
 from .wardrobe import wardrobe_for_job
@@ -272,7 +272,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             instruction=directives.get(s.id,f'Explique somente a probabilidade de raios (%) para o local estruturado informado. Use o nome Previsão de Raios, sem mencionar modelos, inteligência artificial, parâmetros convectivos ou chuva. Diga apenas: Entre os lugares de destaque está, seguido do nome deste local. Não o classifique como um dos maiores riscos sem comparação comprovada. Não mencione contagens ou acumulados de raios. Confirme nome/estado e não use uma cidade diferente.')
             regional_direction = regional_scene_direction(s.id) + ' ' + tourism_direction(s)
             question=(f'Siga as regras do prompt editorial salvo:\n{prompt.split("## Regras de evidência")[1].split("## Sequência editorial")[0]}\n\nAGORA produza SOMENTE a fala da cena {s.id}, sem títulos, markdown, JSON ou listas. '
-                'Não pronuncie o nome do canal nesta cena; ele será dito uma única vez na CTA final. Vá direto à informação meteorológica. Use português brasileiro natural, dinâmico e profissional. Não narre datas de validade nem horários nesta resposta: o gerador acrescentará a referência temporal apenas quando necessário, sem repetir períodos iguais. Faça destaques concretos coerentes com esta imagem; não repita outras seções. '
+                'Não pronuncie o nome do canal nesta cena; ele será dito uma única vez na CTA final. Vá direto à informação meteorológica. Use português brasileiro natural, dinâmico e profissional. Cite somente regiões e localidades com informação confirmada. Não enumere regiões sem dados. Nas áreas afetadas, inclua uma precaução breve coerente com o perigo. Não narre datas de validade nem horários nesta resposta: o gerador acrescentará a referência temporal apenas quando necessário, sem repetir períodos iguais. Faça destaques concretos coerentes com esta imagem; não repita outras seções. '
                 'O foco do boletim é o Brasil, suas cidades, estados e cinco regiões. A América do Sul serve apenas como contexto breve. Nunca cite localidades, países, dados ou fenômenos de outros continentes. '
                 f'{regional_direction} {instruction} Camada selecionada: {s.view}. Probabilidade em porcentagem exige probabilidade; quantidade/acumulado de raios exige deterministico. Nunca misture as duas métricas numa cena.')
             narration_evidence = {
@@ -297,6 +297,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             contextual_advice = local_recommendations(specs)
             if contextual_advice:
                 s.narration = contextual_advice
+        s.narration = focus_on_available_regions(s.narration) or fallback_narration(s, presentation_date)
         try:
             validate_scene_evidence(s)
         except ValueError as exc:
@@ -331,9 +332,12 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
         tourist_observations = observed_tourism_copy(s)
         if tourist_observations and not all(x['cidade'].casefold() in s.narration.casefold() for x in tourism_evidence(s)):
             s.narration += ' ' + tourist_observations
+        precaution = observed_precaution(s)
+        if precaution and precaution not in s.narration:
+            s.narration += ' ' + precaution
         add_time_reference(s, spoken_periods)
         validate_scene_evidence(s)
-        s.narration = readable_times(channel_narration(s.narration, s.id), include_brasilia=True)
+        s.narration = spoken_brasilia(channel_narration(s.narration, s.id))
         textfile.write_text(s.narration)
         if any(x in s.narration.lower() for x in ('groq não respondeu','muitas perguntas','tente de novo')):
             raise RuntimeError(f'{s.id}: resposta técnica não pode ser narrada')

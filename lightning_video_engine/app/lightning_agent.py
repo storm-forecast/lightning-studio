@@ -19,6 +19,16 @@ class LightningAgentClient:
     def __init__(self, base_url: str, app_url: str):
         self.base_url = base_url.rstrip("/")
         self.app_url = app_url
+        # Public editorial endpoints rate-limit bursts. CI runs use a small
+        # interval so a long bulletin finishes instead of losing its last scenes.
+        self.min_interval = max(0.0, float(os.environ.get('VIDEO_AGENT_MIN_INTERVAL', '0')))
+        self._last_request_at = 0.0
+
+    def _pace(self) -> None:
+        wait = self.min_interval - (time.monotonic() - self._last_request_at)
+        if wait > 0:
+            time.sleep(wait)
+        self._last_request_at = time.monotonic()
 
     def mapa(self, product: str) -> bytes:
         """Download exactly one allowlisted product from lightning-agent."""
@@ -55,6 +65,7 @@ class LightningAgentClient:
             method="POST",
         )
         for attempt in range(3):
+            self._pace()
             with urlopen(request, timeout=180) as response:
                 result = json.loads(response.read().decode("utf-8"))
             answer = str(result.get('resposta', ''))
@@ -64,7 +75,9 @@ class LightningAgentClient:
                 break
             if attempt == 2:
                 raise RuntimeError('agente sem resposta editorial válida após três tentativas')
-            time.sleep(20)
+            # The response is a service-rate limit, not editorial evidence.
+            # Increase the delay on each retry instead of narrating it.
+            time.sleep(30 * (attempt + 1))
 
         answer = result.get("resposta")
         if not isinstance(answer, str) or not answer.strip():

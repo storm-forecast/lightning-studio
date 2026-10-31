@@ -23,6 +23,7 @@ jobs:
       VIDEO_AUTOSTART: "false"
       VIDEO_OUTPUT_DIR: output
       VIDEO_TIMEZONE: America/Belem
+      VIDEO_AGENT_MIN_INTERVAL: "12"
       CHROMIUM_BIN: ${{ github.workspace }}/.cache/chromium/chrome
       WAV2LIP_CHECKPOINT_URL: ${{ secrets.WAV2LIP_CHECKPOINT_URL }}
       LIPSYNC_PYTHON: ${{ github.workspace }}/.local/venv/bin/python

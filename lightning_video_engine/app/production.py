@@ -74,11 +74,18 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
     elif discovery.is_file():
         places=json.loads(discovery.read_text())
     else:
-        selection=client.perguntar('Selecione de dois a três municípios ou regiões brasileiras com maior potencial previsto de descargas elétricas pela IA com parâmetros convectivos do ECENS. Use somente a evidência atual. Responda SOMENTE JSON {"locais":[{"nome":"Cidade, UF","fenomeno":"raios","motivo":"evidência curta"}]}. Não invente. Se insuficiente, use os locais confirmados disponíveis.')
+        selection_prompt='Selecione de dois a três municípios ou regiões brasileiras com maior potencial previsto de descargas elétricas pela IA com parâmetros convectivos do ECENS. Use somente a evidência atual. Responda SOMENTE JSON válido, sem markdown nem texto adicional: {"locais":[{"nome":"Cidade, UF","fenomeno":"raios","motivo":"evidência curta"}]}. Não invente. Se insuficiente, use os locais confirmados disponíveis.'
+        selection=client.perguntar(selection_prompt)
         (directory/'selecao-agente.json').write_text(json.dumps(selection,ensure_ascii=False,indent=2))
         try:
             options=json.loads(selection['resposta'].strip().removeprefix('```json').removesuffix('```')).get('locais',[])[:3]
         except (ValueError,AttributeError): options=[]
+        if not options:
+            selection=client.perguntar(selection_prompt+' A resposta anterior não pôde ser lida; devolva somente o JSON solicitado.')
+            (directory/'selecao-agente-tentativa-2.json').write_text(json.dumps(selection,ensure_ascii=False,indent=2))
+            try:
+                options=json.loads(selection['resposta'].strip().removeprefix('```json').removesuffix('```')).get('locais',[])[:3]
+            except (ValueError,AttributeError): options=[]
         places=[]
         for option in options:
             result=client.perguntar('Localize e mostre a previsão de raios da IA com parâmetros convectivos do ECENS para '+option['nome']+'. Use o local geográfico estruturado na resposta e confirme o estado, sem inventar coordenadas.')
@@ -150,11 +157,11 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
         else:
             presentation_date=(presentation_at or datetime.now(timezone.utc)).astimezone(ZoneInfo('America/Belem')).strftime('%d/%m/%Y')
             directives={
-                '01-chuva':f'Abra com uma introdução jornalística curta usando a data {presentation_date}. Diga que a prioridade é informar a população para prevenção de riscos, proteção de vidas e redução dos impactos de eventos extremos. Em seguida, fale somente de chuva prevista exclusivamente pelo {ECENS_EDITORIAL_NAME} para América do Sul, citando os acumulados e regiões que estão visíveis na camada. A camada está disponível: nunca diga que não há acumulados, que os valores estão indisponíveis ou que não é possível avaliar a chuva quando a legenda/mapa exibir valores. Não associe alagamento confirmado.',
-                '02-ecens':f'Explique que os raios são previstos pelo modelo de inteligência artificial usando parâmetros convectivos do {ECENS_EDITORIAL_NAME}, não uma saída direta de raios do modelo meteorológico. Para América do Sul, destacando países/regiões confirmados. Não use raios observados.',
-                '03-risco':f'Explique as áreas de risco de raios geradas pela IA com parâmetros convectivos do {ECENS_EDITORIAL_NAME}; não declare severidade ou granizo com base nessa camada.',
+                '01-chuva':f'Abra com uma introdução jornalística curta usando a data {presentation_date}. Diga que a prioridade é informar a população para prevenção de riscos, proteção de vidas e redução dos impactos de eventos extremos. Na primeira menção, escreva explicitamente “{ECENS_EDITORIAL_NAME}”. Em seguida, fale somente de chuva prevista por esse modelo para América do Sul, citando os acumulados e regiões que estão visíveis na camada. A camada está disponível: nunca diga que não há acumulados, que os valores estão indisponíveis ou que não é possível avaliar a chuva quando a legenda/mapa exibir valores. Não associe alagamento confirmado.',
+                '02-ecens':f'Na primeira menção, escreva explicitamente “{ECENS_EDITORIAL_NAME}”. Explique que os raios são previstos pelo modelo de inteligência artificial usando parâmetros convectivos desse modelo, não uma saída direta de raios do modelo meteorológico. Para América do Sul, destaque países/regiões confirmados. Não use raios observados.',
+                '03-risco':f'Explique as áreas de risco de raios geradas pela IA com parâmetros convectivos do {ECENS_EDITORIAL_NAME}; não use percentuais nesta cena de Área de Risco e não declare severidade ou granizo com base nessa camada.',
                 '05-agora':'Comece: Agora passamos das previsões para as condições atuais monitoradas. Explique os polígonos de severidade no Brasil sustentados pelos dados, sem radar na imagem.',
-                '06-observado':'Descreva atividade elétrica observada no Brasil confirmada pelos dados e horário do detector, sem misturar com previsão.',
+                '06-observado':'Descreva atividade elétrica observada no Brasil confirmada pelos dados e horário do detector, sem misturar com previsão. Não afirme que o evento ocorreu sem previsão prévia, pois essa comparação não é sustentada por esta camada.',
                 '07-alagamento':'Comece exatamente: Esta é uma previsão de risco de alagamento para as condições atuais, baseada no monitoramento e na análise de curtíssimo prazo. Não diga que alagou. Se não houver dados locais confirmados, diga isso.',
                 '08-extrap-0':'Diga exatamente: Esta é uma extrapolação da atividade de raios para as próximas duas horas, indicando a possível evolução e deslocamento das áreas de atividade elétrica. Acrescente que a camada combina raios e nuvens, e que este quadro mostra o ponto inicial, não uma previsão ECENS.',
                 '09-extrap-60':'A imagem é de +60 minutos. Explique que são áreas deslocadas pelo movimento medido, sem garantir formação ou enfraquecimento. Não invente direção ou localidades sem evidência.',

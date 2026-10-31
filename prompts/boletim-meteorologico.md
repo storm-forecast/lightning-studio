@@ -7,8 +7,10 @@ disponíveis no TROVOX TEMPO. Use o template aprovado em
 
 ## Identidade do canal e encerramento obrigatório
 
-O nome do canal é **TROVOX TEMPO**. Use esse nome na apresentação, na
-narração, nos títulos e nos elementos visuais de todos os novos vídeos.
+O nome do canal é **TROVOX TEMPO**. Pronuncie o nome apenas uma vez em
+todo o vídeo, na CTA de encerramento após as recomendações. Não o repita
+na abertura nem nas cenas meteorológicas. A marca pode permanecer nos títulos
+e nos elementos visuais. Vá direto aos destaques, sem repetir a identificação.
 Preserve as atribuições técnicas dos dados e os endereços da API.
 
 Após as recomendações meteorológicas, encerre cada vídeo de forma natural,

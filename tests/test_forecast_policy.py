@@ -73,3 +73,14 @@ class NarrationLayerTests(unittest.TestCase):
 
     def test_spoken_count_requires_deterministic_map(self):
         self.assertEqual(narration_view(self.scene('São previstos mil raios.',view='probabilidade')),'deterministico')
+
+
+class ChannelNarrationTests(unittest.TestCase):
+    def test_channel_name_occurs_once_across_scenes_and_resume(self):
+        from lightning_video_engine.app.production import channel_narration, CLOSING_CTA
+        opening=channel_narration('Bem-vindo ao Trovox Tempo. Previsão de Raios.', '02-ecens')
+        closing=channel_narration('Acompanhe o TROVOX TEMPO. '+CLOSING_CTA, '11-recomendacoes')
+        self.assertEqual((opening+' '+closing).casefold().count('trovox tempo'), 1)
+        self.assertEqual(channel_narration(closing, '11-recomendacoes'), closing)
+        self.assertIn('Previsão de Raios.', opening)
+        self.assertTrue(closing.endswith(CLOSING_CTA))

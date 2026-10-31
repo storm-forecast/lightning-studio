@@ -182,7 +182,9 @@ limitação da consulta, sem afirmar que não há tempestades, severidade ou ris
 
 ## Legibilidade dos mapas — TROVOX TEMPO
 
-Base azul-escura com nomes claros, detalhes em ciano e legenda ampliada.
+Nas previsões, mantenha o mapa-base claro original para preservar a leitura
+dos nomes das cidades. Use detalhes em ciano e legenda ampliada. O fundo
+escuro fica restrito às cenas de monitoramento.
 O tratamento de contraste atua somente no mapa-base; as cores e os valores
 meteorológicos permanecem os do produto original. Atribuições ficam visíveis.
 Destaques locais têm marcador e nome permanente, com enquadramento do entorno
@@ -207,3 +209,9 @@ abrigo fechado e evitar áreas abertas durante tempestades; diante de potencial
 de alagamento, evitar vias alagadas. Não declare que a cidade já foi atingida
 com base em previsão nem atribua risco de alagamento a uma previsão de raios.
 Mantenha a distinção entre dados locais, áreas próximas e cobertura regional.
+
+## Horários consistentes na apresentação
+
+Use sempre UTC nos horários exibidos e narrados. Converta datas técnicas como
+2026-10-31T14:30:00Z para 31/10/2026 às 14:30 UTC; não leia a letra Z.
+Preserve o instante real, a data e o período. Metadados técnicos podem manter ISO.

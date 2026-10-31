@@ -14,7 +14,7 @@ from .segments import Segment, join_audio, save_plan
 from .directed_scenes import capture_segments
 from .lightning_agent import LightningAgentClient
 from .speech import narrate
-from .bulletin_context import brazilian_highlights, add_time_reference, local_recommendations
+from .bulletin_context import brazilian_highlights, add_time_reference, local_recommendations, readable_times
 from .editorial import regional_scene_direction, validate_scene_evidence
 from .official import render_official
 from .wardrobe import wardrobe_for_job
@@ -60,6 +60,7 @@ def stamp(s):
         period=f"Raios até {n.get('raios_ate','não informado')} | Nuvens: {n.get('nuvens_de','não informado')}"
     if s.category in ('previsao','destaque') and s.view in ('deterministico','risco','probabilidade'):
         period = LIGHTNING_METHOD + ' | ' + period
+    period = readable_times(period)
     d.text((22,43),textwrap.shorten(period,145),font=ImageFont.truetype(font,17),fill='#b9d6e2')
     im.save(s.image)
 
@@ -307,7 +308,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             validate_forecast_text(s)
         add_time_reference(s)
         validate_scene_evidence(s)
-        s.narration = channel_narration(s.narration, s.id)
+        s.narration = readable_times(channel_narration(s.narration, s.id))
         textfile.write_text(s.narration)
         if any(x in s.narration.lower() for x in ('groq não respondeu','muitas perguntas','tente de novo')):
             raise RuntimeError(f'{s.id}: resposta técnica não pode ser narrada')

@@ -327,3 +327,9 @@ abrigo fechado e evitar áreas abertas durante tempestades; diante de potencial
 de alagamento, evitar vias alagadas. Não declare que a cidade já foi atingida
 com base em previsão nem atribua risco de alagamento a uma previsão de raios.
 Mantenha a distinção entre dados locais, áreas próximas e cobertura regional.
+
+## Horários consistentes na apresentação
+
+Use sempre UTC nos horários exibidos e narrados. Converta datas técnicas como
+2026-10-31T14:30:00Z para 31/10/2026 às 14:30 UTC; não leia a letra Z.
+Preserve o instante real, a data e o período. Metadados técnicos podem manter ISO.

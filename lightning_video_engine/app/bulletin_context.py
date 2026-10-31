@@ -1,5 +1,6 @@
 """Concrete Brazilian places and spoken time references for each product."""
 from datetime import datetime
+import re
 
 
 def brazilian_highlights(scene):
@@ -74,3 +75,13 @@ def local_recommendations(segments):
     return ('Nas áreas destacadas na previsão de raios, como ' + '; '.join(names[:2]) +
             ', se houver tempestade, procure abrigo em uma construção fechada e evite árvores, '
             'áreas abertas, praias e piscinas. Não atravesse vias alagadas e acompanhe os avisos da Defesa Civil.')
+
+
+_ISO_TIMESTAMP = re.compile(r'\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})\b')
+
+
+def readable_times(text):
+    """Normalize presentation copy only; retain raw timestamps in evidence."""
+    text = _ISO_TIMESTAMP.sub(lambda m: spoken_utc(m.group()) or m.group(), str(text))
+    text = re.sub(r'\b(\d{1,2}:\d{2}(?::\d{2})?)\s*Z\b', r'\1 UTC', text)
+    return re.sub(r'\bUTC(?:\s+UTC)+\b', 'UTC', text)

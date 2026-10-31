@@ -58,3 +58,19 @@ class UsefulBulletinTests(unittest.TestCase):
     def test_missing_nowcasting_time_does_not_claim_current_conditions(self):
         scene = Segment('05-agora', 'Agora', 'nowcasting', 'severidade')
         self.assertIn('não pôde ser confirmada', time_reference(scene))
+
+
+class ReadableTimesTests(unittest.TestCase):
+    def test_z_and_offsets_use_the_same_utc_instant(self):
+        from lightning_video_engine.app.bulletin_context import readable_times
+        expected = '31/10/2026 às 14:30 UTC'
+        self.assertEqual(readable_times('2026-10-31T14:30:00Z'), expected)
+        self.assertEqual(readable_times('2026-10-31T11:30:00-03:00'), expected)
+
+    def test_midnight_conversion_preserves_day_and_removes_duplicate_utc(self):
+        from lightning_video_engine.app.bulletin_context import readable_times
+        self.assertEqual(readable_times('2026-10-31T23:30:00-03:00 UTC'), '01/11/2026 às 02:30 UTC')
+
+    def test_clock_z_and_unrelated_place_names(self):
+        from lightning_video_engine.app.bulletin_context import readable_times
+        self.assertEqual(readable_times('Zé Doca: 14:30Z; até 15:30 UTC.'), 'Zé Doca: 14:30 UTC; até 15:30 UTC.')

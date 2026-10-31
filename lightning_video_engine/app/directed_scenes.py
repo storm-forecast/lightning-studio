@@ -9,6 +9,9 @@ CLEAN_CSS = '''
 .leaflet-container { background:#091422!important; }
 /* Recolor only base tiles: meteorological pixels retain their original values. */
 .base-tiles img { filter:invert(1) hue-rotate(180deg) saturate(.24) brightness(.68) contrast(1.12)!important; }
+/* Forecasts retain the original light base so city labels stay readable. */
+.trovox-forecast .base-tiles img {filter:saturate(.55) brightness(1.03)!important;}
+.trovox-forecast .leaflet-container {background:#e8edf1!important;}
 .legend { font-size:20px!important; width:320px!important; max-width:320px!important;
  bottom:38px!important; left:auto!important; right:18px!important; padding:16px 18px!important;
  background:rgba(9,20,34,.97)!important; color:#f1f7ff!important;
@@ -46,6 +49,9 @@ def capture_segments(app_url: str, segments: list[Segment], directory: Path):
             if s.view == 'summary':
                 continue
             try:
+                forecast_scene = s.category in ('previsao', 'destaque')
+                page.emulate_media(color_scheme='light' if forecast_scene else 'dark')
+                page.evaluate('(enabled)=>document.documentElement.classList.toggle("trovox-forecast",enabled)', forecast_scene)
                 page.evaluate("""() => {
                     document.querySelector('#map-rail').dataset.open='true';
                     clearRegion();map.closePopup();map.options.zoomSnap=0.1;
@@ -120,17 +126,27 @@ def capture_segments(app_url: str, segments: list[Segment], directory: Path):
                         raise RuntimeError('rodapé genérico GFS não foi corrigido na captura ECENS')
                 style = page.add_style_tag(content=CLEAN_CSS)
                 page.evaluate("""()=>{map.invalidateSize({animate:false});renderLegend();
-                    if(typeof bordersLayer!=='undefined')bordersLayer.eachLayer(x=>{
-                        if(x.setStyle)x.setStyle({color:'#d8efff',opacity:.7,weight:1.1});
-                    });
                 }""")
+                # Normalize only visible legend copy, never source data or layer URLs.
+                page.evaluate(r'''()=>{
+                    const root=document.querySelector('.legend');if(!root)return;
+                    const formatter=new Intl.DateTimeFormat('pt-BR',{timeZone:'UTC',
+                        day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+                    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+                    let node;while(node=walker.nextNode()){
+                        node.nodeValue=node.nodeValue.replace(/\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})\b/g,
+                            value=>{const d=new Date(value);return Number.isNaN(d.getTime())?value:formatter.format(d)+' UTC';})
+                            .replace(/\b(\d{1,2}:\d{2}(?::\d{2})?)\s*Z\b/g,'$1 UTC')
+                            .replace(/\bUTC(?:\s+UTC)+\b/g,'UTC');
+                    }
+                }''')
                 # Hide menus by their actual UI state as well as the capture CSS.
                 page.evaluate("document.querySelector('#map-rail').dataset.open='false'")
                 page.wait_for_timeout(500)
                 image = directory/f'{s.id}.png'
                 page.locator('.stage').screenshot(path=str(image))
                 style.evaluate('(e)=>e.remove()')
-                s.metadata['presentation_style'] = 'trovox-dark-v1'
+                s.metadata['presentation_style'] = 'trovox-forecast-light-v1' if forecast_scene else 'trovox-dark-v1'
                 s.image = str(image.resolve())
             except Exception as exc:
                 s.available = False

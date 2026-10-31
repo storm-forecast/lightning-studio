@@ -52,7 +52,7 @@ worker**. Para escalar, usar uma fila distribuída e uma única liderança de ag
 O serviço precisa estar rodando para agendar. Em produção, `VIDEO_OUTPUT_DIR`
 precisa estar em armazenamento persistente: `/tmp` não garante histórico após
 recriar o servidor. Configurar arquivos localmente não implanta nem mantém o
-servidor online. Não foi configurada publicação automática no YouTube.
+servidor online. A publicação no YouTube está em `docs/youtube.md`.
 
 ## Preparar novamente as cores
 

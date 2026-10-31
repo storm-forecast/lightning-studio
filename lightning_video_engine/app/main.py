@@ -19,6 +19,7 @@ from .production import produce
 from .job_store import JobStore
 from .scheduling import interval_slot
 from .wardrobe import wardrobe_for_job
+from .youtube import QuotaExceeded, publish_bulletin
 
 
 API = os.environ.get("LIGHTNING_API_URL", "https://lightning-agent.onrender.com").rstrip("/")
@@ -52,6 +53,7 @@ class Job:
     error: Optional[str] = None
     output: Optional[str] = None
     wardrobe: Optional[dict] = None
+    youtube: Optional[dict] = None
 
 
 class Jobs:
@@ -109,6 +111,7 @@ class Jobs:
             try:
                 job.output = render(job)
                 job.state = State.done
+                job.youtube = publish(job)
             except Exception as exc:  # return a job error; never kill the worker thread
                 job.state, job.error = State.failed, str(exc)
                 import logging
@@ -174,6 +177,21 @@ def render(job: Job) -> str:
     job.wardrobe = wardrobe_for_job(OUTPUT / job.id, datetime.fromisoformat(job.created_at))
     return str(produce(OUTPUT / job.id, api=API, app_url=APP_URL, title=job.request.titulo,
                        presentation_at=datetime.fromisoformat(job.created_at)))
+
+
+def publish(job: Job) -> Optional[dict]:
+    """Upload a finished bulletin; a YouTube failure is recorded without failing the video."""
+    if not os.environ.get("YOUTUBE_REFRESH_TOKEN"):
+        return None
+    import logging
+    try:
+        return publish_bulletin(Path(job.output).parent, datetime.fromisoformat(job.created_at))
+    except QuotaExceeded as exc:
+        logging.warning("boletim %s não enviado ao YouTube: %s", job.id, exc)
+        return {"error": str(exc), "quota": True}
+    except Exception as exc:
+        logging.exception("falha ao enviar boletim %s ao YouTube", job.id)
+        return {"error": str(exc)}
 
 
 jobs = Jobs()

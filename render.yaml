@@ -32,3 +32,14 @@ services:
         value: https://drive.google.com/file/d/1UC_U4l66nZbQE5Fz0SaQ77Oxa6JBGfRf/view?usp=drive_link
       - key: VIDEO_OUTPUT_DIR
         value: /data/output
+      # OAuth do canal: preencher no painel do Render (docs/youtube.md).
+      - key: YOUTUBE_CLIENT_ID
+        sync: false
+      - key: YOUTUBE_CLIENT_SECRET
+        sync: false
+      - key: YOUTUBE_REFRESH_TOKEN
+        sync: false
+      - key: YOUTUBE_CHANNEL_ID
+        value: UCOrGMudYslWWWmpW8pu3UDg
+      - key: YOUTUBE_PRIVACY
+        value: private

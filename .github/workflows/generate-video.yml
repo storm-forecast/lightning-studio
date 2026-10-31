@@ -29,6 +29,11 @@ jobs:
       WAV2LIP_CHECKPOINT: ${{ github.workspace }}/.cache/wav2lip/wav2lip-compatible.pth
       WAV2LIP_CHECKPOINT_URL: ${{ secrets.WAV2LIP_CHECKPOINT_URL }}
       LIPSYNC_PYTHON: ${{ github.workspace }}/.local/venv/bin/python
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+      YOUTUBE_CHANNEL_ID: ${{ vars.YOUTUBE_CHANNEL_ID || 'UCOrGMudYslWWWmpW8pu3UDg' }}
+      YOUTUBE_PRIVACY: ${{ vars.YOUTUBE_PRIVACY || 'private' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -66,6 +71,12 @@ jobs:
         run: |
           stamp="$(date -u +%Y%m%dT%H%M%SZ)"
           .local/venv/bin/python scripts/produce_bulletin.py --directory "output/trovox-${stamp}"
+          echo "BULLETIN_DIR=output/trovox-${stamp}" >> "$GITHUB_ENV"
+
+      # Without the OAuth secrets the bulletin is still kept as an artifact.
+      - name: Upload to YouTube
+        if: success() && env.YOUTUBE_REFRESH_TOKEN != ''
+        run: python scripts/upload_youtube.py --directory "$BULLETIN_DIR"
 
       - name: Upload video for download
         if: always()

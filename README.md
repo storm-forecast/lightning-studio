@@ -79,7 +79,7 @@ do ECENS. Cada cena tem áudio e tempo medidos, com sincronização labial e mú
 O código está em `lightning_video_engine/app/`, com scripts, prompts e testes
 nas pastas correspondentes. `.local`, `output` e `deploy-assets` são ignorados
 pelo Git e pelo contexto Docker. O modelo mantém a restrição comercial de
-Wav2Lip. Publicação automática no YouTube ainda não está implementada.
+Wav2Lip. Publicação automática no YouTube: ver `docs/youtube.md`.
 O deploy online depende de conectar este repositório ao provedor de hospedagem.
 
 ## Geração gratuita no GitHub Actions

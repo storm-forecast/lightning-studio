@@ -212,7 +212,8 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             }
             instruction=directives.get(s.id,f'Explique somente a probabilidade de raios (%) da IA com parâmetros convectivos do {ECENS_EDITORIAL_NAME} para o local estruturado informado. Apresente este local como um dos principais pontos brasileiros de maior potencial de descargas elétricas na previsão. Não mencione contagens ou acumulados de raios. Confirme nome/estado e não use uma cidade diferente.')
             question=(f'Siga as regras do prompt editorial salvo:\n{prompt.split("## Regras de evidência")[1].split("## Sequência editorial")[0]}\n\nAGORA produza SOMENTE a fala da cena {s.id}, sem títulos, markdown, JSON ou listas. '
-                'Use português brasileiro natural, 2 frases e no máximo 45 palavras, exceto as frases obrigatórias. Não repita outras seções. '
+                'Use português brasileiro natural, 2 frases e no máximo 45 palavras, exceto as frases obrigatórias. Faça um destaque breve e concreto coerente com esta imagem; não repita outras seções. '
+                'O escopo geográfico obrigatório é América do Sul, com atenção especial ao Brasil. Nunca cite localidades, países, dados ou fenômenos de outros continentes. '
                 f'{instruction} Camada selecionada: {s.view}. Probabilidade em porcentagem exige probabilidade; quantidade/acumulado de raios exige deterministico. Nunca misture as duas métricas numa cena.\nA imagem validada contém estes metadados: '+json.dumps({k:v for k,v in s.metadata.items() if k in ('view','product','period','legend','polygon_count','bounds')},ensure_ascii=False)+
                 '\nDestaque local/evidências: '+json.dumps(s.evidence,ensure_ascii=False))
             try:

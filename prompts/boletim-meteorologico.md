@@ -12,6 +12,12 @@ Brasil, as condições atuais monitoradas, o potencial de alagamento, a
 extrapolação de raios para até duas horas e as recomendações à população.
 A fala deve coincidir com a imagem e com o período de validade exibido.
 
+Todo o boletim é restrito à **América do Sul**, com atenção especial ao
+**Brasil**. Não cite países, cidades, acumulados, raios ou fenômenos de outros
+continentes, mesmo quando uma fonte global tiver esses dados. Em cada seção,
+faça um destaque breve, objetivo e verificável na camada exibida; não repita a
+mesma lista de locais em todas as cenas.
+
 ## Introdução jornalística
 
 Inicie a apresentação com uma frase curta, no estilo de um jornalista de

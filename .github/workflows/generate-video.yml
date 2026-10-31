@@ -76,7 +76,7 @@ jobs:
       # Without the OAuth secrets the bulletin is still kept as an artifact.
       - name: Upload to YouTube
         if: success() && env.YOUTUBE_REFRESH_TOKEN != ''
-        run: python scripts/upload_youtube.py --directory "$BULLETIN_DIR"
+        run: .local/venv/bin/python scripts/upload_youtube.py --directory "$BULLETIN_DIR"
 
       - name: Upload video for download
         if: always()

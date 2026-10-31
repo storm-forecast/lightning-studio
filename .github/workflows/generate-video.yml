@@ -1,0 +1,64 @@
+name: Generate weather bulletin
+
+on:
+  workflow_dispatch:
+  # :17 avoids GitHub's busiest top-of-hour window. Times are UTC; these slots
+  # remain every two hours and align to even hours in America/Belem.
+  schedule:
+    - cron: '17 1,3,5,7,9,11,13,15,17,19,21,23 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trovox-weather-video
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      VIDEO_PROFILE: lite
+      VIDEO_AUTOSTART: "false"
+      VIDEO_OUTPUT_DIR: output
+      VIDEO_TIMEZONE: America/Belem
+      CHROMIUM_BIN: ${{ github.workspace }}/.cache/chromium/chrome
+      WAV2LIP_CHECKPOINT_URL: ${{ secrets.WAV2LIP_CHECKPOINT_URL }}
+      LIPSYNC_PYTHON: ${{ github.workspace }}/.local/venv/bin/python
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install video and browser dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core libsndfile1
+          python -m pip install --upgrade pip playwright
+          python -m playwright install chromium --with-deps
+          mkdir -p .cache/chromium
+          browser="$(find "$HOME/.cache/ms-playwright" -type f -name chrome | head -n 1)"
+          test -n "$browser"
+          ln -s "$browser" .cache/chromium/chrome
+
+      - name: Install validated renderer
+        run: |
+          test -n "$WAV2LIP_CHECKPOINT_URL" || { echo 'Configure o secret WAV2LIP_CHECKPOINT_URL'; exit 1; }
+          bash scripts/install_local.sh
+
+      - name: Generate optimized bulletin
+        run: |
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          .local/venv/bin/python scripts/produce_bulletin.py --directory "output/trovox-${stamp}"
+
+      - name: Upload video for download
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trovox-weather-bulletin-${{ github.run_id }}
+          path: output/**
+          if-no-files-found: warn
+          retention-days: 1

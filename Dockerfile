@@ -9,7 +9,7 @@ RUN python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
     && python -m pip install -r requirements.txt -r requirements-lipsync.txt
 ENV CHROMIUM_BIN=/usr/bin/chromium LIPSYNC_PYTHON=/usr/local/bin/python \
     WAV2LIP_ROOT=/opt/wav2lip WAV2LIP_CHECKPOINT=/data/models/wav2lip-compatible.pth \
-    VIDEO_OUTPUT_DIR=/data/output VIDEO_TIMEZONE=America/Belem VIDEO_INTERVAL_HOURS=2
+    VIDEO_OUTPUT_DIR=/data/output VIDEO_TIMEZONE=America/Belem VIDEO_PROFILE=lite VIDEO_AUTOSTART=false
 COPY scripts ./scripts
 COPY deploy ./deploy
 RUN python scripts/bootstrap_runtime.py --code-only

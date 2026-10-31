@@ -22,8 +22,10 @@ do Drive ou uma URL direta/assinada. O arquivo é verificado pelo SHA-256 em
 
 No Render, `VIDEO_ENGINE_TOKEN` é gerado pelo Blueprint. Criar/consultar jobs
 exige `X-Video-Token`; a documentação fica em `/docs` e a saúde em `/health`.
-A geração fica programada a cada duas horas, no fuso de Belém. A roupa troca
-uma vez por dia, entre dez cores do mesmo corte profissional.
+O Render Free mantém somente a API: `VIDEO_AUTOSTART=false` evita renderização
+automática em uma instância de 512 MB. A geração remota é feita pelo workflow
+GitHub Actions em `.github/workflows/generate-video.yml`. A roupa troca uma vez
+por dia, entre dez cores do mesmo corte profissional.
 
 Persista `/data` para manter modelo, fila SQLite e vídeos entre deploys.
 Use uma única instância do worker e capacidade de memória suficiente para
@@ -53,7 +55,9 @@ bash scripts/start.sh
 
 O `.env` é carregado automaticamente. Variáveis já definidas pelo servidor
 prevalecem sobre ele. `.env.example` contém as opções sem segredos.
-`VIDEO_INTERVAL_HOURS=2` habilita a agenda e o job do intervalo atual ao iniciar.
+`VIDEO_AUTOSTART=true` e `VIDEO_INTERVAL_HOURS=2` habilitam a agenda apenas em
+um worker com memória suficiente. `VIDEO_PROFILE=lite` produz quatro cenas
+essenciais; `full` preserva a sequência editorial completa.
 
 ## Geração e testes
 
@@ -75,3 +79,12 @@ nas pastas correspondentes. `.local`, `output` e `deploy-assets` são ignorados
 pelo Git e pelo contexto Docker. O modelo mantém a restrição comercial de
 Wav2Lip. Publicação automática no YouTube ainda não está implementada.
 O deploy online depende de conectar este repositório ao provedor de hospedagem.
+
+## Geração gratuita no GitHub Actions
+
+O workflow remoto gera um boletim leve a cada duas horas e publica um artefato
+temporário por 1 dia na aba **Actions**. Em **Settings → Secrets and variables
+→ Actions**, crie `WAV2LIP_CHECKPOINT_URL` com o link público do pacote do
+modelo. Não envie o ZIP nem tokens ao Git. O agendamento é uma conveniência:
+execute também manualmente em **Actions → Generate weather bulletin → Run workflow**
+quando precisar de uma publicação imediata.

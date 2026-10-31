@@ -27,6 +27,7 @@ VISUAL_MODE = os.environ.get("VIDEO_VISUAL_MODE", "app")
 OUTPUT = Path(os.environ.get("VIDEO_OUTPUT_DIR", "/tmp/video-output"))
 TOKEN = os.environ.get("VIDEO_ENGINE_TOKEN", "")
 SCHEDULE_HOUR_UTC = os.environ.get("VIDEO_DAILY_HOUR_UTC", "")
+AUTOSTART = os.environ.get("VIDEO_AUTOSTART", "false").strip().lower() in {"1", "true", "yes"}
 
 class State(str, Enum):
     queued = "queued"
@@ -176,11 +177,14 @@ def render(job: Job) -> str:
 
 
 jobs = Jobs()
+# A Free web instance has 512 MB and is appropriate for the API only.  Rendering
+# is dispatched by GitHub Actions by default; opt in only on a provisioned worker.
 interval_hours = os.environ.get('VIDEO_INTERVAL_HOURS', '')
-if interval_hours:
-    IntervalScheduler(jobs, interval_hours, os.environ.get('VIDEO_TIMEZONE','America/Belem')).start()
-else:
-    DailyScheduler(jobs, SCHEDULE_HOUR_UTC).start()
+if AUTOSTART:
+    if interval_hours:
+        IntervalScheduler(jobs, interval_hours, os.environ.get('VIDEO_TIMEZONE','America/Belem')).start()
+    else:
+        DailyScheduler(jobs, SCHEDULE_HOUR_UTC).start()
 app = FastAPI(title="Lightning Studio API", version="0.1.0")
 
 
@@ -192,7 +196,8 @@ def guard(token: Optional[str]) -> None:
 @app.get("/health")
 def health():
     return {"status": "ok", "products": sorted(ALLOWED_PRODUCTS), "queue_size": jobs.queue.qsize(),
-            "visual_source": APP_URL, "visual_mode": VISUAL_MODE}
+            "visual_source": APP_URL, "visual_mode": VISUAL_MODE,
+            "renderer_profile": os.environ.get("VIDEO_PROFILE", "full"), "autostart": AUTOSTART}
 
 
 @app.post("/v1/videos", status_code=202)

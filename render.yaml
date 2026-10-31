@@ -14,8 +14,10 @@ services:
         value: app
       - key: VIDEO_ENGINE_TOKEN
         generateValue: true
-      - key: VIDEO_INTERVAL_HOURS
-        value: "2"
+      - key: VIDEO_AUTOSTART
+        value: "false"
+      - key: VIDEO_PROFILE
+        value: lite
       - key: VIDEO_TIMEZONE
         value: America/Belem
       - key: TTS_PROVIDER

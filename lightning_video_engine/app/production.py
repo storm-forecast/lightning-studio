@@ -58,12 +58,20 @@ def plain(text):
 
 def produce(directory: Path, *, api='https://lightning-agent.onrender.com', title='Boletim meteorológico | América do Sul', capture_only=False, app_url=None, presentation_at=None):
     directory=directory.resolve();directory.mkdir(parents=True,exist_ok=True)
+    profile=os.environ.get('VIDEO_PROFILE','full').strip().lower()
+    if profile not in {'full','lite'}:
+        raise ValueError('VIDEO_PROFILE deve ser full ou lite')
     selected_wardrobe = wardrobe_for_job(directory, presentation_at)
     client=LightningAgentClient(api,api+'/app/')
     prompt=BRIEF.read_text()
     (directory/'prompt-utilizado.md').write_text(prompt)
     discovery=directory/'destaques.json'
-    if discovery.is_file():
+    # The lightweight remote profile deliberately avoids two discovery calls and
+    # local/nowcasting scenes. It keeps the ECENS rain, deterministic lightning,
+    # lightning-risk and safety sequence, each with its matching map layer.
+    if profile == 'lite':
+        places=[]
+    elif discovery.is_file():
         places=json.loads(discovery.read_text())
     else:
         selection=client.perguntar('Selecione no máximo dois municípios brasileiros destacados pela previsão de raios de hoje gerada pela IA com parâmetros convectivos do ECENS. Responda SOMENTE JSON {"locais":[{"nome":"Cidade, UF","fenomeno":"raios","motivo":"evidência curta"}]}. Não invente. Se insuficiente, use {"locais":[]}.')
@@ -94,6 +102,10 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
         Segment('10-extrap-120','Extrapolação | +120 minutos','extrapolacao','extrapolacao','monitoramento',horizon=120),
         Segment('11-recomendacoes','Riscos e recomendações','recomendacao','summary'),
     ]
+    if profile == 'lite':
+        keep={'01-chuva','02-ecens','03-risco','11-recomendacoes'}
+        specs=[s for s in specs if s.id in keep]
+        print('Perfil leve: 4 cenas essenciais, sem consultas locais ou nowcasting.',flush=True)
     captures=directory/'capturas.json'
     if captures.is_file():
         specs=[Segment(**s) for s in json.loads(captures.read_text())]

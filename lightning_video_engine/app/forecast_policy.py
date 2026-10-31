@@ -4,7 +4,7 @@ import re
 # Editorial name used on screen and in narration. The final acronym preserves
 # the exact technical source identifier validated below.
 ECENS_EDITORIAL_NAME = 'modelo do Centro Europeu de Previsões Meteorológicas a Médio Prazo (ECMWF), o ECENS'
-LIGHTNING_METHOD = 'Modelo de IA com parâmetros convectivos do ' + ECENS_EDITORIAL_NAME
+LIGHTNING_METHOD = 'Previsão de Raios'
 
 
 def validate_forecasts(segments):
@@ -23,10 +23,12 @@ def validate_forecast_text(scene):
     if 'gfs' in scene.narration.casefold():
         raise ValueError(f'{scene.id}: narração antiga com fonte GFS; gere o áudio novamente')
     validate_narration_layer(scene)
-    if scene.id == '02-ecens':
+    if scene.view in ('deterministico', 'probabilidade', 'risco'):
         words = scene.narration.casefold()
-        if not ('convectiv' in words and 'ecens' in words and ('inteligência artificial' in words or ' ia ' in ' '+words+' ')):
-            raise ValueError('a abertura de raios deve explicar a IA e os parâmetros convectivos do ECENS')
+        if re.search(r'ecens|ecmwf|inteligência artificial|\bia\b|convectiv|parâmetros', words):
+            raise ValueError(f'{scene.id}: use apenas Previsão de Raios na narração, sem explicar o método')
+        if re.search(r'\bchuvas?\b|precipita|pluviom|milímetros|\bmm\b', words):
+            raise ValueError(f'{scene.id}: fala de chuva em uma cena de previsão de raios')
 
 
 def narration_view(scene):

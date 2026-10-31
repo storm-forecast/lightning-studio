@@ -11,12 +11,29 @@ class ForecastPolicyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'captura não confirma'):
             validate_forecasts([Segment('rain','Chuva','previsao','chuva-prevista','ecens',metadata={'source':'gfs'})])
 
-    def test_requires_explicit_ai_attribution_in_lightning_opening(self):
-        s=Segment('02-ecens','Raios','previsao','deterministico','ecens',narration='Previsão de raios do ECENS.')
-        with self.assertRaisesRegex(ValueError,'parâmetros convectivos'):
-            validate_forecast_text(s)
-        s.narration='Raios previstos pelo modelo de inteligência artificial usando parâmetros convectivos do ECENS.'
+    def test_lightning_copy_uses_plain_forecast_name(self):
+        s=Segment('02-ecens','Raios','previsao','deterministico','ecens',narration='Previsão de Raios para o período indicado.')
         validate_forecast_text(s)
+        s.narration='Raios previstos pelo modelo de inteligência artificial usando parâmetros convectivos do ECENS.'
+        with self.assertRaisesRegex(ValueError, 'sem explicar o método'):
+            validate_forecast_text(s)
+
+    def test_probability_scene_rejects_rain_before_lightning(self):
+        s=Segment('04-local-1','Raios','destaque','probabilidade','ecens',narration='A chuva será intensa. A probabilidade de raios é de 70%.')
+        with self.assertRaisesRegex(ValueError, 'fala de chuva'):
+            validate_forecast_text(s)
+        s.narration='A probabilidade de raios é de 70% no período indicado.'
+        validate_forecast_text(s)
+
+    def test_lightning_fallback_matches_each_map_and_passes_policy(self):
+        from lightning_video_engine.app.production import fallback_narration
+        for view in ('probabilidade', 'deterministico', 'risco'):
+            with self.subTest(view=view):
+                s=Segment('04-local-1','Raios','destaque',view,'ecens')
+                s.narration=fallback_narration(s, '31/10/2026')
+                validate_forecast_text(s)
+                self.assertEqual(narration_view(s), view)
+                self.assertNotIn('chuva', s.narration.lower())
 
     def test_monitoring_is_not_mislabeled_as_ecens_forecast(self):
         validate_forecasts([Segment('now','Agora','nowcasting','severidade','monitoramento',metadata={'source':'monitoramento'})])

@@ -17,7 +17,7 @@ Execute a sequência:
 2. Ative Raios.
 3. Feche o menu para ocultar os controles da interface.
 4. Aguarde a atualização da visualização.
-Apresente a previsão determinística de raios do ECENS.
+Apresente a Previsão de Raios, descrevendo a métrica da camada exibida.
 Destaque:
 - Países com maior atividade elétrica prevista.
 - Regiões com maior concentração de raios.
@@ -110,3 +110,12 @@ Fala de encerramento:
 Inclua toda a fala de encerramento na síntese de voz, na sincronização labial
 e na duração da cena final. A chamada vem depois das recomendações, inclusive
 nos perfis reduzidos e nos roteiros de reserva.
+
+## Linguagem das cenas de raios
+
+Use apenas “Previsão de Raios” na apresentação, sem mencionar modelos,
+inteligência artificial, ECENS ou parâmetros convectivos. Preserve a origem
+nos metadados técnicos. Em mapas probabilísticos, fale somente de chances de
+raios e percentuais, nunca de chuva. Use contagens somente na camada de
+quantidade e classes na camada de risco. Mantenha a fala dinâmica, assertiva,
+profissional e sustentada pelos dados, sem garantir ocorrências.

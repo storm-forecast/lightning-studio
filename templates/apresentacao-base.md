@@ -75,20 +75,15 @@ camadas, as distinções técnicas, até dois destaques locais e a linha do temp
 medida pelo áudio de cada cena. O worker usa cenas com áudios próprios e durações medidas. As transições
 ocorrem nos limites de cada fala, sem dividir o áudio total igualmente entre mapas.
 
-## Fonte das previsões e atribuição da IA
+## Fonte técnica e linguagem da apresentação
 
-Todas as previsões usam exclusivamente o modelo do Centro Europeu de Previsões
-Meteorológicas a Médio Prazo (ECMWF), o ECENS, inclusive chuva. Se a chuva ECENS
-não estiver disponível, informar a ausência sem substituir por GFS. A previsão
-de raios e suas áreas de risco são geradas pelo modelo de inteligência artificial
-usando parâmetros convectivos do ECENS; não são uma saída direta de raios do
-modelo meteorológico. Essa distinção aparece na fala de abertura e permanece
-escrita nas cenas de previsão de raios, inclusive nos destaques locais.
-`forecast_policy.py` rejeita fontes e roteiros antigos incompatíveis.
-
-O vídeo de referência arquivado serve à estética e ao áudio do template. Para
-os próximos boletins, prevalece a política ECENS/IA acima; não se reaproveitam
-as previsões de fontes antigas presentes em versões históricas.
+Preserve ECENS como fonte técnica das previsões e mantenha a procedência nos
+metadados. Na narração e nos títulos de raios, use **Previsão de Raios**, sem
+explicar inteligência artificial, modelos ou parâmetros convectivos. Apresente
+probabilidade como chance de raios em porcentagem, quantidade como contagem e
+risco pelas classes da legenda. Não fale de chuva sobre mapas de raios.
+O tom deve ser dinâmico, assertivo, objetivo e profissional, com destaques
+confirmados e sem prometer certeza de ocorrência.
 
 ## Vestuário diário e frequência
 

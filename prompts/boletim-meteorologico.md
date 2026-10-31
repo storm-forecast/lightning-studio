@@ -85,14 +85,16 @@ ao Brasil.”
 
 - Todas as previsões de modelo deste boletim devem usar exclusivamente a fonte
   ECENS, incluindo chuva. Não usar GFS nem fazer substituição automática.
-- Na primeira menção, nomear a chuva como chuva prevista pelo **modelo do Centro
-  Europeu de Previsões Meteorológicas a Médio Prazo (ECMWF), o ECENS**. Nomear
-  os raios como previsão do modelo de inteligência artificial usando parâmetros
-  convectivos desse modelo. Nas menções posteriores, pode usar apenas ECENS.
-  Não apresentar a saída da IA como previsão direta de raios do ECENS.
-- Explicar o método na fala de abertura da previsão de raios e mantê-lo escrito
-  nos títulos/legendas de todas as cenas de previsão de raios e risco, inclusive
-  os destaques brasileiros. Monitoramento e extrapolação continuam separados.
+- Nas cenas de raios, use apenas **Previsão de Raios**, sem mencionar ECENS,
+  ECMWF, inteligência artificial, modelos ou parâmetros convectivos na fala.
+  Preserve a fonte técnica nos metadados de produção.
+- Fale exclusivamente do produto exibido: durante probabilidade de raios,
+  descreva chances/percentuais de raios, nunca chuva ou acumulados de precipitação.
+  Durante quantidade de raios, não use percentuais; em Área de Risco, use classes.
+  Monitoramento e extrapolação continuam separados.
+- Seja dinâmico, assertivo e profissional: vá direto ao destaque confirmado,
+  sem explicações técnicas repetidas, sem inventar dados nem garantir ocorrências.
+
 
 - Consulte o agente e os metadados do produto antes de escrever cada trecho.
 - Não invente localidades, volumes, probabilidades, deslocamentos ou alertas.
@@ -130,17 +132,18 @@ Mostre a América do Sul e descreva os países e regiões com maiores acumulados
 a intensidade prevista e o potencial de impactos sustentado pela análise.
 Não declare alagamentos confirmados com base em chuva prevista.
 
-### 2. Raios previstos — ECENS
+### 2. Previsão de Raios
 
 Abra as opções de Previsão, selecione a fonte ECENS e a camada determinística
 de raios da IA somente quando a fala explicar quantidade ou acumulado de raios.
 Se a fala apresentar probabilidade ou percentual, selecione Probabilidade em vez
 de Determinística. Caso seja necessário apresentar ambas as métricas, use duas
-cenas separadas e aguarde a nova camada antes da respectiva fala. Diga: “Esta previsão de raios é gerada pelo nosso modelo de
-inteligência artificial usando parâmetros convectivos do ECENS.” Não use o botão de raios observados como substituto dessa seleção.
+cenas separadas e aguarde a nova camada antes da respectiva fala. Inicie com
+“Previsão de Raios” e descreva diretamente o destaque confirmado. Não use o
+botão de raios observados como substituto dessa seleção.
 Aguarde a atualização e limpe a interface. Mostre a concentração prevista e os
-países/regiões de destaque. Só descreva coincidência de chuva e raios quando
-ambos os produtos cobrirem períodos e locais compatíveis.
+países/regiões de destaque. Não fale de chuva nesta cena; a análise de chuva
+tem sua própria imagem e narração.
 
 ### 3. Áreas de risco — América do Sul
 

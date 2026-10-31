@@ -72,8 +72,6 @@ def fallback_narration(scene, presentation_date):
     rain_names, lightning_names=names(rain), names(lightning)
     copy={
         '01-chuva':f'Hoje, {presentation_date}, a prioridade é informar a população para prevenção de riscos, proteção de vidas e redução dos impactos de eventos extremos. A chuva prevista pelo {ECENS_EDITORIAL_NAME} destaca {rain_names}; consulte a legenda para os acumulados e o período válido.' if rain_names else f'Hoje, {presentation_date}, a prioridade é informar a população para prevenção de riscos, proteção de vidas e redução dos impactos de eventos extremos. A chuva prevista pelo {ECENS_EDITORIAL_NAME} está apresentada nesta camada; consulte a legenda para os acumulados e o período válido.',
-        '02-ecens':f'Esta previsão de raios é gerada por inteligência artificial usando parâmetros convectivos do {ECENS_EDITORIAL_NAME}; não é uma saída direta de raios do modelo meteorológico. Os principais pontos na grade incluem {lightning_names}.' if lightning_names else f'Esta previsão de raios é gerada por inteligência artificial usando parâmetros convectivos do {ECENS_EDITORIAL_NAME}; não é uma saída direta de raios do modelo meteorológico. A legenda mostra a distribuição prevista para o período indicado.',
-        '03-risco':f'Este mapa mostra as áreas de risco de raios geradas pela inteligência artificial com parâmetros convectivos do {ECENS_EDITORIAL_NAME}. Entre os pontos de maior atenção estão {lightning_names}.' if lightning_names else f'Este mapa mostra as áreas de risco de raios geradas pela inteligência artificial com parâmetros convectivos do {ECENS_EDITORIAL_NAME}. Use as classes da legenda para acompanhar as áreas que exigem maior atenção.',
         '05-agora':'Agora passamos das previsões para as condições atuais monitoradas. Este quadro mostra as áreas analisadas no momento; acompanhe os avisos oficiais da Defesa Civil.',
         '06-observado':'Este quadro apresenta a atividade elétrica observada no Brasil no horário indicado. Observação e previsão são produtos diferentes; acompanhe a atualização mais recente.',
         '07-alagamento':'Esta é uma previsão de risco de alagamento para as condições atuais, baseada no monitoramento e na análise de curtíssimo prazo. Não atravesse vias inundadas e acompanhe a Defesa Civil.',
@@ -82,6 +80,9 @@ def fallback_narration(scene, presentation_date):
         '10-extrap-120':'Esta imagem mostra uma extrapolação para cento e vinte minutos. A incerteza aumenta com o tempo, portanto acompanhe as atualizações e os avisos oficiais.',
         '11-recomendacoes':'Durante tempestades, procure abrigo em construção fechada, evite árvores, áreas abertas, praias e piscinas. Não atravesse vias alagadas e acompanhe a Defesa Civil.',
     }
+    if scene.category in ('previsao', 'destaque') and scene.view in ('deterministico', 'probabilidade', 'risco'):
+        metric = {'deterministico': 'a quantidade prevista de raios', 'probabilidade': 'a probabilidade de raios em porcentagem', 'risco': 'as áreas de risco de raios'}[scene.view]
+        return f'Previsão de Raios: este mapa apresenta {metric} para o período indicado. Acompanhe a distribuição e as classes exibidas na legenda.'
     return copy.get(scene.id,'Consulte a legenda e os avisos oficiais para acompanhar esta condição meteorológica.')
 
 
@@ -138,8 +139,8 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
         discovery.write_text(json.dumps(places,ensure_ascii=False,indent=2))
     specs=[
         Segment('01-chuva','Chuva prevista | ECMWF (ECENS)','previsao','chuva-prevista','ecens',evidence={'editorial':editorial}),
-        Segment('02-ecens','Raios previstos | IA e parâmetros convectivos do ECMWF (ECENS)','previsao','deterministico','ecens',evidence={'editorial':editorial}),
-        Segment('03-risco','Risco de raios | IA e parâmetros convectivos do ECMWF (ECENS)','previsao','risco','ecens',evidence={'editorial':editorial}),
+        Segment('02-ecens','Previsão de Raios','previsao','deterministico','ecens',evidence={'editorial':editorial}),
+        Segment('03-risco','Previsão de Raios | Áreas de risco','previsao','risco','ecens',evidence={'editorial':editorial}),
     ]
     for i,p in enumerate(places):
         specs.append(Segment(f'04-local-{i+1}','Probabilidade de raios | '+p['place']['nome'],'destaque','probabilidade','ecens',place=p['place'],evidence={**p,'editorial':editorial}))
@@ -192,17 +193,17 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
     for s in specs:
         textfile=directory/'cenas'/f'{s.id}.txt'
         evidence_file=directory/'cenas'/f'{s.id}-agente.json'
+        presentation_date=(presentation_at or datetime.now(timezone.utc)).astimezone(ZoneInfo('America/Belem')).strftime('%d/%m/%Y')
         if textfile.is_file():
             s.narration=textfile.read_text()
         elif not s.available:
             s.narration=f'{s.title}. Não foi possível validar esta visualização nesta consulta. Por isso, não vamos indicar localidades ou ocorrências com base nessa camada.'
             textfile.write_text(s.narration)
         else:
-            presentation_date=(presentation_at or datetime.now(timezone.utc)).astimezone(ZoneInfo('America/Belem')).strftime('%d/%m/%Y')
             directives={
                 '01-chuva':f'Abra com uma introdução jornalística curta usando a data {presentation_date}. Diga que a prioridade é informar a população para prevenção de riscos, proteção de vidas e redução dos impactos de eventos extremos. Na primeira menção, escreva explicitamente “{ECENS_EDITORIAL_NAME}”. Em seguida, fale somente de chuva prevista por esse modelo para América do Sul, citando os acumulados e regiões que estão visíveis na camada. A camada está disponível: nunca diga que não há acumulados, que os valores estão indisponíveis ou que não é possível avaliar a chuva quando a legenda/mapa exibir valores. Não associe alagamento confirmado.',
-                '02-ecens':f'Na primeira menção, escreva explicitamente “{ECENS_EDITORIAL_NAME}”. Explique que os raios são previstos pelo modelo de inteligência artificial usando parâmetros convectivos desse modelo, não uma saída direta de raios do modelo meteorológico. Para América do Sul, destaque países/regiões confirmados. Não use raios observados.',
-                '03-risco':f'Explique as áreas de risco de raios geradas pela IA com parâmetros convectivos do {ECENS_EDITORIAL_NAME}; não use percentuais nesta cena de Área de Risco e não declare severidade ou granizo com base nessa camada.',
+                '02-ecens':'Comece com Previsão de Raios. Fale exclusivamente da quantidade prevista de raios na camada determinística, ou da probabilidade de raios em porcentagem se a camada selecionada for probabilidade. Destaque regiões confirmadas da América do Sul. Não fale de chuva, acumulados de precipitação, ECENS, ECMWF, parâmetros convectivos ou inteligência artificial. Não use raios observados.',
+                '03-risco':'Apresente as áreas de risco de raios e as classes da legenda. Destaque somente regiões confirmadas. Não fale de chuva, modelos, inteligência artificial ou parâmetros convectivos; não use percentuais nesta cena nem declare granizo com base nessa camada.',
                 '05-agora':'Comece: Agora passamos das previsões para as condições atuais monitoradas. Explique os polígonos de severidade no Brasil sustentados pelos dados, sem radar na imagem.',
                 '06-observado':'Descreva atividade elétrica observada no Brasil confirmada pelos dados e horário do detector, sem misturar com previsão. Não afirme que o evento ocorreu sem previsão prévia, pois essa comparação não é sustentada por esta camada.',
                 '07-alagamento':'Comece exatamente: Esta é uma previsão de risco de alagamento para as condições atuais, baseada no monitoramento e na análise de curtíssimo prazo. Não diga que alagou. Se não houver dados locais confirmados, diga isso.',
@@ -211,7 +212,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
                 '10-extrap-120':'A imagem é de +120 minutos. Enfatize incerteza e natureza de extrapolação, não uma ocorrência confirmada nem previsão ECENS. Não afirme que a intensidade permanecerá igual.',
                 '11-recomendacoes':'O canal se chama TROVOX TEMPO. A chamada para inscrição, sino, curtida e compartilhamento será acrescentada automaticamente após esta fala; produza somente as recomendações meteorológicas. Finalize com recomendações práticas de raios e alagamentos, relacionadas às regiões antes identificadas quando confirmadas. Não atravesse vias alagadas; abrigo fechado; evite árvores, áreas abertas, praias e piscinas; acompanhe a Defesa Civil.',
             }
-            instruction=directives.get(s.id,f'Explique somente a probabilidade de raios (%) da IA com parâmetros convectivos do {ECENS_EDITORIAL_NAME} para o local estruturado informado. Apresente este local como um dos principais pontos brasileiros de maior potencial de descargas elétricas na previsão. Não mencione contagens ou acumulados de raios. Confirme nome/estado e não use uma cidade diferente.')
+            instruction=directives.get(s.id,f'Explique somente a probabilidade de raios (%) para o local estruturado informado. Use o nome Previsão de Raios, sem mencionar modelos, inteligência artificial, parâmetros convectivos ou chuva. Apresente este local como um dos principais pontos brasileiros de maior potencial de descargas elétricas na previsão. Não mencione contagens ou acumulados de raios. Confirme nome/estado e não use uma cidade diferente.')
             question=(f'Siga as regras do prompt editorial salvo:\n{prompt.split("## Regras de evidência")[1].split("## Sequência editorial")[0]}\n\nAGORA produza SOMENTE a fala da cena {s.id}, sem títulos, markdown, JSON ou listas. '
                 'O nome do canal é TROVOX TEMPO; use esse nome ao mencionar o canal. Use português brasileiro natural, 2 frases e no máximo 45 palavras, exceto as frases obrigatórias. Faça um destaque breve e concreto coerente com esta imagem; não repita outras seções. '
                 'O escopo geográfico obrigatório é América do Sul, com atenção especial ao Brasil. Nunca cite localidades, países, dados ou fenômenos de outros continentes. '
@@ -230,7 +231,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             previous_view=s.view
             s.view=expected_view
             label='Probabilidade de raios' if expected_view=='probabilidade' else 'Quantidade prevista de raios'
-            s.title=label+' | '+(s.place['nome'] if s.place else 'IA com parâmetros convectivos do ECMWF (ECENS)')
+            s.title=label+' | '+(s.place['nome'] if s.place else 'Previsão de Raios')
             capture_segments(app_url or api+'/app/',[s],directory/'cenas')
             if not s.available:
                 save_plan(specs,directory/'plano-cenas.json')
@@ -242,9 +243,9 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             validate_forecast_text(s)
         except ValueError:
             # Do not let an editorial omission turn a complete capture into a
-            # failed video. The deterministic fallback preserves the model and
-            # IA attribution required for the matching forecast scene.
-            if s.id != '02-ecens' or not s.available:
+            # failed video. The fallback preserves the selected metric.
+            # Keep fallback copy aligned with the captured lightning metric.
+            if s.category not in ('previsao', 'destaque') or s.view not in ('deterministico', 'probabilidade', 'risco') or not s.available:
                 raise
             s.narration=fallback_narration(s,presentation_date)
             textfile.write_text(s.narration)

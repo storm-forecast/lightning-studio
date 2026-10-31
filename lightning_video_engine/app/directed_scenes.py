@@ -45,14 +45,18 @@ def capture_segments(app_url: str, segments: list[Segment], directory: Path):
                     page.evaluate('void map.fitBounds([[-35,-74],[6,-34]],{animate:false,padding:[40,40]})')
                 group = 'previsao' if s.category in ('previsao','destaque') else 'nowcasting'
                 page.evaluate('(v)=>{const g=grupoDaVista(v);if(g)abreGrupo(g)}',s.view)
+                # Choose ECENS before selecting its product. The rain button can
+                # be disabled while the UI is still showing the GFS product list.
+                if s.category in ('previsao','destaque'):
+                    source_button = page.locator(f'[data-fonte="{s.source}"]')
+                    if page.evaluate('fonte') != s.source:
+                        source_button.click(timeout=15000)
+                    page.wait_for_function('(v)=>fonte===v',arg=s.source,timeout=15000)
                 if page.evaluate('currentView') != s.view:
                     page.locator(f'[data-view="{s.view}"]').click(timeout=15000)
                 else:
                     page.evaluate('async()=>{forecastOn=true; await setProduct(VISTAS[currentView].produto,true);showForecast();renderLegend()}')
                 if s.category in ('previsao','destaque'):
-                    source_button = page.locator(f'[data-fonte="{s.source}"]')
-                    if page.evaluate('fonte') != s.source:
-                        source_button.click(timeout=15000)
                     page.wait_for_function('(v)=>fonte===v && forecastOn',arg=s.source,timeout=15000)
                 page.evaluate('setPlaying(false);setNowcastPlaying(false);setObservedOn(false);setCloudsOn(false);setRadarOn(false)')
                 if s.view in ('agora','extrapolacao'):

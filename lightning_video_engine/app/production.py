@@ -237,7 +237,17 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             s.metadata['layer_adjustment']={'previous':previous_view,'selected':expected_view,'reason':'métrica da narração'}
             stamp(s)
             save_plan(specs,captures)
-        validate_forecast_text(s)
+        try:
+            validate_forecast_text(s)
+        except ValueError:
+            # Do not let an editorial omission turn a complete capture into a
+            # failed video. The deterministic fallback preserves the model and
+            # IA attribution required for the matching forecast scene.
+            if s.id != '02-ecens' or not s.available:
+                raise
+            s.narration=fallback_narration(s,presentation_date)
+            textfile.write_text(s.narration)
+            validate_forecast_text(s)
         if any(x in s.narration.lower() for x in ('groq não respondeu','muitas perguntas','tente de novo')):
             raise RuntimeError(f'{s.id}: resposta técnica não pode ser narrada')
         if evidence_file.is_file():

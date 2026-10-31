@@ -18,3 +18,57 @@ def pauta_regional(client) -> str:
         session_id = result.get("session_id") or session_id
         answers.append(result["resposta"].strip())
     return " ".join(answers)
+
+
+BRAZIL_REGIONS = ('Sul', 'Sudeste', 'Nordeste', 'Centro-Oeste', 'Norte')
+
+
+def regional_scene_direction(scene_id):
+    """Budget national coverage separately from local and monitoring scenes."""
+    if scene_id in ('05-agora', '06-observado', '07-alagamento'):
+        product = {
+            '05-agora': 'tempo severo identificado pelos polígonos de monitoramento; não deduza severidade apenas da quantidade de raios',
+            '06-observado': 'locais com mais descargas elétricas observadas, com contagens e janela de observação quando disponíveis',
+            '07-alagamento': 'potencial de alagamento, sem afirmar alagamento confirmado e sem usar inundação como nome do produto',
+        }[scene_id]
+        return (
+            'Use até 5 frases curtas e no máximo 100 palavras, incluindo as frases obrigatórias. '
+            'Organize os destaques confirmados por Sul, Sudeste, Nordeste, Centro-Oeste e Norte, '
+            'priorizando a maior atenção sustentada pelo mesmo produto e período. '
+            f'Nesta cena fale somente de {product}. '
+            'Cite estados e localidades com localização confirmada; não invente destaques '
+            'para preencher regiões sem dados nem interprete ausência de dados como ausência de risco. '
+            'No mapa de raios, não descreva polígonos de severidade nem alagamento; '
+            'cada produto tem sua própria cena. '
+            'Só diga que os raios foram previstos se houver evidência explícita de previsão '
+            'emitida antes dos eventos, cobrindo os mesmos locais e toda a janela observada, '
+            'com resultado de comparação confirmado. Coincidência com um mapa atual ou '
+            'risco muito baixo não prova acerto ou ausência de previsão. '
+            'Sem essa comprovação, apresente apenas as observações, sem alegar acerto, '
+            'falha ou que os raios não foram previstos. Não declare uma taxa de acerto '
+            'com base somente nos casos favoráveis.'
+        )
+    if scene_id not in ('01-chuva', '02-ecens'):
+        return ('Use 2 frases e no máximo 45 palavras, exceto frases obrigatórias. '
+                'Ao destacar o Brasil, identifique a região e os estados ou localidades '
+                'confirmados nos dados. Priorize a maior atenção sustentada pelo produto '
+                'exibido; não repita o panorama das cinco regiões em cada cena.')
+    product = ('chuva prevista, com acumulados somente quando confirmados'
+               if scene_id == '01-chuva' else
+               'Previsão de Raios, com a métrica da camada selecionada; não fale de chuva')
+    return (
+        'Use de 5 a 7 frases curtas e no máximo 120 palavras, incluindo a abertura. '
+        f'Neste panorama de {product}, ao entrar no Brasil, cubra as cinco regiões: '
+        + ', '.join(BRAZIL_REGIONS) + '. '
+        'Comece pela região de maior atenção quando os dados permitirem comparar '
+        'o mesmo produto e período; caso contrário use a ordem Sul, Sudeste, Nordeste, '
+        'Centro-Oeste e Norte, sem inventar um ranking. Dê mais espaço aos destaques '
+        'confirmados e uma passagem breve às demais, agrupando-as quando apropriado. '
+        'Cite estados ou localidades apenas com evidência e localização regional '
+        'confirmadas. Uma lista dos maiores valores não prova ausência de risco '
+        'nas regiões omitidas. Se faltar cobertura, agrupe os nomes das regiões '
+        'sem dados e informe a limitação uma única vez; não diga tempo tranquilo, '
+        'sem chuva ou sem risco por ausência de dados. Não transforme potencial '
+        'em ocorrência confirmada. Mantenha a fala no produto e no período do mapa '
+        'exibido; não peça zoom regional enquanto a imagem permanecer continental.'
+    )

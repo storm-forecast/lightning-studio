@@ -124,3 +124,48 @@ Fala de encerramento:
 Inclua toda a fala de encerramento na síntese de voz, na sincronização labial
 e na duração da cena final. A chamada vem depois das recomendações, inclusive
 nos perfis reduzidos e nos roteiros de reserva.
+
+## Cobertura nacional pelas cinco regiões
+
+Nos panoramas de previsão de chuva e de raios, cubra Sul, Sudeste, Nordeste,
+Centro-Oeste e Norte. Comece pela região de maior atenção somente quando os
+dados do mesmo produto e período sustentarem a comparação; sem essa evidência,
+use a ordem acima. Dedique mais tempo aos destaques e uma passagem breve às
+demais regiões, sem dar duração igual a todas.
+
+Use de 5 a 7 frases curtas, até 120 palavras por panorama nacional. Cite estados
+e localidades apenas com evidência e enquadramento regional confirmados.
+Uma lista de máximos locais não representa cobertura completa das cinco regiões.
+Agrupe as regiões sem dados e informe essa limitação uma vez, sem afirmar que
+estão sem risco ou com tempo tranquilo. Não invente um destaque para preencher
+uma região. Nos roteiros de reserva, preserve a mesma cautela, sem criar
+informações regionais ausentes.
+
+Chuva tem sua própria fala e camada. Na Previsão de Raios, descreva apenas
+raios e a métrica exibida: probabilidade, quantidade ou classe de risco.
+Mantenha o mapa e a fala no mesmo produto e período. No mapa continental,
+nomeie as regiões sem sugerir um zoom que a imagem não executou. Os destaques
+locais permanecem curtos; não repita as cinco regiões em cada cena de risco,
+monitoramento, extrapolação ou recomendações. O perfil reduzido mantém a
+cobertura regional nos dois panoramas nacionais.
+
+## Nowcasting regional: raios, tempo severo e alagamento
+
+No Brasil, organize os destaques por Sul, Sudeste, Nordeste, Centro-Oeste e
+Norte, dando prioridade às áreas de maior atenção sustentadas pelos dados.
+Use cenas separadas para cada produto, até 5 frases curtas e 100 palavras:
+
+- Raios observados: destaque os lugares com mais descargas, contagens e janela
+  de observação quando disponíveis. Contagens de áreas próximas a cidades não
+  devem ser apresentadas como contagens dentro dos limites municipais.
+- Tempo severo: destaque localidades nos polígonos de monitoramento confirmados;
+  muitos raios, por si só, não comprovam todos os perigos de tempo severo.
+- Potencial de alagamento: destaque locais indicados pela camada. Use
+  **alagamento**, sem substituir por inundação na apresentação do produto.
+  Risco ou potencial não é ocorrência confirmada.
+
+Não invente destaques para regiões sem cobertura. Diga que os raios foram
+previstos apenas com comprovação explícita de previsão emitida antes dos eventos,
+para os mesmos locais e toda a janela observada, e comparação confirmada.
+Sem essa comprovação, narre apenas as observações, sem alegar acertos ou falhas.
+Não use somente casos favoráveis para declarar taxa de acerto ou desempenho.

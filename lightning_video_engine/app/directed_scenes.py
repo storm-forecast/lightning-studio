@@ -106,6 +106,10 @@ def capture_segments(app_url: str, segments: list[Segment], directory: Path):
                         bounds:[[x.getBounds().getSouth(),x.getBounds().getWest()],[x.getBounds().getNorth(),x.getBounds().getEast()]],
                         created_at:x.options.nascidoEm||null
                     }))||[],
+                    flood_areas:['inundacoes','severidade'].includes(currentView) ? severeLayer.getLayers()
+                        .filter(x=>x.options.fill!==false&&map.getBounds().intersects(x.getBounds()))
+                        .sort((a,b)=>(['#0088bf','#ffe000','#df1313','#ff77ff'].indexOf(b.options.fillColor)-['#0088bf','#ffe000','#df1313','#ff77ff'].indexOf(a.options.fillColor)))
+                        .slice(0,8).map((x,i)=>({id:'alagamento-'+i,geometria:x.toGeoJSON().geometry})) : [],
                     analysis_bounds:rainAreaFeita?[[rainAreaFeita.getSouth(),rainAreaFeita.getWest()],[rainAreaFeita.getNorth(),rainAreaFeita.getEast()]]:null,
                     bounds:[[map.getBounds().getSouth(),map.getBounds().getWest()],[map.getBounds().getNorth(),map.getBounds().getEast()]],
                     loaded_overlays:[...document.querySelectorAll('.leaflet-image-layer')].filter(x=>x.complete&&x.naturalWidth).map(x=>x.src)})''')

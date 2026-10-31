@@ -14,7 +14,8 @@ from .segments import Segment, join_audio, save_plan
 from .directed_scenes import capture_segments
 from .lightning_agent import LightningAgentClient
 from .speech import prepare_scene_audios
-from .tourism import tourism_direction, tourism_evidence
+from .flood_narration import flood_copy
+from .tourism import tourism_direction, tourism_evidence, observed_tourism_copy
 from .bulletin_context import brazilian_highlights, add_time_reference, local_recommendations, readable_times
 from .editorial import regional_scene_direction, validate_scene_evidence
 from .official import render_official
@@ -95,6 +96,10 @@ def fallback_narration(scene, presentation_date):
         '10-extrap-120':'Esta imagem mostra uma extrapolação para cento e vinte minutos. A incerteza aumenta com o tempo, portanto acompanhe as atualizações e os avisos oficiais.',
         '11-recomendacoes':'Durante tempestades, procure abrigo em construção fechada, evite árvores, áreas abertas, praias e piscinas. Não atravesse vias alagadas e acompanhe a Defesa Civil.',
     }
+    if scene.id in ('05-agora', '07-alagamento'):
+        named_copy = flood_copy(scene)
+        if named_copy:
+            return named_copy
     if scene.id in ('05-agora', '07-alagamento'):
         product = 'severidade' if scene.id == '05-agora' else 'potencial de alagamento'
         count = scene.metadata.get('polygon_count', 0)
@@ -235,6 +240,11 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
     for s in specs:
         if s.id == '06-observado':
             s.evidence['observed'] = observed
+        if s.id in ('05-agora', '07-alagamento') and s.available and s.metadata.get('flood_areas'):
+            try:
+                s.evidence['flood_references'] = client.referencias_alagamento(s.metadata['flood_areas'])
+            except Exception as exc:
+                s.evidence['flood_reference_error'] = str(exc)
         textfile=directory/'cenas'/f'{s.id}.txt'
         evidence_file=directory/'cenas'/f'{s.id}-agente.json'
         presentation_date=(presentation_at or datetime.now(timezone.utc)).astimezone(ZoneInfo('America/Belem')).strftime('%d/%m/%Y')
@@ -243,6 +253,9 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
         elif not s.available:
             s.narration=f'{s.title}. Não foi possível validar esta visualização nesta consulta. Por isso, não vamos indicar localidades ou ocorrências com base nessa camada.'
             textfile.write_text(s.narration)
+        elif s.id in ('05-agora', '07-alagamento'):
+            s.narration = fallback_narration(s, presentation_date)
+            textfile.write_text(s.narration)
         else:
             directives={
                 '01-chuva':f'Abra com uma introdução jornalística curta usando a data {presentation_date}. Diga que a prioridade é informar a população para prevenção de riscos, proteção de vidas e redução dos impactos de eventos extremos. Na primeira menção, escreva explicitamente “{ECENS_EDITORIAL_NAME}”. Em seguida, fale somente de chuva prevista por esse modelo priorizando o Brasil, citando os acumulados e regiões que estão visíveis na camada. A lista de cidades é parcial e não permite afirmar ausência de chuva em nenhuma região, especialmente no Centro-Oeste. Se uma região não estiver na lista, declare apenas que faltou detalhamento regional. A camada está disponível: nunca diga que não há acumulados, que os valores estão indisponíveis ou que não é possível avaliar a chuva quando a legenda/mapa exibir valores. Não associe alagamento confirmado.',
@@ -250,7 +263,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
                 '03-risco':'Apresente as áreas de risco de raios e as classes da legenda. Destaque somente regiões confirmadas. Não fale de chuva, modelos, inteligência artificial ou parâmetros convectivos; não use percentuais nesta cena nem declare granizo com base nessa camada.',
                 '05-agora':'Consulte os polígonos atuais e destaque as localidades e regiões brasileiras com maior severidade confirmada. Comece: Agora passamos das previsões para as condições atuais monitoradas. Explique os polígonos de severidade no Brasil sustentados pelos dados, sem radar na imagem.',
                 '06-observado':'Consulte o resumo de raios observados e destaque os locais com mais descargas por região brasileira, com contagens e janela do detector quando disponíveis. Não atribua contagens de uma área inteira a uma cidade. Só mencione previsão anterior com comparação explicitamente comprovada para o mesmo local e período. Não afirme que o evento ocorreu sem previsão prévia, pois essa comparação não é sustentada por esta camada.',
-                '07-alagamento':'Destaque por região os locais com maior potencial de alagamento confirmado pela camada, sem inventar ocorrências. Comece exatamente: Esta é uma previsão de risco de alagamento para as condições atuais, baseada no monitoramento e na análise de curtíssimo prazo. Não diga que alagou. Se não houver dados locais confirmados, diga isso.',
+                '07-alagamento':'Cite obrigatoriamente as cidades e estados confirmados em flood_references como região de referência próxima ao polígono. Não invente cidades nem afirme que todo o município está afetado. Destaque por região os locais com maior potencial de alagamento confirmado pela camada, sem inventar ocorrências. Comece exatamente: Esta é uma previsão de risco de alagamento para as condições atuais, baseada no monitoramento e na análise de curtíssimo prazo. Não diga que alagou. Se não houver dados locais confirmados, diga isso.',
                 '08-extrap-0':'Diga exatamente: Esta é uma extrapolação da atividade de raios para as próximas duas horas, indicando a possível evolução e deslocamento das áreas de atividade elétrica. Acrescente que a camada combina raios e nuvens, e que este quadro mostra o ponto inicial, não uma previsão ECENS.',
                 '09-extrap-60':'A imagem é de +60 minutos. Explique que são áreas deslocadas pelo movimento medido, sem garantir formação ou enfraquecimento. Não invente direção ou localidades sem evidência.',
                 '10-extrap-120':'A imagem é de +120 minutos. Enfatize incerteza e natureza de extrapolação, não uma ocorrência confirmada nem previsão ECENS. Não afirme que a intensidade permanecerá igual.',
@@ -277,6 +290,9 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             evidence_file.write_text(json.dumps(result,ensure_ascii=False,indent=2))
             s.evidence['narrator']=result
             s.narration=plain(result['resposta']);textfile.write_text(s.narration)
+        if s.id in ('05-agora', '07-alagamento') and s.available:
+            # This scene is deterministic: only confirmed geographic references can be named.
+            s.narration = fallback_narration(s, presentation_date)
         if s.id == '11-recomendacoes':
             contextual_advice = local_recommendations(specs)
             if contextual_advice:
@@ -312,6 +328,9 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             s.narration=fallback_narration(s,presentation_date)
             textfile.write_text(s.narration)
             validate_forecast_text(s)
+        tourist_observations = observed_tourism_copy(s)
+        if tourist_observations and not all(x['cidade'].casefold() in s.narration.casefold() for x in tourism_evidence(s)):
+            s.narration += ' ' + tourist_observations
         add_time_reference(s, spoken_periods)
         validate_scene_evidence(s)
         s.narration = readable_times(channel_narration(s.narration, s.id), include_brasilia=True)

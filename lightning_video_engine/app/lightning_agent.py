@@ -50,6 +50,24 @@ class LightningAgentClient:
             raise RuntimeError("destaques editoriais sem confirmação ECENS")
         return result
 
+    def referencias_alagamento(self, areas: list) -> dict:
+        """Resolve actual captured polygon geometry, never infer city names in the LLM."""
+        from .tourism import tourism_targets
+        request = Request(self.base_url + '/previsao/referencias-alagamento',
+            data=json.dumps({'areas': areas, 'locais_interesse': tourism_targets()}, allow_nan=False).encode(),
+            headers={'Content-Type': 'application/json', 'Accept': 'application/json'}, method='POST')
+        with urlopen(request, timeout=60) as response:
+            result = json.loads(response.read().decode('utf-8'))
+        if result.get('tipo') != 'associacao_geografica' or not isinstance(result.get('areas'), list):
+            raise RuntimeError('associação geográfica de alagamento inválida')
+        # Only IDs of captured areas may be used in the narration.
+        valid_ids = {area['id'] for area in areas}
+        if any(row.get('id') not in valid_ids for row in result['areas']):
+            raise RuntimeError('associação geográfica não corresponde à captura')
+        if any(not set(row.get('areas_ids', [])) <= valid_ids or row.get('dentro_poligono') is not True for row in result.get('locais_interesse', [])):
+            raise RuntimeError('destino turístico sem associação à área capturada')
+        return result
+
     def resumo_observado(self) -> dict:
         """Structured observed hotspots, not a language-model summary."""
         with urlopen(self.base_url + '/observado/resumo?top_n=50', timeout=180) as response:

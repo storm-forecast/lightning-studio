@@ -97,6 +97,16 @@ def validate_scene_evidence(scene):
             if rain and denial:
                 raise ValueError('ausência de chuva não comprovada por análise regional completa')
     if scene.id in ('05-agora', '07-alagamento'):
+        from .flood_narration import flood_places
+        names = flood_places(scene)
+        if names and any(folded(name.split(',')[0]) not in text for name in names):
+            raise ValueError('a fala omitiu a cidade de referência da área de alagamento')
+        if not names:
+            # No verified mapping: use the factual limitation instead of a generated place.
+            # A generic narration is handled by the deterministic fallback in production.
+            if 'referencia geografica' not in text and 'nao permite atribuir' not in text and 'nao foi possivel confirmar' not in text:
+                raise ValueError('faltam cidades geograficamente confirmadas para alagamento')
+    if scene.id in ('05-agora', '07-alagamento'):
         # A rendered viewport, including an empty one, never certifies absence
         # throughout a macroregion. Prefer a scoped limitation to a false negative.
         negatives = (r'nao (?:ha|existe|existem|tem|foram identificad[oa]s?|foi identificad[oa]|'

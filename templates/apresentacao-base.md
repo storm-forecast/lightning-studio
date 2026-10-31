@@ -269,3 +269,25 @@ Para horários atuais, Brasília está três horas atrás de UTC: 15:00 UTC é
 12:00 em Brasília. Inclua a data anterior quando a conversão atravessar a
 meia-noite, e use as datas reais da janela para não confundir o dia previsto.
 A validade continua sendo narrada apenas na abertura do período ou quando mudar.
+
+## Cidade de referência no potencial de alagamento
+
+Use os polígonos reais capturados e o endpoint /previsao/referencias-alagamento.
+A cidade é uma referência próxima a um ponto interno da área, confirmada em
+base geográfica com estado e distância. Use “na região de [cidade, estado]”.
+Isso não confirma alagamento, não cobre todo o município e não prova que a
+cidade está dentro do polígono. Sem associação confirmada ou acima do limite
+de distância, informe que não foi possível identificar a localidade com segurança.
+Nunca peça ao modelo que invente ou deduza a cidade pelo nome de uma região.
+
+## Destinos turísticos no nowcasting
+
+Nas cenas de raios observados, severidade e potencial de alagamento, cite as
+localidades da lista turística quando os dados do produto as sustentarem.
+Severidade e alagamento exigem cidade e estado identificados na base geográfica
+e teste de que o ponto da localidade está dentro do polígono capturado. Uma
+cidade próxima ao centro é apenas referência regional, não prova de impacto.
+Raios observados exigem contagem positiva na janela indicada; contagens de áreas
+próximas não representam todo o município. Não misture os três produtos nem
+transfira risco de um estado inteiro para uma cidade. A seleção não garante
+cobertura de todos os destinos fora dos polígonos capturados ou dos dados recebidos.

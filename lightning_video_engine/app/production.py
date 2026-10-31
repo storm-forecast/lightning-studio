@@ -16,7 +16,7 @@ from .lightning_agent import LightningAgentClient
 from .speech import prepare_scene_audios
 from .flood_narration import flood_copy
 from .tourism import tourism_direction, tourism_evidence, observed_tourism_copy
-from .bulletin_context import brazilian_highlights, add_time_reference, local_recommendations, readable_times, spoken_brasilia, focus_on_available_regions, observed_precaution
+from .bulletin_context import brazilian_highlights, add_time_reference, local_recommendations, readable_times, spoken_brasilia, focus_on_available_regions, observed_precaution, time_reference
 from .editorial import regional_scene_direction, validate_scene_evidence
 from .official import render_official
 from .wardrobe import wardrobe_for_job
@@ -55,7 +55,9 @@ def stamp(s):
     im=Image.open(s.image).convert('RGB');d=ImageDraw.Draw(im)
     font='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
     period=s.metadata.get('period','Consulte a validade na legenda')
-    if s.category in ('nowcasting','observacao','alagamento','extrapolacao'):
+    if s.view in ('severidade', 'inundacoes'):
+        period = time_reference(s) or 'Horário da consulta não confirmado'
+    elif s.category in ('nowcasting','observacao','alagamento','extrapolacao'):
         n=s.metadata.get('nowcast') or {}
         period=f"Raios até {n.get('raios_ate','não informado')} | Nuvens: {n.get('nuvens_de','não informado')}"
     if s.category in ('previsao','destaque') and s.view in ('deterministico','risco','probabilidade'):
@@ -184,7 +186,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
     for i,p in enumerate(places):
         specs.append(Segment(f'04-local-{i+1}','Probabilidade de raios | '+p['place']['nome'],'destaque','probabilidade','ecens',place=p['place'],evidence={**p,'editorial':editorial}))
     specs += [
-        Segment('05-agora','Condições atuais | Nowcasting','nowcasting','severidade','monitoramento'),
+        Segment('05-agora','Severidade | Condições monitoradas','nowcasting','severidade','monitoramento'),
         Segment('06-observado','Atividade elétrica observada','observacao','agora','monitoramento'),
         Segment('07-alagamento','Potencial de alagamento | Curtíssimo prazo','alagamento','inundacoes','monitoramento'),
         Segment('08-extrap-0','Extrapolação de raios e nuvens | Ponto inicial','extrapolacao','extrapolacao','monitoramento',horizon=0),

@@ -98,7 +98,7 @@ def capture_segments(app_url: str, segments: list[Segment], directory: Path):
                 if s.category == 'observacao':
                     page.evaluate('setObservedOn(true);showFrame(FRAME_COUNT-1,true)')
                 page.wait_for_function('''()=>[...document.querySelectorAll('.leaflet-tile')].every(i=>i.complete)&&!document.querySelector('.leaflet-zoom-anim')''',timeout=30000)
-                s.metadata = page.evaluate('''()=>({view:currentView,source:fonte,product,period:document.querySelector('#period').textContent,
+                s.metadata = page.evaluate('''()=>({view:currentView,source:fonte,product,captured_at:new Date().toISOString(),period:document.querySelector('#period').textContent,
                     map:mapInfo,rain:rainInfo,nowcast:nowcastInfo,forecast_window:mapInfo?.janelas?.[shownStep()]||null,legend:document.querySelector('#legend').innerText,
                     polygon_count:severeLayer?.getLayers().filter(x=>x.options.fill!==false&&map.getBounds().intersects(x.getBounds())).length||0,
                     polygon_evidence:severeLayer?.getLayers().filter(x=>x.options.fill!==false&&map.getBounds().intersects(x.getBounds())).map(x=>({

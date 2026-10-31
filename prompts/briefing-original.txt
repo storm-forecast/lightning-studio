@@ -277,3 +277,11 @@ Nas regiões com raios observados ou severidade, oriente a população a se
 precaver e buscar abrigo seguro. Nas áreas com potencial de alagamento,
 oriente a evitar vias alagadas e acompanhar a Defesa Civil, sem afirmar
 que o alagamento ocorreu nem criar um alerta oficial.
+
+## Cena de severidade: fala e imagem do mesmo produto
+
+Durante o mapa de severidade, descreva áreas e localidades confirmadas no
+produto e recomende precaução. Não acrescente descrição de raios observados
+ou imagens de nuvens. A hora de consulta da captura deve ser identificada
+como consulta, sem ser apresentada como horário de ocorrência ou atualização
+dos sensores. Horários técnicos de raios e nuvens continuam nos metadados.

@@ -51,6 +51,9 @@ def time_reference(scene):
         if start and end:
             return f'As observações abrangem de {start} até {end}.'
         return 'O período das observações não pôde ser confirmado nesta consulta.'
+    if scene.view in ('severidade', 'inundacoes'):
+        stamp = spoken_utc(scene.metadata.get('captured_at'))
+        return f'Monitoramento consultado em {stamp}.' if stamp else ''
     if scene.category in ('nowcasting', 'alagamento', 'extrapolacao'):
         now = scene.metadata.get('nowcast') or {}
         stamps = []

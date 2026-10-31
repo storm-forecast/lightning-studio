@@ -57,7 +57,7 @@ class UsefulBulletinTests(unittest.TestCase):
 
     def test_missing_nowcasting_time_does_not_claim_current_conditions(self):
         scene = Segment('05-agora', 'Agora', 'nowcasting', 'severidade')
-        self.assertIn('não pôde ser confirmada', time_reference(scene))
+        self.assertEqual(time_reference(scene), '')
 
 
 class ReadableTimesTests(unittest.TestCase):
@@ -118,3 +118,22 @@ class BrasiliaPresentationTests(unittest.TestCase):
             'period': 'hoje', 'forecast_window': {'inicio':'2026-10-31T00:00:00Z','fim':'2026-11-01T00:00:00Z'}})
         self.assertIn('31/10/2026 às 00:00 UTC', time_reference(scene))
         self.assertIn('01/11/2026 às 00:00 UTC', time_reference(scene))
+
+
+class ProductScopedMonitoringTimeTests(unittest.TestCase):
+    def test_severity_does_not_narrate_sensor_products(self):
+        scene=Segment('05-agora','Severidade','nowcasting','severidade',metadata={
+            'captured_at':'2026-10-31T20:00:00Z',
+            'nowcast':{'raios_ate':'2026-10-31T19:50:00Z','nuvens_de':'2026-10-31T19:40:00Z'}})
+        reference=time_reference(scene)
+        self.assertIn('consultado',reference)
+        self.assertNotIn('Raios',reference)
+        self.assertNotIn('nuvens',reference)
+        self.assertIn('20:00',reference)
+
+    def test_extrapolation_retains_relevant_source_times(self):
+        scene=Segment('08-extrap-0','Extrapolação','extrapolacao','extrapolacao',metadata={
+            'nowcast':{'raios_ate':'2026-10-31T19:50:00Z','nuvens_de':'2026-10-31T19:40:00Z'}})
+        reference=time_reference(scene)
+        self.assertIn('Raios observados',reference)
+        self.assertIn('Imagem de nuvens',reference)

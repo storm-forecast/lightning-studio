@@ -5,14 +5,28 @@ from .segments import Segment
 
 CLEAN_CSS = '''
 .topbar, .map-rail, .chat, .map-hint, .toast { display:none!important; }
-.stage { --chat-h:0px!important; }
-.legend { font-size:19px!important; max-width:310px!important; bottom:36px!important;
- background:rgba(255,255,255,.96)!important;color:#142337!important; }
-.legend-title,.legend-note,.legend-msg,.legend-scale,.legend-valid {font-size:16px!important;}
+.stage { --chat-h:0px!important; background:#091422!important; }
+.leaflet-container { background:#091422!important; }
+/* Recolor only base tiles: meteorological pixels retain their original values. */
+.base-tiles img { filter:invert(1) hue-rotate(180deg) saturate(.24) brightness(.68) contrast(1.12)!important; }
+.legend { font-size:20px!important; width:320px!important; max-width:320px!important;
+ bottom:38px!important; left:auto!important; right:18px!important; padding:16px 18px!important;
+ background:rgba(9,20,34,.97)!important; color:#f1f7ff!important;
+ border:1px solid #4bd7e5!important; border-radius:12px!important;
+ box-shadow:0 8px 28px #0008!important; line-height:1.35!important; }
+.legend-title { font-size:23px!important; color:#f1f7ff!important; font-weight:700!important; }
+.legend-note,.legend-msg,.legend-scale,.legend-valid {font-size:18px!important;color:#e0eafa!important;}
+.legend strong,.legend b {color:#fff!important;}
 .leaflet-bottom {bottom:0!important;}
 .cloud-player,.anim-ends,.legend-toggle,.step-picker,.legend-why {display:none!important;}
-.leaflet-control-attribution {font-size:11px!important;}
-.leaflet-tooltip {font-size:18px!important;font-weight:600!important;}
+.leaflet-control-attribution {font-size:12px!important;background:#091422e8!important;color:#d8e7fa!important;}
+.leaflet-control-attribution a {color:#8ae6ee!important;}
+.country-label span {font-size:17px!important;font-weight:700!important;color:#fff!important;
+ text-shadow:-1px -1px 2px #091422,1px 1px 2px #091422,0 0 5px #091422!important;}
+.leaflet-tooltip {font-size:23px!important;font-weight:700!important;color:#fff!important;
+ background:#102337f5!important;border:2px solid #65e0d0!important;
+ border-radius:7px!important;padding:8px 12px!important;box-shadow:0 3px 14px #0009!important;}
+.leaflet-tooltip-right:before {border-right-color:#65e0d0!important;}
 '''
 
 
@@ -23,7 +37,7 @@ def capture_segments(app_url: str, segments: list[Segment], directory: Path):
         browser = p.chromium.launch(headless=True,
             executable_path=os.environ.get('CHROMIUM_BIN') or '/opt/google/chrome/chrome',
             args=['--no-sandbox','--disable-gpu'])
-        page = browser.new_page(viewport={'width':1440,'height':810}, timezone_id='America/Belem')
+        page = browser.new_page(viewport={'width':1440,'height':810}, timezone_id='America/Belem', color_scheme='dark')
         page.goto(app_url, wait_until='domcontentloaded', timeout=90000)
         page.wait_for_function('typeof mapInfo !== "undefined" && mapInfo && typeof nowcastInfo !== "undefined" && nowcastInfo', timeout=90000)
         page.evaluate('setPlaying(false);setNowcastPlaying(false);setObservedOn(false);setCloudsOn(false);setRadarOn(false)')
@@ -40,7 +54,14 @@ def capture_segments(app_url: str, segments: list[Segment], directory: Path):
                 }""")
                 if s.place:
                     # These coordinates come from the agent's structured place response.
-                    page.evaluate('(p)=>{map.setView([p.lat,p.lon],7,{animate:false});marker=L.circleMarker([p.lat,p.lon],{radius:9,color:"white",weight:3,fillColor:"#142337",fillOpacity:1}).addTo(map).bindTooltip(p.nome,{permanent:true,direction:"right"}).openTooltip();}',s.place)
+                    page.evaluate('''(p)=>{
+                        map.fitBounds([[Math.max(-85,p.lat-2),p.lon-3],[Math.min(85,p.lat+2),p.lon+3]],
+                            {animate:false,paddingTopLeft:[55,105],paddingBottomRight:[370,65],maxZoom:7});
+                        const label=document.createElement('span');label.textContent=p.nome;
+                        marker=L.circleMarker([p.lat,p.lon],{radius:10,color:'#65e0d0',weight:3,
+                            fillColor:'#102337',fillOpacity:1}).addTo(map)
+                            .bindTooltip(label,{permanent:true,direction:'right'}).openTooltip();
+                    }''',s.place)
                 elif s.category in ('nowcasting','observacao','alagamento','extrapolacao'):
                     page.evaluate('void map.fitBounds([[-35,-74],[6,-34]],{animate:false,padding:[40,40]})')
                 group = 'previsao' if s.category in ('previsao','destaque') else 'nowcasting'
@@ -98,13 +119,18 @@ def capture_segments(app_url: str, segments: list[Segment], directory: Path):
                     if 'GFS' in s.metadata['attribution']:
                         raise RuntimeError('rodapé genérico GFS não foi corrigido na captura ECENS')
                 style = page.add_style_tag(content=CLEAN_CSS)
-                page.evaluate('map.invalidateSize({animate:false});renderLegend()')
+                page.evaluate("""()=>{map.invalidateSize({animate:false});renderLegend();
+                    if(typeof bordersLayer!=='undefined')bordersLayer.eachLayer(x=>{
+                        if(x.setStyle)x.setStyle({color:'#d8efff',opacity:.7,weight:1.1});
+                    });
+                }""")
                 # Hide menus by their actual UI state as well as the capture CSS.
                 page.evaluate("document.querySelector('#map-rail').dataset.open='false'")
                 page.wait_for_timeout(500)
                 image = directory/f'{s.id}.png'
                 page.locator('.stage').screenshot(path=str(image))
                 style.evaluate('(e)=>e.remove()')
+                s.metadata['presentation_style'] = 'trovox-dark-v1'
                 s.image = str(image.resolve())
             except Exception as exc:
                 s.available = False

@@ -80,7 +80,7 @@ def compose(scenes: list[Path], audio: Path, destination: Path, *, title: str,
             graph.append('[base][p]overlay=1504:144:shortest=1[withpresenter]')
             base = 'withpresenter'
         labels = [
-            ('LIGHTNING AGENT', 32, 25, 25, '0x65e0d0'),
+            ('TROVOX TEMPO', 32, 25, 25, '0x65e0d0'),
             (textwrap.shorten(title, width=64, placeholder='…'), 32, 65, 36, 'white'),
             (textwrap.shorten(subtitle, width=110, placeholder='…'), 32, 985, 24, 'white'),
             ('Mapas e legendas: TROVOX TEMPO | Apresentação virtual', 32, 1030, 20, '0xb9c8d9'),

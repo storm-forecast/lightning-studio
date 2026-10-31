@@ -179,3 +179,13 @@ Polígonos sem cidades geograficamente associadas não autorizam inventar nomes.
 Uma captura sem polígonos não comprova ausência de severidade em todo o Brasil
 ou em suas regiões. Na falta de cobertura e localidades verificadas, informe a
 limitação da consulta, sem afirmar que não há tempestades, severidade ou risco.
+
+## Legibilidade dos mapas — TROVOX TEMPO
+
+Base azul-escura com nomes claros, detalhes em ciano e legenda ampliada.
+O tratamento de contraste atua somente no mapa-base; as cores e os valores
+meteorológicos permanecem os do produto original. Atribuições ficam visíveis.
+Destaques locais têm marcador e nome permanente, com enquadramento do entorno
+e espaço reservado para a legenda. Os panoramas mantêm a cobertura continental
+ou brasileira, conforme a pauta. A imagem permanece estável durante a fala;
+a mudança de enquadramento ocorre entre cenas, sem efeitos sobre os dados.

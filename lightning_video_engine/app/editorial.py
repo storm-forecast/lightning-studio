@@ -72,3 +72,29 @@ def regional_scene_direction(scene_id):
         'em ocorrência confirmada. Mantenha a fala no produto e no período do mapa '
         'exibido; não peça zoom regional enquanto a imagem permanecer continental.'
     )
+
+
+def validate_scene_evidence(scene):
+    """Reject missing local focus and unsupported monitoring conclusions."""
+    import re
+    import unicodedata
+    def folded(value):
+        return ''.join(c for c in unicodedata.normalize('NFD', value.casefold())
+                       if unicodedata.category(c) != 'Mn')
+    text = folded(scene.narration)
+    if scene.available and scene.place and scene.category == 'destaque':
+        city = folded(scene.place.get('nome', '').split(',')[0].strip())
+        if city and city not in text:
+            raise ValueError('a narração omitiu a cidade do destaque local')
+    if scene.id in ('05-agora', '07-alagamento'):
+        # A rendered viewport, including an empty one, never certifies absence
+        # throughout a macroregion. Prefer a scoped limitation to a false negative.
+        negatives = (r'nao (?:ha|existe|existem|tem|foram identificad[oa]s?|foi identificad[oa]|'
+                     r'foram detectad[oa]s?|foi detectad[oa]|apresenta|apresentam)'
+                     r'[^.!?]{0,100}(?:sever|tempest|risco|alagamento)|'
+                     r'sem (?:qualquer )?(?:severidade|tempestades?|risco(?:s)?(?: de alagamento)?)|'
+                     r'nenhum[a]?[^.!?]{0,50}(?:sever|tempest|alagamento)')
+        if re.search(negatives, text):
+            raise ValueError('ausência de severidade ou risco não comprovada pela captura')
+        if re.search(r'foram previstos|ja (?:estavam|haviam sido) previst|previsao acertou', text):
+            raise ValueError('acerto de previsão sem verificação temporal estruturada')

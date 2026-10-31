@@ -49,6 +49,14 @@ class LightningAgentClient:
             raise RuntimeError("destaques editoriais sem confirmação ECENS")
         return result
 
+    def resumo_observado(self) -> dict:
+        """Structured observed hotspots, not a language-model summary."""
+        with urlopen(self.base_url + '/observado/resumo?top_n=50', timeout=180) as response:
+            result = json.loads(response.read().decode('utf-8'))
+        if not isinstance(result.get('regioes'), list) or not result.get('inicio') or not result.get('fim'):
+            raise RuntimeError('resumo observado sem localidades e janela temporal válidas')
+        return result
+
     def captura_app(self, destination: Path) -> None:
         """Capture the official /app/ visual with Chromium; no third-party map page is used."""
         browser = os.environ.get("CHROMIUM_BIN", "chromium")

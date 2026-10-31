@@ -14,7 +14,7 @@ from .segments import Segment, join_audio, save_plan
 from .directed_scenes import capture_segments
 from .lightning_agent import LightningAgentClient
 from .speech import narrate
-from .editorial import regional_scene_direction
+from .editorial import regional_scene_direction, validate_scene_evidence
 from .official import render_official
 from .wardrobe import wardrobe_for_job
 from .forecast_policy import ECENS_EDITORIAL_NAME, LIGHTNING_METHOD, validate_forecasts, validate_forecast_text, narration_view
@@ -90,9 +90,26 @@ def fallback_narration(scene, presentation_date):
         '10-extrap-120':'Esta imagem mostra uma extrapolação para cento e vinte minutos. A incerteza aumenta com o tempo, portanto acompanhe as atualizações e os avisos oficiais.',
         '11-recomendacoes':'Durante tempestades, procure abrigo em construção fechada, evite árvores, áreas abertas, praias e piscinas. Não atravesse vias alagadas e acompanhe a Defesa Civil.',
     }
+    if scene.id in ('05-agora', '07-alagamento'):
+        product = 'severidade' if scene.id == '05-agora' else 'potencial de alagamento'
+        count = scene.metadata.get('polygon_count', 0)
+        if count:
+            return (f'O mapa apresenta áreas classificadas de {product} na área exibida. '
+                    'A captura não permite atribuir todas essas áreas a cidades e regiões com segurança. '
+                    'Acompanhe as classes da legenda e os avisos da Defesa Civil.')
+        return (f'Não foi possível confirmar a distribuição regional de {product} nesta captura. '
+                'Isso não permite concluir ausência de risco nas regiões brasileiras. '
+                'Acompanhe as atualizações e os avisos da Defesa Civil.')
+    if scene.id == '06-observado':
+        observed = scene.evidence.get('observed', {})
+        rows = [x for x in observed.get('regioes', []) if x.get('pais') == 'Brasil' and x.get('cidade') and isinstance(x.get('raios'), (int, float))][:3]
+        if rows:
+            highlights = '; '.join(f"perto de {x['cidade']}, {x['raios']} descargas" for x in rows)
+            return f"Entre os destaques de raios observados estão {highlights}. As contagens são de áreas próximas a essas cidades, na janela de {observed['inicio']} a {observed['fim']}."
     if scene.category in ('previsao', 'destaque') and scene.view in ('deterministico', 'probabilidade', 'risco'):
         metric = {'deterministico': 'a quantidade prevista de raios', 'probabilidade': 'a probabilidade de raios em porcentagem', 'risco': 'as áreas de risco de raios'}[scene.view]
-        return f'Previsão de Raios: este mapa apresenta {metric} para o período indicado. Acompanhe a distribuição e as classes exibidas na legenda.'
+        location = f" na área de {scene.place['nome']}" if scene.place and scene.place.get('nome') else ''
+        return f'Previsão de Raios: este mapa apresenta {metric}{location} para o período indicado. Acompanhe a distribuição e as classes exibidas na legenda.'
     return copy.get(scene.id,'Consulte a legenda e os avisos oficiais para acompanhar esta condição meteorológica.')
 
 
@@ -199,8 +216,17 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
         save_plan(specs,captures)
     validate_forecasts(specs)
     if capture_only:return specs
+    observed = {}
+    if any(s.id == '06-observado' and s.available for s in specs):
+        try:
+            observed = client.resumo_observado()
+            (directory/'observado-utilizado.json').write_text(json.dumps(observed,ensure_ascii=False,indent=2))
+        except Exception as exc:
+            (directory/'observado-erro.json').write_text(json.dumps({'error':str(exc)},ensure_ascii=False))
     audios=directory/'audios';audios.mkdir(exist_ok=True)
     for s in specs:
+        if s.id == '06-observado':
+            s.evidence['observed'] = observed
         textfile=directory/'cenas'/f'{s.id}.txt'
         evidence_file=directory/'cenas'/f'{s.id}-agente.json'
         presentation_date=(presentation_at or datetime.now(timezone.utc)).astimezone(ZoneInfo('America/Belem')).strftime('%d/%m/%Y')
@@ -227,8 +253,8 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             question=(f'Siga as regras do prompt editorial salvo:\n{prompt.split("## Regras de evidência")[1].split("## Sequência editorial")[0]}\n\nAGORA produza SOMENTE a fala da cena {s.id}, sem títulos, markdown, JSON ou listas. '
                 'Não pronuncie o nome do canal nesta cena; ele será dito uma única vez na CTA final. Vá direto à informação meteorológica. Use português brasileiro natural, dinâmico e profissional. Faça destaques concretos coerentes com esta imagem; não repita outras seções. '
                 'O escopo geográfico obrigatório é América do Sul, com atenção especial ao Brasil. Nunca cite localidades, países, dados ou fenômenos de outros continentes. '
-                f'{regional_direction} {instruction} Camada selecionada: {s.view}. Probabilidade em porcentagem exige probabilidade; quantidade/acumulado de raios exige deterministico. Nunca misture as duas métricas numa cena.\nA imagem validada contém estes metadados: '+json.dumps({k:v for k,v in s.metadata.items() if k in ('view','product','period','legend','polygon_count','bounds')},ensure_ascii=False)+
-                '\nDestaque local/evidências: '+json.dumps(s.evidence,ensure_ascii=False))
+                f'{regional_direction} {instruction} Camada selecionada: {s.view}. Probabilidade em porcentagem exige probabilidade; quantidade/acumulado de raios exige deterministico. Nunca misture as duas métricas numa cena.\nA imagem validada contém estes metadados: '+json.dumps({k:v for k,v in s.metadata.items() if k in ('view','product','period','legend','polygon_count','polygon_evidence','analysis_bounds','nowcast','bounds')},ensure_ascii=False)+
+                '\nLocal obrigatório: '+json.dumps(s.place,ensure_ascii=False)+'\nDestaque local/evidências: '+json.dumps(s.evidence,ensure_ascii=False))
             try:
                 result=client.perguntar(question)
             except RuntimeError as exc:
@@ -237,6 +263,13 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             evidence_file.write_text(json.dumps(result,ensure_ascii=False,indent=2))
             s.evidence['narrator']=result
             s.narration=plain(result['resposta']);textfile.write_text(s.narration)
+        try:
+            validate_scene_evidence(s)
+        except ValueError as exc:
+            s.evidence['editorial_correction'] = str(exc)
+            s.narration = fallback_narration(s, presentation_date)
+            validate_scene_evidence(s)
+            textfile.write_text(s.narration)
         expected_view=narration_view(s)
         if s.available and expected_view!=s.view:
             previous_view=s.view
@@ -261,6 +294,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             s.narration=fallback_narration(s,presentation_date)
             textfile.write_text(s.narration)
             validate_forecast_text(s)
+        validate_scene_evidence(s)
         s.narration = channel_narration(s.narration, s.id)
         textfile.write_text(s.narration)
         if any(x in s.narration.lower() for x in ('groq não respondeu','muitas perguntas','tente de novo')):

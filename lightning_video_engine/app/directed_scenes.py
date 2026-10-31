@@ -73,7 +73,13 @@ def capture_segments(app_url: str, segments: list[Segment], directory: Path):
                 page.wait_for_function('''()=>[...document.querySelectorAll('.leaflet-tile')].every(i=>i.complete)&&!document.querySelector('.leaflet-zoom-anim')''',timeout=30000)
                 s.metadata = page.evaluate('''()=>({view:currentView,source:fonte,product,period:document.querySelector('#period').textContent,
                     map:mapInfo,rain:rainInfo,nowcast:nowcastInfo,legend:document.querySelector('#legend').innerText,
-                    polygon_count:severeLayer?.getLayers().length||0,
+                    polygon_count:severeLayer?.getLayers().filter(x=>x.options.fill!==false&&map.getBounds().intersects(x.getBounds())).length||0,
+                    polygon_evidence:severeLayer?.getLayers().filter(x=>x.options.fill!==false&&map.getBounds().intersects(x.getBounds())).map(x=>({
+                        color:x.options.fillColor||x.options.color,
+                        bounds:[[x.getBounds().getSouth(),x.getBounds().getWest()],[x.getBounds().getNorth(),x.getBounds().getEast()]],
+                        created_at:x.options.nascidoEm||null
+                    }))||[],
+                    analysis_bounds:rainAreaFeita?[[rainAreaFeita.getSouth(),rainAreaFeita.getWest()],[rainAreaFeita.getNorth(),rainAreaFeita.getEast()]]:null,
                     bounds:[[map.getBounds().getSouth(),map.getBounds().getWest()],[map.getBounds().getNorth(),map.getBounds().getEast()]],
                     loaded_overlays:[...document.querySelectorAll('.leaflet-image-layer')].filter(x=>x.complete&&x.naturalWidth).map(x=>x.src)})''')
                 if s.category not in ('previsao','destaque'):

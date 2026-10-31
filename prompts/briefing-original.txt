@@ -166,3 +166,13 @@ previstos apenas com comprovação explícita de previsão emitida antes dos eve
 para os mesmos locais e toda a janela observada, e comparação confirmada.
 Sem essa comprovação, narre apenas as observações, sem alegar acertos ou falhas.
 Não use somente casos favoráveis para declarar taxa de acerto ou desempenho.
+
+## Validação obrigatória de cidades e severidade
+
+Toda cena de destaque local deve pronunciar o nome da cidade selecionada,
+inclusive no roteiro de reserva. Não substitua o destaque por uma fala genérica.
+Use as evidências estruturadas da captura e o resumo observado, com seus horários.
+Polígonos sem cidades geograficamente associadas não autorizam inventar nomes.
+Uma captura sem polígonos não comprova ausência de severidade em todo o Brasil
+ou em suas regiões. Na falta de cobertura e localidades verificadas, informe a
+limitação da consulta, sem afirmar que não há tempestades, severidade ou risco.

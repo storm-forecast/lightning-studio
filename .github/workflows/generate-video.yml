@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     env:
-      VIDEO_PROFILE: lite
+      VIDEO_PROFILE: balanced
       VIDEO_AUTOSTART: "false"
       VIDEO_OUTPUT_DIR: output
       VIDEO_TIMEZONE: America/Belem

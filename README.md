@@ -56,8 +56,10 @@ bash scripts/start.sh
 O `.env` é carregado automaticamente. Variáveis já definidas pelo servidor
 prevalecem sobre ele. `.env.example` contém as opções sem segredos.
 `VIDEO_AUTOSTART=true` e `VIDEO_INTERVAL_HOURS=2` habilitam a agenda apenas em
-um worker com memória suficiente. `VIDEO_PROFILE=lite` produz quatro cenas
-essenciais; `full` preserva a sequência editorial completa.
+um worker com memória suficiente. `VIDEO_PROFILE=balanced` preserva todas as
+cenas continentais de previsão e nowcasting, sem as duas consultas locais;
+`lite` produz somente quatro cenas essenciais; `full` preserva a sequência
+editorial completa.
 
 ## Geração e testes
 

@@ -59,17 +59,17 @@ def plain(text):
 def produce(directory: Path, *, api='https://lightning-agent.onrender.com', title='Boletim meteorológico | América do Sul', capture_only=False, app_url=None, presentation_at=None):
     directory=directory.resolve();directory.mkdir(parents=True,exist_ok=True)
     profile=os.environ.get('VIDEO_PROFILE','full').strip().lower()
-    if profile not in {'full','lite'}:
-        raise ValueError('VIDEO_PROFILE deve ser full ou lite')
+    if profile not in {'full','balanced','lite'}:
+        raise ValueError('VIDEO_PROFILE deve ser full, balanced ou lite')
     selected_wardrobe = wardrobe_for_job(directory, presentation_at)
     client=LightningAgentClient(api,api+'/app/')
     prompt=BRIEF.read_text()
     (directory/'prompt-utilizado.md').write_text(prompt)
     discovery=directory/'destaques.json'
-    # The lightweight remote profile deliberately avoids two discovery calls and
-    # local/nowcasting scenes. It keeps the ECENS rain, deterministic lightning,
-    # lightning-risk and safety sequence, each with its matching map layer.
-    if profile == 'lite':
+    # Remote profiles avoid two local-discovery calls. "balanced" preserves all
+    # continental forecast and nowcasting scenes; "lite" is an emergency,
+    # short four-scene bulletin.
+    if profile in {'lite','balanced'}:
         places=[]
     elif discovery.is_file():
         places=json.loads(discovery.read_text())
@@ -102,7 +102,13 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
         Segment('10-extrap-120','Extrapolação | +120 minutos','extrapolacao','extrapolacao','monitoramento',horizon=120),
         Segment('11-recomendacoes','Riscos e recomendações','recomendacao','summary'),
     ]
-    if profile == 'lite':
+    if profile == 'balanced':
+        keep={'01-chuva','02-ecens','03-risco','05-agora','06-observado',
+              '07-alagamento','08-extrap-0','09-extrap-60','10-extrap-120',
+              '11-recomendacoes'}
+        specs=[s for s in specs if s.id in keep]
+        print('Perfil equilibrado: previsões ECENS e sequência completa de nowcasting, sem consultas locais.',flush=True)
+    elif profile == 'lite':
         keep={'01-chuva','02-ecens','03-risco','11-recomendacoes'}
         specs=[s for s in specs if s.id in keep]
         print('Perfil leve: 4 cenas essenciais, sem consultas locais ou nowcasting.',flush=True)

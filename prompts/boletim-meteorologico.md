@@ -20,8 +20,10 @@ meteorológicos da América do Sul, mencionando chuva, raios e áreas com
 potencial de tempo severo, com atenção especial ao Brasil.
 
 Utilize linguagem profissional, natural, objetiva e dinâmica, como em um
-boletim meteorológico de televisão. Evite introduções longas e vá direto aos
-principais assuntos da análise.
+boletim meteorológico de televisão. Deixe claro, em uma frase curta, que a
+prioridade é a segurança da população: as informações apoiam prevenção de
+riscos, proteção de vidas e redução dos impactos de eventos extremos. Evite
+introduções longas e vá direto aos principais assuntos da análise.
 
 Use a data real da geração no fuso `America/Belem`, por extenso na fala.
 Não fixe uma data no template nem confunda a data de apresentação com o
@@ -68,6 +70,9 @@ ao Brasil.”
 
 - Consulte o agente e os metadados do produto antes de escrever cada trecho.
 - Não invente localidades, volumes, probabilidades, deslocamentos ou alertas.
+- Quando a camada de chuva estiver disponível e a legenda/mapa exibir valores,
+  descreva apenas os acumulados e áreas sustentados pela imagem. Nunca diga que
+  não há acumulados ou que os valores estão indisponíveis nesse caso.
 - Não confunda chuva prevista, raios ECENS, raios observados, análise de
   curtíssimo prazo e extrapolação. Identifique a categoria em voz e em tela.
 - Não deduza severidade, alagamentos ou impactos confirmados somente pela cor
@@ -118,9 +123,10 @@ Explique os níveis do fenômeno efetivamente representado. Cite potencial de
 outros perigos apenas se houver dados adicionais que o sustentem. Não converta
 uma classificação do sistema em alerta oficial da Defesa Civil.
 
-### 4. Destaques brasileiros — no máximo dois pontos
+### 4. Destaques brasileiros — dois ou três pontos
 
-Escolha até duas localidades confirmadas pelos dados. Envie o nome ao agente,
+Escolha dois ou três locais/áreas brasileiras com maior potencial previsto de
+descargas elétricas, confirmados pelos dados. Envie o nome ao agente,
 obtenha a localização geográfica pelo recurso suportado e aguarde o mapa
 centralizar. Não invente uma API de navegação ou coordenadas.
 Selecione Probabilidade quando a fala local apresentar um percentual; use

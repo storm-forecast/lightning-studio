@@ -1,6 +1,7 @@
 """Evidence-led scene production, resumable on disk, using the approved template."""
 from dataclasses import asdict
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 import hashlib
 import json
@@ -66,18 +67,17 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
     prompt=BRIEF.read_text()
     (directory/'prompt-utilizado.md').write_text(prompt)
     discovery=directory/'destaques.json'
-    # Remote profiles avoid two local-discovery calls. "balanced" preserves all
-    # continental forecast and nowcasting scenes; "lite" is an emergency,
-    # short four-scene bulletin.
-    if profile in {'lite','balanced'}:
+    # The emergency short profile avoids local discovery. The balanced remote
+    # bulletin keeps the Brazilian lightning highlights and the nowcasting arc.
+    if profile == 'lite':
         places=[]
     elif discovery.is_file():
         places=json.loads(discovery.read_text())
     else:
-        selection=client.perguntar('Selecione no máximo dois municípios brasileiros destacados pela previsão de raios de hoje gerada pela IA com parâmetros convectivos do ECENS. Responda SOMENTE JSON {"locais":[{"nome":"Cidade, UF","fenomeno":"raios","motivo":"evidência curta"}]}. Não invente. Se insuficiente, use {"locais":[]}.')
+        selection=client.perguntar('Selecione de dois a três municípios ou regiões brasileiras com maior potencial previsto de descargas elétricas pela IA com parâmetros convectivos do ECENS. Use somente a evidência atual. Responda SOMENTE JSON {"locais":[{"nome":"Cidade, UF","fenomeno":"raios","motivo":"evidência curta"}]}. Não invente. Se insuficiente, use os locais confirmados disponíveis.')
         (directory/'selecao-agente.json').write_text(json.dumps(selection,ensure_ascii=False,indent=2))
         try:
-            options=json.loads(selection['resposta'].strip().removeprefix('```json').removesuffix('```')).get('locais',[])[:2]
+            options=json.loads(selection['resposta'].strip().removeprefix('```json').removesuffix('```')).get('locais',[])[:3]
         except (ValueError,AttributeError): options=[]
         places=[]
         for option in options:
@@ -107,7 +107,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
               '07-alagamento','08-extrap-0','09-extrap-60','10-extrap-120',
               '11-recomendacoes'}
         specs=[s for s in specs if s.id in keep]
-        print('Perfil equilibrado: previsões ECENS e sequência completa de nowcasting, sem consultas locais.',flush=True)
+        print('Perfil equilibrado: previsões ECENS, até três destaques brasileiros e sequência completa de nowcasting.',flush=True)
     elif profile == 'lite':
         keep={'01-chuva','02-ecens','03-risco','11-recomendacoes'}
         specs=[s for s in specs if s.id in keep]
@@ -148,8 +148,9 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             s.narration=f'{s.title}. Não foi possível validar esta visualização nesta consulta. Por isso, não vamos indicar localidades ou ocorrências com base nessa camada.'
             textfile.write_text(s.narration)
         else:
+            presentation_date=(presentation_at or datetime.now(timezone.utc)).astimezone(ZoneInfo('America/Belem')).strftime('%d/%m/%Y')
             directives={
-                '01-chuva':f'Fale somente de chuva prevista exclusivamente pelo {ECENS_EDITORIAL_NAME} para América do Sul: países/regiões com acumulados relevantes confirmados. Não associe alagamento confirmado.',
+                '01-chuva':f'Abra com uma introdução jornalística curta usando a data {presentation_date}. Diga que a prioridade é informar a população para prevenção de riscos, proteção de vidas e redução dos impactos de eventos extremos. Em seguida, fale somente de chuva prevista exclusivamente pelo {ECENS_EDITORIAL_NAME} para América do Sul, citando os acumulados e regiões que estão visíveis na camada. A camada está disponível: nunca diga que não há acumulados, que os valores estão indisponíveis ou que não é possível avaliar a chuva quando a legenda/mapa exibir valores. Não associe alagamento confirmado.',
                 '02-ecens':f'Explique que os raios são previstos pelo modelo de inteligência artificial usando parâmetros convectivos do {ECENS_EDITORIAL_NAME}, não uma saída direta de raios do modelo meteorológico. Para América do Sul, destacando países/regiões confirmados. Não use raios observados.',
                 '03-risco':f'Explique as áreas de risco de raios geradas pela IA com parâmetros convectivos do {ECENS_EDITORIAL_NAME}; não declare severidade ou granizo com base nessa camada.',
                 '05-agora':'Comece: Agora passamos das previsões para as condições atuais monitoradas. Explique os polígonos de severidade no Brasil sustentados pelos dados, sem radar na imagem.',
@@ -160,7 +161,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
                 '10-extrap-120':'A imagem é de +120 minutos. Enfatize incerteza e natureza de extrapolação, não uma ocorrência confirmada nem previsão ECENS. Não afirme que a intensidade permanecerá igual.',
                 '11-recomendacoes':'Finalize com recomendações práticas de raios e alagamentos, relacionadas às regiões antes identificadas quando confirmadas. Não atravesse vias alagadas; abrigo fechado; evite árvores, áreas abertas, praias e piscinas; acompanhe a Defesa Civil.',
             }
-            instruction=directives.get(s.id,f'Explique somente a probabilidade de raios (%) da IA com parâmetros convectivos do {ECENS_EDITORIAL_NAME} para o local estruturado informado. Não mencione contagens ou acumulados de raios. Confirme nome/estado e não use uma cidade diferente.')
+            instruction=directives.get(s.id,f'Explique somente a probabilidade de raios (%) da IA com parâmetros convectivos do {ECENS_EDITORIAL_NAME} para o local estruturado informado. Apresente este local como um dos principais pontos brasileiros de maior potencial de descargas elétricas na previsão. Não mencione contagens ou acumulados de raios. Confirme nome/estado e não use uma cidade diferente.')
             question=(f'Siga as regras do prompt editorial salvo:\n{prompt.split("## Regras de evidência")[1].split("## Sequência editorial")[0]}\n\nAGORA produza SOMENTE a fala da cena {s.id}, sem títulos, markdown, JSON ou listas. '
                 'Use português brasileiro natural, 2 frases e no máximo 45 palavras, exceto as frases obrigatórias. Não repita outras seções. '
                 f'{instruction} Camada selecionada: {s.view}. Probabilidade em porcentagem exige probabilidade; quantidade/acumulado de raios exige deterministico. Nunca misture as duas métricas numa cena.\nA imagem validada contém estes metadados: '+json.dumps({k:v for k,v in s.metadata.items() if k in ('view','product','period','legend','polygon_count','bounds')},ensure_ascii=False)+

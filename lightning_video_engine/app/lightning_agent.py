@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 
@@ -38,6 +39,15 @@ class LightningAgentClient:
             raise ValueError("produto não autorizado") from exc
         with urlopen(self.base_url + path, timeout=60) as response:
             return response.read()
+
+    def destaques_editoriais(self, top_n: int = 20) -> dict:
+        """Read deterministic ECENS highlights calculated by the data API."""
+        query = urlencode({"top_n": max(3, min(int(top_n), 50))})
+        with urlopen(self.base_url + "/previsao/destaques-editoriais?" + query, timeout=180) as response:
+            result = json.loads(response.read().decode("utf-8"))
+        if result.get("fonte") != "ecens":
+            raise RuntimeError("destaques editoriais sem confirmação ECENS")
+        return result
 
     def captura_app(self, destination: Path) -> None:
         """Capture the official /app/ visual with Chromium; no third-party map page is used."""

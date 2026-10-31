@@ -63,10 +63,16 @@ def fallback_narration(scene, presentation_date):
     It intentionally names no unverified city, value, alert or movement. The
     captured official layer remains on screen and the bulletin can complete.
     """
+    editorial=scene.evidence.get('editorial',{})
+    rain=editorial.get('chuva',{}).get('regioes',[])[:2]
+    lightning=editorial.get('raios',{}).get('regioes',[])[:3]
+    def names(rows):
+        return ', '.join(f"{x.get('cidade')} ({x.get('pais')})" for x in rows if x.get('cidade'))
+    rain_names, lightning_names=names(rain), names(lightning)
     copy={
-        '01-chuva':f'Hoje, {presentation_date}, a prioridade é informar a população para prevenção de riscos, proteção de vidas e redução dos impactos de eventos extremos. A chuva prevista pelo {ECENS_EDITORIAL_NAME} está apresentada nesta camada; consulte a legenda para os acumulados e o período válido.',
-        '02-ecens':f'Esta previsão de raios é gerada por inteligência artificial usando parâmetros convectivos do {ECENS_EDITORIAL_NAME}; não é uma saída direta de raios do modelo meteorológico. A legenda mostra a distribuição prevista para o período indicado.',
-        '03-risco':f'Este mapa mostra as áreas de risco de raios geradas pela inteligência artificial com parâmetros convectivos do {ECENS_EDITORIAL_NAME}. Use as classes da legenda para acompanhar as áreas que exigem maior atenção.',
+        '01-chuva':f'Hoje, {presentation_date}, a prioridade é informar a população para prevenção de riscos, proteção de vidas e redução dos impactos de eventos extremos. A chuva prevista pelo {ECENS_EDITORIAL_NAME} destaca {rain_names}; consulte a legenda para os acumulados e o período válido.' if rain_names else f'Hoje, {presentation_date}, a prioridade é informar a população para prevenção de riscos, proteção de vidas e redução dos impactos de eventos extremos. A chuva prevista pelo {ECENS_EDITORIAL_NAME} está apresentada nesta camada; consulte a legenda para os acumulados e o período válido.',
+        '02-ecens':f'Esta previsão de raios é gerada por inteligência artificial usando parâmetros convectivos do {ECENS_EDITORIAL_NAME}; não é uma saída direta de raios do modelo meteorológico. Os principais pontos na grade incluem {lightning_names}.' if lightning_names else f'Esta previsão de raios é gerada por inteligência artificial usando parâmetros convectivos do {ECENS_EDITORIAL_NAME}; não é uma saída direta de raios do modelo meteorológico. A legenda mostra a distribuição prevista para o período indicado.',
+        '03-risco':f'Este mapa mostra as áreas de risco de raios geradas pela inteligência artificial com parâmetros convectivos do {ECENS_EDITORIAL_NAME}. Entre os pontos de maior atenção estão {lightning_names}.' if lightning_names else f'Este mapa mostra as áreas de risco de raios geradas pela inteligência artificial com parâmetros convectivos do {ECENS_EDITORIAL_NAME}. Use as classes da legenda para acompanhar as áreas que exigem maior atenção.',
         '05-agora':'Agora passamos das previsões para as condições atuais monitoradas. Este quadro mostra as áreas analisadas no momento; acompanhe os avisos oficiais da Defesa Civil.',
         '06-observado':'Este quadro apresenta a atividade elétrica observada no Brasil no horário indicado. Observação e previsão são produtos diferentes; acompanhe a atualização mais recente.',
         '07-alagamento':'Esta é uma previsão de risco de alagamento para as condições atuais, baseada no monitoramento e na análise de curtíssimo prazo. Não atravesse vias inundadas e acompanhe a Defesa Civil.',
@@ -90,7 +96,16 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
     discovery=directory/'destaques.json'
     # The emergency short profile avoids local discovery. The balanced remote
     # bulletin keeps the Brazilian lightning highlights and the nowcasting arc.
-    if profile == 'lite':
+    editorial={}
+    try:
+        editorial=client.destaques_editoriais()
+        (directory/'destaques-ecens.json').write_text(json.dumps(editorial,ensure_ascii=False,indent=2))
+    except Exception as exc:
+        (directory/'destaques-ecens-erro.json').write_text(json.dumps({'error':str(exc)},ensure_ascii=False,indent=2))
+    if editorial.get('brasil_maior_atividade_raios'):
+        places=[{'place':{'nome':f"{x['cidade']}, {x['pais']}",'lat':x['lat'],'lon':x['lon']},'evidence':x}
+                for x in editorial['brasil_maior_atividade_raios'][:3]]
+    elif profile == 'lite':
         places=[]
     elif discovery.is_file():
         places=json.loads(discovery.read_text())
@@ -121,12 +136,12 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
                 places.append({'place':local,'evidence':result,'selection':option})
         discovery.write_text(json.dumps(places,ensure_ascii=False,indent=2))
     specs=[
-        Segment('01-chuva','Chuva prevista | ECMWF (ECENS)','previsao','chuva-prevista','ecens'),
-        Segment('02-ecens','Raios previstos | IA e parâmetros convectivos do ECMWF (ECENS)','previsao','deterministico','ecens'),
-        Segment('03-risco','Risco de raios | IA e parâmetros convectivos do ECMWF (ECENS)','previsao','risco','ecens'),
+        Segment('01-chuva','Chuva prevista | ECMWF (ECENS)','previsao','chuva-prevista','ecens',evidence={'editorial':editorial}),
+        Segment('02-ecens','Raios previstos | IA e parâmetros convectivos do ECMWF (ECENS)','previsao','deterministico','ecens',evidence={'editorial':editorial}),
+        Segment('03-risco','Risco de raios | IA e parâmetros convectivos do ECMWF (ECENS)','previsao','risco','ecens',evidence={'editorial':editorial}),
     ]
     for i,p in enumerate(places):
-        specs.append(Segment(f'04-local-{i+1}','Probabilidade de raios | '+p['place']['nome'],'destaque','probabilidade','ecens',place=p['place'],evidence=p))
+        specs.append(Segment(f'04-local-{i+1}','Probabilidade de raios | '+p['place']['nome'],'destaque','probabilidade','ecens',place=p['place'],evidence={**p,'editorial':editorial}))
     specs += [
         Segment('05-agora','Condições atuais | Nowcasting','nowcasting','severidade','monitoramento'),
         Segment('06-observado','Atividade elétrica observada','observacao','agora','monitoramento'),
@@ -140,7 +155,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
         keep={'01-chuva','02-ecens','03-risco','05-agora','06-observado',
               '07-alagamento','08-extrap-0','09-extrap-60','10-extrap-120',
               '11-recomendacoes'}
-        specs=[s for s in specs if s.id in keep]
+        specs=[s for s in specs if s.id in keep or s.id.startswith('04-local-')]
         print('Perfil equilibrado: previsões ECENS, até três destaques brasileiros e sequência completa de nowcasting.',flush=True)
     elif profile == 'lite':
         keep={'01-chuva','02-ecens','03-risco','11-recomendacoes'}

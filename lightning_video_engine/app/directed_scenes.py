@@ -40,7 +40,7 @@ def capture_segments(app_url: str, segments: list[Segment], directory: Path):
         browser = p.chromium.launch(headless=True,
             executable_path=os.environ.get('CHROMIUM_BIN') or '/opt/google/chrome/chrome',
             args=['--no-sandbox','--disable-gpu'])
-        page = browser.new_page(viewport={'width':1440,'height':810}, timezone_id='America/Belem', color_scheme='dark')
+        page = browser.new_page(viewport={'width':1440,'height':810}, timezone_id='America/Belem', color_scheme='light')
         page.goto(app_url, wait_until='domcontentloaded', timeout=90000)
         page.wait_for_function('typeof mapInfo !== "undefined" && mapInfo && typeof nowcastInfo !== "undefined" && nowcastInfo', timeout=90000)
         page.evaluate('setPlaying(false);setNowcastPlaying(false);setObservedOn(false);setCloudsOn(false);setRadarOn(false)')
@@ -50,8 +50,8 @@ def capture_segments(app_url: str, segments: list[Segment], directory: Path):
                 continue
             try:
                 forecast_scene = s.category in ('previsao', 'destaque')
-                page.emulate_media(color_scheme='light' if forecast_scene else 'dark')
-                page.evaluate('(enabled)=>document.documentElement.classList.toggle("trovox-forecast",enabled)', forecast_scene)
+                page.emulate_media(color_scheme='light')
+                page.evaluate('(enabled)=>document.documentElement.classList.add("trovox-forecast")', forecast_scene)
                 page.evaluate("""() => {
                     document.querySelector('#map-rail').dataset.open='true';
                     clearRegion();map.closePopup();map.options.zoomSnap=0.1;
@@ -146,7 +146,7 @@ def capture_segments(app_url: str, segments: list[Segment], directory: Path):
                 image = directory/f'{s.id}.png'
                 page.locator('.stage').screenshot(path=str(image))
                 style.evaluate('(e)=>e.remove()')
-                s.metadata['presentation_style'] = 'trovox-forecast-light-v1' if forecast_scene else 'trovox-dark-v1'
+                s.metadata['presentation_style'] = 'trovox-light-v2'
                 s.image = str(image.resolve())
             except Exception as exc:
                 s.available = False

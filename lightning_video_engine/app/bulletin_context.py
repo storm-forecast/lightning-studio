@@ -58,10 +58,18 @@ def time_reference(scene):
     return ''
 
 
-def add_time_reference(scene):
+def add_time_reference(scene, spoken_periods=None):
     reference = time_reference(scene)
-    if reference and reference not in scene.narration:
-        scene.narration = scene.narration.rstrip() + ' ' + reference
+    if not reference:
+        return
+    # Remove our own suffix from resumed scripts before applying bulletin-wide rules.
+    normalized = readable_times(reference)
+    scene.narration = scene.narration.replace(reference, '').replace(normalized, '').strip()
+    if scene.category in ('previsao', 'destaque') and spoken_periods is not None:
+        if normalized in spoken_periods:
+            return
+        spoken_periods.add(normalized)
+    scene.narration = scene.narration.rstrip() + ' ' + reference
 
 
 def local_recommendations(segments):

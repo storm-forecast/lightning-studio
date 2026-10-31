@@ -184,7 +184,7 @@ limitação da consulta, sem afirmar que não há tempestades, severidade ou ris
 
 Nas previsões, mantenha o mapa-base claro original para preservar a leitura
 dos nomes das cidades. Use detalhes em ciano e legenda ampliada. O fundo
-escuro fica restrito às cenas de monitoramento.
+claro também se aplica às cenas de monitoramento.
 O tratamento de contraste atua somente no mapa-base; as cores e os valores
 meteorológicos permanecem os do produto original. Atribuições ficam visíveis.
 Destaques locais têm marcador e nome permanente, com enquadramento do entorno
@@ -199,8 +199,8 @@ somente contexto breve. Dê primeiro o destaque brasileiro comprovado mais
 relevante e identifique cidades e estados quando conhecidos. Não substitua
 localidades disponíveis por frases genéricas sobre o mapa.
 
-Toda cena de previsão deve informar na fala sua validade real, conforme o
-produto capturado; a data de geração não substitui a validade. No nowcasting,
+A primeira previsão e cada mudança de período devem informar na fala a
+validade real, conforme o produto capturado; a data de geração não substitui a validade. No nowcasting,
 informe a referência das observações e das nuvens. Se o horário não puder ser
 confirmado, diga isso em vez de apresentar a informação como atual.
 
@@ -244,3 +244,13 @@ O áudio final PCM mono de 16 kHz é reutilizado sem reconversão antes do Wav2L
 O workflow reaproveita downloads de dependências e o checkpoint, mantendo a
 verificação SHA-256 do modelo na instalação. Dados meteorológicos não são
 reutilizados entre boletins por esse cache.
+
+## Fundo claro e validade sem repetição
+
+Use o mapa-base claro também em nowcasting, raios observados, severidade,
+potencial de alagamento e extrapolação. Preserve a paleta meteorológica.
+A validade continua visível em cada cena. Na fala, informe a validade na
+primeira previsão e quando mudar o período; não repita a mesma validade em
+cada local ou produto com período idêntico. O gerador controla essa inserção:
+o agente não deve repetir datas e horários por conta própria na fala da cena.
+A referência das observações continua distinta da validade das previsões.

@@ -229,6 +229,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
         except Exception as exc:
             (directory/'observado-erro.json').write_text(json.dumps({'error':str(exc)},ensure_ascii=False))
     audios=directory/'audios';audios.mkdir(exist_ok=True)
+    spoken_periods = set()
     for s in specs:
         if s.id == '06-observado':
             s.evidence['observed'] = observed
@@ -256,7 +257,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             instruction=directives.get(s.id,f'Explique somente a probabilidade de raios (%) para o local estruturado informado. Use o nome Previsão de Raios, sem mencionar modelos, inteligência artificial, parâmetros convectivos ou chuva. Diga apenas: Entre os lugares de destaque está, seguido do nome deste local. Não o classifique como um dos maiores riscos sem comparação comprovada. Não mencione contagens ou acumulados de raios. Confirme nome/estado e não use uma cidade diferente.')
             regional_direction = regional_scene_direction(s.id) + ' ' + tourism_direction(s)
             question=(f'Siga as regras do prompt editorial salvo:\n{prompt.split("## Regras de evidência")[1].split("## Sequência editorial")[0]}\n\nAGORA produza SOMENTE a fala da cena {s.id}, sem títulos, markdown, JSON ou listas. '
-                'Não pronuncie o nome do canal nesta cena; ele será dito uma única vez na CTA final. Vá direto à informação meteorológica. Use português brasileiro natural, dinâmico e profissional. Faça destaques concretos coerentes com esta imagem; não repita outras seções. '
+                'Não pronuncie o nome do canal nesta cena; ele será dito uma única vez na CTA final. Vá direto à informação meteorológica. Use português brasileiro natural, dinâmico e profissional. Não narre datas de validade nem horários nesta resposta: o gerador acrescentará a referência temporal apenas quando necessário, sem repetir períodos iguais. Faça destaques concretos coerentes com esta imagem; não repita outras seções. '
                 'O foco do boletim é o Brasil, suas cidades, estados e cinco regiões. A América do Sul serve apenas como contexto breve. Nunca cite localidades, países, dados ou fenômenos de outros continentes. '
                 f'{regional_direction} {instruction} Camada selecionada: {s.view}. Probabilidade em porcentagem exige probabilidade; quantidade/acumulado de raios exige deterministico. Nunca misture as duas métricas numa cena.')
             narration_evidence = {
@@ -309,7 +310,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             s.narration=fallback_narration(s,presentation_date)
             textfile.write_text(s.narration)
             validate_forecast_text(s)
-        add_time_reference(s)
+        add_time_reference(s, spoken_periods)
         validate_scene_evidence(s)
         s.narration = readable_times(channel_narration(s.narration, s.id))
         textfile.write_text(s.narration)

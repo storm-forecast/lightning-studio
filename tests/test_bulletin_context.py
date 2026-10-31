@@ -74,3 +74,27 @@ class ReadableTimesTests(unittest.TestCase):
     def test_clock_z_and_unrelated_place_names(self):
         from lightning_video_engine.app.bulletin_context import readable_times
         self.assertEqual(readable_times('Zé Doca: 14:30Z; até 15:30 UTC.'), 'Zé Doca: 14:30 UTC; até 15:30 UTC.')
+
+
+class BulletinPeriodDedupTests(unittest.TestCase):
+    def test_repeated_period_is_spoken_once_but_changed_period_is_kept(self):
+        from lightning_video_engine.app.bulletin_context import add_time_reference
+        seen = set()
+        scenes = [Segment(str(i), 'Teste', 'previsao', 'probabilidade', narration='Destaque local.',
+                          metadata={'period': period})
+                  for i, period in enumerate(('31/10/2026 UTC', '31/10/2026 UTC', '01/11/2026 UTC'))]
+        for scene in scenes:
+            add_time_reference(scene, seen)
+        self.assertIn('Validade desta previsão', scenes[0].narration)
+        self.assertNotIn('Validade desta previsão', scenes[1].narration)
+        self.assertIn('01/11/2026 UTC', scenes[2].narration)
+        self.assertEqual(scenes[1].metadata['period'], '31/10/2026 UTC')
+
+    def test_resumed_script_removes_duplicate_suffix_without_cutting_weather(self):
+        from lightning_video_engine.app.bulletin_context import add_time_reference
+        scene = Segment('local', 'Teste', 'destaque', 'probabilidade',
+                        narration='Belém é destaque. Validade desta previsão: 31/10/2026 UTC.',
+                        metadata={'period': '31/10/2026 UTC'})
+        seen = {'Validade desta previsão: 31/10/2026 UTC.'}
+        add_time_reference(scene, seen)
+        self.assertEqual(scene.narration, 'Belém é destaque.')

@@ -317,8 +317,8 @@ somente contexto breve. Dê primeiro o destaque brasileiro comprovado mais
 relevante e identifique cidades e estados quando conhecidos. Não substitua
 localidades disponíveis por frases genéricas sobre o mapa.
 
-Toda cena de previsão deve informar na fala sua validade real, conforme o
-produto capturado; a data de geração não substitui a validade. No nowcasting,
+A primeira previsão e cada mudança de período devem informar na fala a
+validade real, conforme o produto capturado; a data de geração não substitui a validade. No nowcasting,
 informe a referência das observações e das nuvens. Se o horário não puder ser
 confirmado, diga isso em vez de apresentar a informação como atual.
 
@@ -351,3 +351,13 @@ A ausência na lista dos máximos não comprova ausência de fenômenos na cidad
 Polígonos sem associação geográfica não autorizam citar cidades. A seleção
 atual usa as evidências já disponíveis; não representa consulta completa de
 todos os destinos em cada atualização.
+
+## Fundo claro e validade sem repetição
+
+Use o mapa-base claro também em nowcasting, raios observados, severidade,
+potencial de alagamento e extrapolação. Preserve a paleta meteorológica.
+A validade continua visível em cada cena. Na fala, informe a validade na
+primeira previsão e quando mudar o período; não repita a mesma validade em
+cada local ou produto com período idêntico. O gerador controla essa inserção:
+o agente não deve repetir datas e horários por conta própria na fala da cena.
+A referência das observações continua distinta da validade das previsões.

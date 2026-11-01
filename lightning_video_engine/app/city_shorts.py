@@ -167,17 +167,21 @@ class Monitor:
                        (created >= midnight and json.loads(payload)['estado'] == 'concluido')
                        for created,payload in rows)
 
-    def check(self):
+    def check(self, reports=None):
         if not self.lock.acquire(blocking=False):
             return {'ocupado': True, 'resultados': []}
         try:
             results = []
-            for key in CITIES:
+            for key in (reports if reports is not None else CITIES):
                 try:
                     if not self.eligible(key):
                         results.append({'cidade':key, 'suprimido':'aviso diário já reservado ou concluído'})
                         continue
-                    report = evaluate(key, self.resources)
+                    report = reports[key] if reports is not None else evaluate(key, self.resources)
+                    if reports is not None and (report.get('cidade') != key or
+                                                not fresh(report.get('verificado_em'), utc_now())):
+                        results.append({'cidade':key, 'erro':'alerta expirado antes da geração', 'gerar':False})
+                        continue
                     if report['gerar']:
                         with self.db() as db:
                             tz = ZoneInfo(city_timezone(key, CITIES[key][1]))
@@ -203,15 +207,15 @@ class Monitor:
         finally:
             self.lock.release()
 
-    def work(self, item):
+    def work(self, item, *, recheck=True):
         # One encoder at a time, including jobs dispatched by different monitoring passes.
         with self.render_lock:
             try:
                 item['estado'] = 'gerando'
                 self.save(item)
-                latest = evaluate(item['alerta']['cidade'], self.resources)
-                if not latest['gerar']:
-                    raise ValueError('gatilho deixou de existir antes da renderização')
+                latest = evaluate(item['alerta']['cidade'], self.resources) if recheck else item['alerta']
+                if not latest['gerar'] or not fresh(latest['verificado_em'], utc_now()):
+                    raise ValueError('alerta expirado antes da renderização')
                 item['alerta'] = latest
                 render(self.root / item['id'], latest, self.resources)
                 item['estado'] = 'concluido'

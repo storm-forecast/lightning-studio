@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
 from lightning_video_engine.app.city_shorts import CITIES, Monitor, evaluate
 
@@ -43,6 +43,28 @@ def test_recent_lightning_within_fifteen_km_triggers_even_when_stationary():
     source.json=close_lightning
     with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), patch('lightning_video_engine.app.city_shorts.rain_at', return_value=None), patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026,11,1,12)):
         assert evaluate('curitiba',source)['gerar']
+
+
+def test_confirmed_scan_survives_changed_second_read(tmp_path):
+    monitor=Monitor(None,tmp_path)
+    captured={'cidade':'belo-horizonte','gerar':True,
+              'verificado_em':datetime.now(timezone.utc).isoformat()}
+    with patch('threading.Thread.start'), patch('lightning_video_engine.app.city_shorts.evaluate',
+            side_effect=AssertionError('a second read must not replace the confirmed alert')) as reread:
+        ident=monitor.check(reports={'belo-horizonte':captured})['resultados'][0]['video_id']
+        with patch('lightning_video_engine.app.city_shorts.render'):
+            monitor.work(monitor.get(ident),recheck=False)
+    reread.assert_not_called()
+    assert monitor.get(ident)['estado']=='concluido'
+
+
+def test_expired_scan_is_never_dispatched(tmp_path):
+    monitor=Monitor(None,tmp_path)
+    captured={'cidade':'belo-horizonte','gerar':True,
+              'verificado_em':(datetime.now(timezone.utc)-timedelta(minutes=16)).isoformat()}
+    result=monitor.check(reports={'belo-horizonte':captured})['resultados'][0]
+    assert 'expirado' in result['erro']
+    assert 'video_id' not in result
 
 
 def test_portuguese_script_invites_subscription_and_alerts():

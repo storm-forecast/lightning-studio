@@ -15,15 +15,19 @@ root=Path(os.environ.get('SHORTS_OUTPUT_DIR','output/shorts'))
 source=AgentSource(os.environ.get('LIGHTNING_API_URL','https://lightning-agent.onrender.com'))
 monitor=Monitor(source,root)
 if a.scan:
-    candidates=[];errors=[]
+    candidates=[];reports={};errors=[]
     for key in CITIES:
         try:
-            if monitor.eligible(key) and evaluate(key,source)['gerar']:candidates.append(key)
+            if monitor.eligible(key):
+                report=evaluate(key,source)
+                if report['gerar']:
+                    candidates.append(key)
+                    reports[key]=report
         except Exception as exc:errors.append({'cidade':key,'erro':str(exc)})
-    (root/'scan.json').write_text(json.dumps({'candidatas':candidates,'erros':errors},ensure_ascii=False,indent=2))
+    (root/'scan.json').write_text(json.dumps({'candidatas':candidates,'relatorios':reports,'erros':errors},ensure_ascii=False,indent=2))
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'],'a') as output:output.write('has_alerts='+str(bool(candidates)).lower()+'\n')
-    print('Cidades com aproximação:',', '.join(candidates) or 'nenhuma',flush=True)
+    print('Cidades com alerta confirmado:',', '.join(candidates) or 'nenhuma',flush=True)
     if errors:print('Falhas de consulta:',json.dumps(errors,ensure_ascii=False),flush=True)
     if len(errors)==len(CITIES):raise SystemExit('Todas as consultas falharam')
 else:
@@ -33,7 +37,8 @@ else:
             self.pending.append(item)
     monitor=Sequential(source,root)
     monitor.pending=[]
-    result=monitor.check()
+    scan=json.loads((root/'scan.json').read_text())
+    result=monitor.check(reports=scan['relatorios'])
     # check dispatches daemon callbacks; collect IDs directly from the persisted report.
     failed=False
     for report in result['resultados']:
@@ -41,7 +46,7 @@ else:
         ident=report.get('video_id')
         if not ident:continue
         item=monitor.get(ident)
-        Monitor.work(monitor,item)
+        Monitor.work(monitor,item,recheck=False)
         item=monitor.get(ident)
         print(report['cidade'],item['estado'],json.dumps(item.get('youtube',{}),ensure_ascii=False),flush=True)
         if item['estado']=='falhou' or item.get('youtube',{}).get('error'):failed=True

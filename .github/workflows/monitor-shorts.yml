@@ -6,8 +6,10 @@ on:
     paths: ['.github/workflows/monitor-shorts.yml']
   workflow_dispatch:
   schedule:
-    # Every 30 minutes, off the busiest minute of the hour (UTC).
-    - cron: '7,37 * * * *'
+    # Free best-effort monitor every ten minutes, away from the busiest minute.
+    # Scheduled Actions can still be delayed by GitHub, so this is not a
+    # substitute for an always-on worker when a strict real-time SLA is needed.
+    - cron: '2,12,22,32,42,52 * * * *'
 
 permissions:
   contents: read

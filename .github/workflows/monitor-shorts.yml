@@ -66,7 +66,19 @@ jobs:
 
       - name: Check configured Brazilian and Spanish-speaking cities
         id: scan
-        run: python scripts/check_city_shorts.py --scan
+        run: |
+          python scripts/check_city_shorts.py --scan
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          scan = json.loads(Path('output/shorts/scan.json').read_text())
+          candidates = ', '.join(scan['candidatas']) or 'nenhuma'
+          errors = ', '.join(item['cidade'] for item in scan['erros']) or 'nenhuma'
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write(f'### Triagem de Shorts\n\nCidades candidatas: {candidates}\n\nFalhas de consulta: {errors}\n')
+          PY
 
       - name: Restore lip-sync checkpoint
         if: steps.scan.outputs.has_alerts == 'true'

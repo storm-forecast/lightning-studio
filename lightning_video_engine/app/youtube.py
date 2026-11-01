@@ -146,10 +146,23 @@ def publish_bulletin(directory: Path, presented_at: datetime, env=os.environ, pu
             publish_at = datetime.fromisoformat(env['YOUTUBE_PUBLISH_AT'].replace('Z', '+00:00'))
         except ValueError as exc:
             raise YouTubeError('YOUTUBE_PUBLISH_AT deve ser uma data ISO-8601 válida') from exc
+    if publish_at is not None:
+        if publish_at.tzinfo is None:
+            raise YouTubeError('YOUTUBE_PUBLISH_AT deve incluir fuso horário')
+        if publish_at <= datetime.now(timezone.utc):
+            publish_at = None  # GitHub atrasou: publicar a previsão atual imediatamente.
     metadata = bulletin_metadata(directory, presented_at,
                                  timezone_name=env.get('VIDEO_TIMEZONE', 'America/Belem'),
                                  privacy=env.get('YOUTUBE_PRIVACY', 'private'), publish_at=publish_at)
     result = upload(video, metadata, token)
+    if not result.get('id'):
+        raise YouTubeError('YouTube não confirmou o identificador do vídeo')
+    expected_privacy = metadata['status']['privacyStatus']
+    actual_privacy = result.get('status', {}).get('privacyStatus')
+    if actual_privacy != expected_privacy and not (
+        publish_at is not None and actual_privacy == 'public' and publish_at <= datetime.now(timezone.utc)
+    ):
+        raise YouTubeError(f'YouTube respondeu com privacidade {actual_privacy!r}; esperado {expected_privacy!r}')
     record = {'video_id': result.get('id'), 'url': f"https://youtu.be/{result.get('id')}",
               'channel_id': channel, 'privacy': result.get('status', {}).get('privacyStatus'),
               'title': metadata['snippet']['title'],

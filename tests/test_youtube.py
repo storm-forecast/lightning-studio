@@ -5,7 +5,7 @@ import json
 import tempfile
 import unittest
 import urllib.error
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -73,13 +73,30 @@ class Publish(unittest.TestCase):
         self.assertEqual(json.loads((self.directory / 'youtube.json').read_text())['video_id'], 'abc')
 
     def test_records_scheduled_publication(self):
-        publish_at = datetime(2026, 11, 1, 12, tzinfo=timezone.utc)
+        publish_at = datetime.now(timezone.utc) + timedelta(hours=2)
+        stamp = publish_at.isoformat().replace('+00:00', 'Z')
         with patch.object(youtube, 'access_token', return_value='t'), \
              patch.object(youtube, 'authorized_channel', return_value=(ENV['YOUTUBE_CHANNEL_ID'], 'Canal')), \
              patch.object(youtube, 'upload', return_value={'id': 'abc', 'status': {'privacyStatus': 'private'}}) as upload:
             record = youtube.publish_bulletin(self.directory, AT, ENV, publish_at=publish_at)
-        self.assertEqual(record['scheduled_publish_at'], '2026-11-01T12:00:00Z')
-        self.assertEqual(upload.call_args.args[1]['status']['publishAt'], '2026-11-01T12:00:00Z')
+        self.assertEqual(record['scheduled_publish_at'], stamp)
+        self.assertEqual(upload.call_args.args[1]['status']['publishAt'], stamp)
+
+    def test_late_scheduled_bulletin_is_uploaded_publicly(self):
+        with patch.object(youtube, 'access_token', return_value='t'), \
+             patch.object(youtube, 'authorized_channel', return_value=(ENV['YOUTUBE_CHANNEL_ID'], 'Canal')), \
+             patch.object(youtube, 'upload', return_value={'id': 'abc', 'status': {'privacyStatus': 'public'}}) as upload:
+            record = youtube.publish_bulletin(self.directory, AT, {**ENV, 'YOUTUBE_PRIVACY': 'public'},
+                                              publish_at=datetime.now(timezone.utc)-timedelta(minutes=1))
+        self.assertEqual(record['privacy'], 'public')
+        self.assertNotIn('publishAt', upload.call_args.args[1]['status'])
+
+    def test_upload_must_confirm_public_visibility(self):
+        with patch.object(youtube, 'access_token', return_value='t'), \
+             patch.object(youtube, 'authorized_channel', return_value=(ENV['YOUTUBE_CHANNEL_ID'], 'Canal')), \
+             patch.object(youtube, 'upload', return_value={'id': 'abc', 'status': {'privacyStatus': 'private'}}):
+            with self.assertRaisesRegex(youtube.YouTubeError, 'privacidade'):
+                youtube.publish_bulletin(self.directory, AT, {**ENV, 'YOUTUBE_PRIVACY': 'public'})
 
     def test_missing_secrets_are_named(self):
         with self.assertRaisesRegex(youtube.YouTubeError, 'YOUTUBE_REFRESH_TOKEN'):

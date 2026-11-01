@@ -4,8 +4,9 @@ Canal de destino: `UCOrGMudYslWWWmpW8pu3UDg`.
 
 O workflow `generate-video.yml` envia `boletim.mp4` logo após a geração.
 Nas execuções agendadas, ele envia como privado com `publishAt`; o YouTube o
-torna público no horário configurado. Execuções manuais publicam imediatamente
-(salvo uma variável `YOUTUBE_PRIVACY` diferente no repositório).
+torna público no horário configurado. Se a produção ultrapassar o horário,
+o envio acontece publicamente assim que o vídeo estiver pronto. Execuções
+manuais e disparos por atualização do workflow publicam imediatamente.
 O vídeo vai para o canal da conta que autorizou o OAuth; antes de cada envio,
 o script confere que esse canal é `YOUTUBE_CHANNEL_ID` e recusa outro canal.
 
@@ -26,8 +27,8 @@ o script confere que esse canal é `YOUTUBE_CHANNEL_ID` e recusa outro canal.
    o JSON nem o token.
 5. Em *Settings → Secrets and variables → Actions* do repositório:
    - secrets `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN`;
-   - variável opcional `YOUTUBE_PRIVACY` (`private`, `unlisted` ou `public`;
-     padrão `private`);
+   - os boletins do workflow são públicos; o agendamento define privacidade
+     privada apenas até o horário de liberação;
    - variável opcional `YOUTUBE_CHANNEL_ID` para trocar o canal.
 
 Sem `YOUTUBE_REFRESH_TOKEN`, o passo de upload é pulado e o boletim continua

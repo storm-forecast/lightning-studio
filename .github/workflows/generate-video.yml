@@ -1,12 +1,19 @@
 name: Generate weather bulletin
 
 on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/generate-video.yml']
   workflow_dispatch:
   # Start 75 minutes before the requested public slots in Belém (UTC-3):
   # 05:30, 09:00, 12:00, 13:00, 14:00 and 15:00. GitHub cron uses UTC.
   schedule:
     - cron: '15 7 * * *'
-    - cron: '45 10,13,14,15,16 * * *'
+    - cron: '45 10 * * *'
+    - cron: '45 13 * * *'
+    - cron: '45 14 * * *'
+    - cron: '45 15 * * *'
+    - cron: '45 16 * * *'
 
 permissions:
   contents: read
@@ -34,26 +41,30 @@ jobs:
       YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
       YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
       YOUTUBE_CHANNEL_ID: ${{ vars.YOUTUBE_CHANNEL_ID || 'UCOrGMudYslWWWmpW8pu3UDg' }}
-      YOUTUBE_PRIVACY: ${{ vars.YOUTUBE_PRIVACY || 'public' }}
+      YOUTUBE_PRIVACY: public
     steps:
       - uses: actions/checkout@v4
 
-      # Save the target before dependency installation and rendering consume the
-      # preparation window.  The hour ranges tolerate a modest Actions delay.
       - name: Set the requested YouTube publication time
         if: github.event_name == 'schedule'
+        env:
+          SCHEDULE_CRON: ${{ github.event.schedule }}
         run: |
-          hour="$(date -u +%H)"
-          case "$hour" in
-            07|08) target='08:30' ;;
-            10|11) target='12:00' ;;
-            13|14) target='15:00' ;;
-            15) target='16:00' ;;
-            16) target='17:00' ;;
-            17) target='18:00' ;;
-            *) echo "Unexpected scheduled start hour: $hour" >&2; exit 1 ;;
+          case "$SCHEDULE_CRON" in
+            '15 7 * * *') target='08:30' ;;
+            '45 10 * * *') target='12:00' ;;
+            '45 13 * * *') target='15:00' ;;
+            '45 14 * * *') target='16:00' ;;
+            '45 15 * * *') target='17:00' ;;
+            '45 16 * * *') target='18:00' ;;
+            *) echo "Unexpected schedule: $SCHEDULE_CRON" >&2; exit 1 ;;
           esac
           echo "YOUTUBE_PUBLISH_AT=$(date -u -d "today $target" +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: Confirm upload credentials
+        run: |
+          test -n "$YOUTUBE_CLIENT_ID" && test -n "$YOUTUBE_CLIENT_SECRET" && test -n "$YOUTUBE_REFRESH_TOKEN"
+          test -n "$YOUTUBE_CHANNEL_ID"
 
       - uses: actions/setup-python@v5
         with:
@@ -91,9 +102,7 @@ jobs:
           .local/venv/bin/python scripts/produce_bulletin.py --directory "output/trovox-${stamp}"
           echo "BULLETIN_DIR=output/trovox-${stamp}" >> "$GITHUB_ENV"
 
-      # Without the OAuth secrets the bulletin is still kept as an artifact.
       - name: Upload to YouTube
-        if: success() && env.YOUTUBE_REFRESH_TOKEN != ''
         run: |
           args=(--directory "$BULLETIN_DIR")
           if [ -n "${YOUTUBE_PUBLISH_AT:-}" ]; then

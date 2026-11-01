@@ -94,7 +94,8 @@ execute também manualmente em **Actions → Generate weather bulletin → Run w
 quando precisar de uma publicação imediata.
 
 O upload agendado permanece privado até o horário definido e então é liberado
-automaticamente pelo YouTube. GitHub Actions pode atrasar a geração; se ela não
-terminar antes do horário, a etapa de upload falha em vez de publicar um
-boletim atrasado. O agendamento remoto substitui a antiga cadência de duas
-horas e mantém a execução manual disponível.
+automaticamente pelo YouTube. Se o GitHub Actions atrasar a geração além do
+horário, o boletim atualizado é enviado publicamente assim que ficar pronto.
+Uma mudança no workflow também inicia uma geração imediata para validação.
+O agendamento remoto substitui a antiga cadência de duas horas e mantém a
+execução manual disponível.

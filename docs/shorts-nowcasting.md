@@ -84,3 +84,9 @@ mesmo quando há falha, com retenção de sete dias. Concorrência serializada.
 Agendamentos do GitHub podem atrasar. Não é execução de precisão.
 O workflow precisa estar na branch padrão do repositório para agendar.
 Não habilite simultaneamente o monitor local ou Render com outro histórico.
+
+Córdoba, Argentina, é o 14º local monitorado e o único com idioma es-AR:
+voz argentina, narração, telas, título e descrição em espanhol e horário
+America/Argentina/Cordoba. Os 13 locais brasileiros permanecem em português.
+O arquivo templates/shorts-publications.json registra o teste manual para
+impedir outro envio automático no mesmo dia. Nos demais dias vale o SQLite.

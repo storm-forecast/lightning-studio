@@ -17,6 +17,9 @@ def layout(image, report, title, kind):
     canvas = Image.new('RGB', (720,1280), '#081522')
     d = ImageDraw.Draw(canvas)
     def text(value, x, y, size=24, color='white', bold=False, width=None):
+        if report.get('idioma') == 'es-AR':
+            from .shorts_spanish import screen_es
+            value = screen_es(value)
         font = ImageFont.truetype(BOLD if bold else FONT,size)
         lines = textwrap.wrap(value,width) if width else [value]
         for line in lines:
@@ -28,9 +31,9 @@ def layout(image, report, title, kind):
     text('TROVOX TEMPO',32,30,27,'#60e5cf',True)
     text('ALERTA • NOWCASTING',32,82,20,'#ffbe61',True)
     text(f"{report['nome']} • {report['uf']}",32,122,38,bold=True)
-    timezone = ZoneInfo('America/Sao_Paulo')
+    timezone = ZoneInfo(report.get('timezone','America/Sao_Paulo'))
     time = datetime.fromisoformat(report['verificado_em'].replace('Z','+00:00')).astimezone(timezone)
-    text(time.strftime('%d/%m/%Y • %H:%M') + ' • Brasília (UTC−3)',32,181,20,'#bed3e4')
+    text(time.strftime('%d/%m/%Y • %H:%M') + (' • Argentina (UTC−3)' if report.get('idioma') == 'es-AR' else ' • Brasília (UTC−3)'),32,181,20,'#bed3e4')
     text(title.upper(),32,233,22,bold=True)
     card((30,280,690,760))
     if kind != 'fim':

@@ -56,6 +56,7 @@ CITIES = {
     'belo-horizonte': ('Belo Horizonte', 'MG', -19.9167, -43.9345),
     'campo-grande': ('Campo Grande', 'MS', -20.4697, -54.6201),
     'manaus': ('Manaus', 'AM', -3.1190, -60.0217),
+    'cordoba': ('Córdoba', 'Argentina', -31.4065, -64.1885),
 }
 
 
@@ -96,10 +97,14 @@ def evaluate(key, resources):
     else:
         text += 'Direção de deslocamento não determinada com confiança. '
     text += 'O risco é regional; não confirma impacto em todos os bairros. ' + ' '.join(advice)
-    return {'cidade': key, 'nome': name, 'uf': state, 'lat': lat, 'lon': lon,
+    report = {'cidade': key, 'nome': name, 'uf': state, 'lat': lat, 'lon': lon,
             'verificado_em': now.isoformat() + 'Z', 'gerar': bool(reasons), 'motivos': reasons,
             'raios': lightning, 'nowcasting': point if valid else None, 'chuva': radar,
             'roteiro': text, 'recomendacoes': advice, 'raio_km': 40, 'aproximacao_chuva': incoming_rain}
+    if key == 'cordoba':
+        from .shorts_spanish import localize_report
+        localize_report(report)
+    return report
 
 
 class Monitor:
@@ -130,6 +135,14 @@ class Monitor:
             db.execute('UPDATE jobs SET payload=? WHERE id=?', (json.dumps(item), item['id']))
 
     def eligible(self, key):
+        seed = Path(__file__).resolve().parents[2] / 'templates/shorts-publications.json'
+        if seed.exists():
+            record = json.loads(seed.read_text()).get(key)
+            if record:
+                tz = ZoneInfo('America/Argentina/Cordoba' if key == 'cordoba' else 'America/Sao_Paulo')
+                published = datetime.fromisoformat(record['published_at'].replace('Z','+00:00'))
+                if published.astimezone(tz).date() == datetime.now(tz).date():
+                    return False
         tz = ZoneInfo({'AM':'America/Manaus', 'MS':'America/Campo_Grande'}.get(CITIES[key][1], 'America/Sao_Paulo'))
         midnight = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
         with self.db() as db:
@@ -223,7 +236,7 @@ def render(directory, report, resources):
     if not fresh(report['verificado_em'], utc_now()):
         raise ValueError('alerta expirado na fila; aguarde nova verificação')
     (directory / 'alerta.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))
-    asyncio.run(edge_tts.Communicate(report['roteiro'], 'pt-BR-FranciscaNeural').save(str(directory / 'voz.mp3')))
+    asyncio.run(edge_tts.Communicate(report['roteiro'], report.get('voz', 'pt-BR-FranciscaNeural')).save(str(directory / 'voz.mp3')))
     lat, lon = report['lat'], report['lon']
     dx = 0.55 / np.cos(np.radians(lat)) * (620/420)
     west, east, south, north = lon - dx, lon + dx, lat - .55, lat + .55

@@ -15,7 +15,7 @@ class Source:
 
 
 def test_allowlist():
-    assert len(CITIES) == 13
+    assert len(CITIES) == 14
     assert {'sao-paulo','curitiba','porto-alegre'} <= CITIES.keys()
 
 
@@ -48,3 +48,19 @@ def test_daily_limit_survives_new_monitor(tmp_path):
         with monitor.db() as db:
             db.execute('UPDATE jobs SET created=created-86400 WHERE id=?',(first,))
         assert monitor.check()['resultados'][0]['video_id'] != first
+
+
+def test_spanish_only_cordoba():
+    from lightning_video_engine.app.shorts_spanish import localize_report,screen_es
+    r={'motivos':['tempestade com atividade elétrica se aproximando da região'],'raios':{'dados_atrasados':False,'mais_proximo':None},'nowcasting':None}
+    localize_report(r)
+    assert r['idioma']=='es-AR'
+    assert 'Córdoba, Argentina' in r['roteiro']
+    assert 'Defensa Civil' in r['roteiro']
+    assert screen_es('Raios observados')=='Descargas observadas'
+
+
+def test_uppercase_spanish_scene_titles():
+    from lightning_video_engine.app.shorts_spanish import screen_es
+    assert screen_es('RAIOS OBSERVADOS') == 'DESCARGAS OBSERVADAS'
+    assert screen_es('RECOMENDAÇÕES FINAIS') == 'RECOMENDACIONES FINALES'

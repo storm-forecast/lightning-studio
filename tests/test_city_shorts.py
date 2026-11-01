@@ -31,6 +31,14 @@ def test_triggers_and_staleness():
         assert not evaluate('curitiba',source)['gerar']
 
 
+def test_portuguese_script_invites_subscription_and_alerts():
+    source=Source();source.count=3
+    with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), patch('lightning_video_engine.app.city_shorts.rain_at', return_value=None), patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026,11,1,12)):
+        script=evaluate('curitiba',source)['roteiro']
+    assert 'Inscreva-se no TROVOX TEMPO' in script
+    assert 'ative o sino para receber alertas' in script
+
+
 def test_dedupe_restart(tmp_path):
     monitor=Monitor(None,tmp_path)
     with patch('lightning_video_engine.app.city_shorts.CITIES', {'curitiba':('Curitiba','PR',-25,-49)}), patch('lightning_video_engine.app.city_shorts.evaluate', return_value={'cidade':'curitiba','gerar':True}), patch('threading.Thread.start'):
@@ -57,6 +65,7 @@ def test_spanish_only_cordoba():
     assert r['idioma']=='es-AR'
     assert 'Córdoba, Argentina' in r['roteiro']
     assert 'Protección Civil' in r['roteiro']
+    assert 'active la campana para recibir alertas' in r['roteiro']
     assert screen_es('Raios observados')=='Descargas observadas'
 
 

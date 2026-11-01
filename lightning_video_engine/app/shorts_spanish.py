@@ -27,7 +27,8 @@ def localize_report(report, observed_test=False):
     if trend=='afastando':text+='La tendencia de la actividad eléctrica indica alejamiento, no aproximación. '
     point=report.get('nowcasting') or {};motion=point.get('deslocamento')
     if motion:text+=f"Movimiento estimado de las células hacia el {DIRECTIONS.get(motion['para'],motion['para'])}, a {motion['velocidade_kmh']} kilómetros por hora. "
-    text+='El riesgo es regional y no confirma impacto en todos los barrios. '+' '.join(advice)
+    text+=('El riesgo es regional y no confirma impacto en todos los barrios. '+' '.join(advice)
+           +' Suscríbase a TROVOX TEMPO y active la campana para recibir alertas.')
     report['roteiro']=text
 
 

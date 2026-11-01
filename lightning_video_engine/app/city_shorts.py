@@ -106,7 +106,8 @@ def evaluate(key, resources):
         text += f"Deslocamento estimado das células na região para {motion['para']}, a {motion['velocidade_kmh']} quilômetros por hora. "
     else:
         text += 'Direção de deslocamento não determinada com confiança. '
-    text += 'O risco é regional; não confirma impacto em todos os bairros. ' + ' '.join(advice)
+    text += ('O risco é regional; não confirma impacto em todos os bairros. ' + ' '.join(advice)
+             + ' Inscreva-se no TROVOX TEMPO e ative o sino para receber alertas.')
     report = {'cidade': key, 'nome': name, 'uf': state, 'lat': lat, 'lon': lon,
             'verificado_em': now.isoformat() + 'Z', 'gerar': bool(reasons), 'motivos': reasons,
             'raios': lightning, 'nowcasting': point if valid else None, 'chuva': radar,

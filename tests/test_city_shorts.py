@@ -31,6 +31,20 @@ def test_triggers_and_staleness():
         assert not evaluate('curitiba',source)['gerar']
 
 
+def test_recent_lightning_within_fifteen_km_triggers_even_when_stationary():
+    source=Source()
+    source.count=3
+    source.risk='alta'
+    def close_lightning(path, **query):
+        if path == '/alertas/situacao':
+            return {'dados_atrasados':False,'coberto':True,'raios_40km':3,
+                    'tendencia':{'sentido':'parada'},'mais_proximo':{'km':9,'minutos_atras':3,'direcao':'oeste'}}
+        return {'agora':{'risco':'alta','nuvens_de':'2026-11-01T12:00:00Z'}}
+    source.json=close_lightning
+    with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), patch('lightning_video_engine.app.city_shorts.rain_at', return_value=None), patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026,11,1,12)):
+        assert evaluate('curitiba',source)['gerar']
+
+
 def test_portuguese_script_invites_subscription_and_alerts():
     source=Source();source.count=3
     with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), patch('lightning_video_engine.app.city_shorts.rain_at', return_value=None), patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026,11,1,12)):

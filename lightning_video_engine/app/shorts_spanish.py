@@ -14,7 +14,8 @@ def localize_report(report, observed_test=False):
     if observed_test:
         reasons.append('actividad eléctrica observada en la región')
     else:
-        if any('elétrica' in x for x in report['motivos']):reasons.append('tormenta con actividad eléctrica acercándose a la región')
+        if any('recente muito próxima' in x for x in report['motivos']):reasons.append('actividad eléctrica reciente muy próxima a la región')
+        elif any('elétrica' in x for x in report['motivos']):reasons.append('tormenta con actividad eléctrica acercándose a la región')
         if report.get('aproximacao_chuva'):reasons.append('ecos de lluvia fuerte acercándose en el radar')
     report['motivos']=reasons
     text=f"Atención, {report.get('nome','Córdoba')}, {country}. Monitoreo de la zona hasta 40 kilómetros del centro. "

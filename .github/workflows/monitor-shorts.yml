@@ -3,7 +3,11 @@ name: Monitor city Shorts
 on:
   push:
     branches: [main]
-    paths: ['.github/workflows/monitor-shorts.yml']
+    paths:
+      - '.github/workflows/monitor-shorts.yml'
+      - 'lightning_video_engine/app/city_shorts.py'
+      - 'lightning_video_engine/app/shorts_locales.py'
+      - 'lightning_video_engine/app/shorts_spanish.py'
   workflow_dispatch:
   schedule:
     # Free best-effort monitor every ten minutes, away from the busiest minute.

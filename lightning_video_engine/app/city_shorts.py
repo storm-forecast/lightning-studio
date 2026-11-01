@@ -88,7 +88,13 @@ def evaluate(key, resources):
     lightning_fresh = not lightning['dados_atrasados'] and lightning['coberto']
     trend = (lightning.get('tendencia') or {}).get('sentido')
     projected = valid and point['risco'] != 'alta' and any(point.get(f'em_{m}_min') == 'alta' for m in (10,20,30))
-    if lightning_fresh and (trend == 'aproximando' or (projected and lightning.get('mais_proximo'))):
+    near = lightning.get('mais_proximo')
+    # A recent strike inside 15 km is an observed, local threat.  It must not
+    # be discarded merely because its estimated motion becomes stationary.
+    confirmed_close = bool(near and near.get('km', float('inf')) <= 15 and near.get('minutos_atras', float('inf')) <= 15)
+    if lightning_fresh and confirmed_close:
+        reasons.append('atividade elétrica recente muito próxima da região')
+    elif lightning_fresh and (trend == 'aproximando' or (projected and near)):
         reasons.append('tempestade com atividade elétrica se aproximando da região')
     incoming_rain = rain_approach(lat, lon)
     if incoming_rain:
@@ -99,7 +105,6 @@ def evaluate(key, resources):
     motion = point.get('deslocamento') if valid else None
     text = f"Atenção, {name}, {state}. Monitoramento da área até 40 quilômetros do centro. "
     text += '; '.join(reasons) + '. ' if reasons else 'Sem gatilho de vídeo nesta verificação. '
-    near = lightning.get('mais_proximo')
     if near and not lightning['dados_atrasados']:
         text += f"Raio mais próximo a {near['km']} quilômetros, no setor {near['direcao']}. "
     if motion:

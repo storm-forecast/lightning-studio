@@ -63,7 +63,7 @@ def layout(image, report, title, kind):
     else:y=text('Movimento não determinado',50,y+12,22,width=25)
     count=report['raios'].get('raios_40km',0)
     text(f'{count} raios / 40 km / 30 min',50,y+16,20,'#ffbe61',width=27)
-    text('APRESENTADORA IA',445,1175,16,'#bed3e4')
+    text('APRESENTADORA',445,1175,16,'#bed3e4')
     text('Estimativa regional • acompanhe a Defesa Civil',32,1222,19,'#bed3e4')
     return canvas
 

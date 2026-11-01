@@ -49,7 +49,7 @@ def screen_es(value):
       'PROTEJA-SE':'PROTÉJASE', 'PREVISÃO LOCAL':'PRONÓSTICO LOCAL',
       'N ↑ • Amarelo: raios • Centro marcado':'N ↑ • Amarillo: rayos • Centro señalado',
       'N ↑ • Risco: baixo / moderado / alto':'N ↑ • Riesgo: bajo / moderado / alto',
-      'APRESENTADORA IA':'PRESENTADORA IA',
+      'APRESENTADORA':'PRESENTADORA',
       'Estimativa regional • acompanhe a Defesa Civil':'Estimación regional • siga a Defensa Civil'}
     if value in mapping:return mapping[value]
     for key, translated in mapping.items():

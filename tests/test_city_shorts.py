@@ -233,6 +233,7 @@ def test_spanish_only_cordoba():
     assert 'lluvia detectada por radar' in r['roteiro']
     assert 'active la campana para recibir alertas' in r['roteiro']
     assert screen_es('Raios observados')=='Descargas observadas'
+    assert screen_es('APRESENTADORA')=='PRESENTADORA'
     r['motivos']=['chuva forte persistente na escala do radar na área monitorada']
     localize_report(r)
     assert 'lluvia fuerte persistente' in r['roteiro']

@@ -1,6 +1,9 @@
 name: Monitor city Shorts
 
 on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/monitor-shorts.yml']
   workflow_dispatch:
   schedule:
     # Every 30 minutes, off the busiest minute of the hour (UTC).

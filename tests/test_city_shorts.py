@@ -130,6 +130,31 @@ def test_density_sample_survives_monitor_restart(tmp_path):
         assert Monitor(source,tmp_path).evaluate_city('curitiba')['gerar']
 
 
+def test_density_trigger_survives_optional_radar_and_nowcasting_outages(tmp_path):
+    now=datetime.now(timezone.utc).replace(microsecond=0)
+    class LightningOnly:
+        count=1
+        observed=now-timedelta(minutes=10)
+        def json(self,path,**query):
+            if path!='/alertas/situacao':
+                raise OSError('nowcasting unavailable')
+            return {'coberto':True,'dados_atrasados':False,'janela_incompleta':False,
+                    'dados_ate':self.observed.isoformat(),'raios_15km':self.count,
+                    'raios_40km':self.count,
+                    'mais_proximo':{'km':7,'minutos_atras':1,'direcao':'oeste'}}
+    source=LightningOnly()
+    with patch('lightning_video_engine.app.city_shorts.rain_at',side_effect=OSError('radar unavailable')), \
+         patch('lightning_video_engine.app.city_shorts.rain_approach',side_effect=OSError('radar unavailable')):
+        assert not Monitor(source,tmp_path).evaluate_city('curitiba')['gerar']
+        source.observed=now
+        source.count=12
+        report=Monitor(source,tmp_path).evaluate_city('curitiba')
+    assert report['gerar']
+    assert report['densidade']['agora_15km']==12
+    assert report['chuva'] is None
+    assert report['nowcasting'] is None
+
+
 def test_density_rise_rejects_reference_older_than_thirty_minutes(tmp_path):
     now=datetime.now(timezone.utc).replace(microsecond=0)
     source=Source()

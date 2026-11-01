@@ -99,9 +99,15 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
     name, state, lat, lon = CITIES[key]
     now = utc_now()
     lightning = lightning if lightning is not None else resources.json('/alertas/situacao', lat=lat, lon=lon)
-    point = resources.json('/observado/ponto', lat=lat, lon=lon, raio_km=40).get('agora')
+    try:
+        point = resources.json('/observado/ponto', lat=lat, lon=lon, raio_km=40).get('agora')
+    except (OSError, ValueError, KeyError, TypeError):
+        point = None
     valid = point and any(fresh(point.get(k), now) for k in ('raios_ate', 'nuvens_de', 'cod_de', 'meteo_de'))
-    radar = rain_at(lat, lon)
+    try:
+        radar = rain_at(lat, lon)
+    except (OSError, ValueError, KeyError, TypeError):
+        radar = None
     reasons = []
     radar_fresh = bool(radar and radar.get('coberto') and not radar.get('neve') and
                        radar.get('classe') is not None and radar.get('hora') is not None and
@@ -111,7 +117,10 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
     near = lightning.get('mais_proximo')
     recent_lightning = bool(lightning_fresh and near and near.get('km', float('inf')) <= 40 and
                             0 <= near.get('minutos_atras', float('inf')) <= 15)
-    strong_rain_minutes = rain_duration(lat, lon) if radar_fresh and radar['classe'] >= 2 else None
+    try:
+        strong_rain_minutes = rain_duration(lat, lon) if radar_fresh and radar['classe'] >= 2 else None
+    except (OSError, ValueError, KeyError, TypeError):
+        strong_rain_minutes = None
     persistent_yellow = bool(strong_rain_minutes is not None and strong_rain_minutes >= 10)
     if radar_fresh and recent_lightning:
         reasons.append('chuva detectada no radar e raios recentes na região')
@@ -132,7 +141,10 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
             if not reasons:
                 reasons.append(f'A atividade elétrica aumentou de {before} para {current} raios '
                                'na área de 15 quilômetros, na janela móvel de 30 minutos')
-    incoming_rain = rain_approach(lat, lon) if reasons else None
+    try:
+        incoming_rain = rain_approach(lat, lon) if reasons else None
+    except (OSError, ValueError, KeyError, TypeError):
+        incoming_rain = None
     advice = ['Procure abrigo em uma edificação ou veículo fechado.',
               'Evite áreas abertas, árvores isoladas e atividades na água.',
               'Não atravesse ruas alagadas. Acompanhe os avisos da Defesa Civil.']

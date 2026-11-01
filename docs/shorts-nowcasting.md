@@ -11,6 +11,12 @@ no ponto central por pelo menos 10 minutos consecutivos. O quadro de radar
 deve ter no máximo 15 minutos. Amarelo é intensidade na paleta do radar,
 não um alerta oficial nem volume em milímetros. Sem cobertura ou com dados
 vencidos, o sistema não presume ausência de risco e não dispara vídeo.
+Um terceiro gatilho compara duas leituras completas da mesma área de 15 km,
+separadas por 5 a 30 minutos. Exige pelo menos 10 raios na janela atual de
+30 minutos, aumento de pelo menos 8 e de pelo menos 100% sobre a contagem
+anterior, além de raio observado em até 15 km nos últimos 10 minutos.
+As contagens anteriores ficam no SQLite restaurado entre execuções; sem
+referência recente, não há alerta por aumento de densidade.
 
 ## Uso local
 
@@ -69,7 +75,8 @@ Ativação local não configura nem publica código no Render/GitHub.
 Atualização: 13 cidades, incluindo Santa Maria (RS), Brasília, Belo Horizonte,
 Campo Grande e Manaus. No máximo um aviso por cidade por dia civil local
 (Manaus/Campo Grande nos próprios fusos), com histórico persistido.
-Raios isolados, chuva fraca isolada e risco alto estimado não disparam.
+Raios isolados sem aumento confirmado, chuva fraca isolada e risco alto
+estimado não disparam.
 Para o gatilho por chuva amarela sem raios, dois quadros consecutivos do radar
 devem confirmar a intensidade no centro. Falhas podem ser tentadas
 novamente; trabalhos pendentes bloqueiam duplicatas.

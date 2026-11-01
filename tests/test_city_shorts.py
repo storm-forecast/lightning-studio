@@ -80,6 +80,74 @@ def test_yellow_persistence_rejects_missing_radar_frames():
         assert shorts_rain.rain_minutes_at(-20,-44)==0
 
 
+def test_lightning_density_rise_requires_two_complete_fresh_samples(tmp_path):
+    now=datetime.now(timezone.utc).replace(microsecond=0)
+    class LightningSource:
+        observed=now-timedelta(minutes=10)
+        count=2
+        incomplete=False
+        def json(self,path,**query):
+            if path=='/alertas/situacao':
+                return {'coberto':True,'dados_atrasados':False,'janela_incompleta':self.incomplete,
+                        'dados_ate':self.observed.isoformat(),'raios_15km':self.count,'raios_40km':self.count,
+                        'mais_proximo':{'km':9,'minutos_atras':2,'direcao':'oeste'}}
+            return {'agora':None}
+    source=LightningSource()
+    monitor=Monitor(source,tmp_path)
+    with patch('lightning_video_engine.app.city_shorts.rain_at',return_value=None), \
+         patch('lightning_video_engine.app.city_shorts.rain_approach',return_value=None):
+        assert not monitor.evaluate_city('curitiba')['gerar']
+        source.observed=now
+        source.count=9
+        assert not monitor.evaluate_city('curitiba')['gerar']
+        source.count=12
+        report=monitor.evaluate_city('curitiba')
+        assert report['gerar']
+        assert report['densidade']['antes_15km']==2
+        assert report['densidade']['agora_15km']==12
+        assert 'aumentou de 2 para 12 raios' in report['roteiro']
+        source.incomplete=True
+        assert not monitor.evaluate_city('curitiba')['gerar']
+
+
+def test_density_sample_survives_monitor_restart(tmp_path):
+    now=datetime.now(timezone.utc).replace(microsecond=0)
+    class SourceWithLightning:
+        count=1
+        observed=now-timedelta(minutes=10)
+        def json(self,path,**query):
+            if path=='/alertas/situacao':
+                return {'coberto':True,'dados_atrasados':False,'janela_incompleta':False,
+                        'dados_ate':self.observed.isoformat(),'raios_15km':self.count,'raios_40km':self.count,
+                        'mais_proximo':{'km':7,'minutos_atras':1,'direcao':'oeste'}}
+            return {'agora':None}
+    source=SourceWithLightning()
+    with patch('lightning_video_engine.app.city_shorts.rain_at',return_value=None), \
+         patch('lightning_video_engine.app.city_shorts.rain_approach',return_value=None):
+        Monitor(source,tmp_path).evaluate_city('curitiba')
+        source.observed=now
+        source.count=12
+        assert Monitor(source,tmp_path).evaluate_city('curitiba')['gerar']
+
+
+def test_density_rise_rejects_reference_older_than_thirty_minutes(tmp_path):
+    now=datetime.now(timezone.utc).replace(microsecond=0)
+    source=Source()
+    source.count=12
+    source.json=lambda path,**query: (
+        {'coberto':True,'dados_atrasados':False,'janela_incompleta':False,
+         'dados_ate':now.isoformat(),'raios_15km':12,'raios_40km':12,
+         'mais_proximo':{'km':5,'minutos_atras':1,'direcao':'oeste'}}
+        if path=='/alertas/situacao' else {'agora':None})
+    monitor=Monitor(source,tmp_path)
+    with monitor.db() as db:
+        db.execute('INSERT INTO lightning_samples VALUES (?,?,?)',
+                   ('curitiba',(now-timedelta(minutes=40)).timestamp(),1))
+    with patch('lightning_video_engine.app.city_shorts.rain_at',return_value=None), \
+         patch('lightning_video_engine.app.city_shorts.rain_approach',return_value=None):
+        assert not monitor.evaluate_city('curitiba')['gerar']
+
+
 def test_confirmed_scan_survives_changed_second_read(tmp_path):
     monitor=Monitor(None,tmp_path)
     captured={'cidade':'belo-horizonte','gerar':True,
@@ -113,7 +181,7 @@ def test_portuguese_script_invites_subscription_and_alerts():
 
 def test_dedupe_restart(tmp_path):
     monitor=Monitor(None,tmp_path)
-    with patch('lightning_video_engine.app.city_shorts.CITIES', {'curitiba':('Curitiba','PR',-25,-49)}), patch('lightning_video_engine.app.city_shorts.evaluate', return_value={'cidade':'curitiba','gerar':True}), patch('threading.Thread.start'):
+    with patch('lightning_video_engine.app.city_shorts.CITIES', {'curitiba':('Curitiba','PR',-25,-49)}), patch.object(monitor,'evaluate_city', return_value={'cidade':'curitiba','gerar':True}), patch('threading.Thread.start'):
         first=monitor.check()['resultados'][0]['video_id']
         assert monitor.check()['resultados'][0]['suprimido']
     assert Monitor(None,tmp_path).get(first)['estado']=='falhou'
@@ -121,7 +189,7 @@ def test_dedupe_restart(tmp_path):
 
 def test_daily_limit_survives_new_monitor(tmp_path):
     monitor=Monitor(None,tmp_path)
-    with patch('lightning_video_engine.app.city_shorts.CITIES', {'curitiba':('Curitiba','PR',-25,-49)}), patch('lightning_video_engine.app.city_shorts.evaluate', return_value={'cidade':'curitiba','gerar':True}), patch('threading.Thread.start'):
+    with patch('lightning_video_engine.app.city_shorts.CITIES', {'curitiba':('Curitiba','PR',-25,-49)}), patch.object(monitor,'evaluate_city', return_value={'cidade':'curitiba','gerar':True}), patch('threading.Thread.start'):
         first=monitor.check()['resultados'][0]['video_id']
         item=monitor.get(first);item['estado']='concluido';monitor.save(item)
         assert 'suprimido' in monitor.check()['resultados'][0]
@@ -143,6 +211,10 @@ def test_spanish_only_cordoba():
     r['motivos']=['chuva forte persistente na escala do radar na área monitorada']
     localize_report(r)
     assert 'lluvia fuerte persistente' in r['roteiro']
+    r['motivos']=['A atividade elétrica aumentou de 2 para 12 raios na área de 15 quilômetros']
+    r['densidade']={'antes_15km':2,'agora_15km':12}
+    localize_report(r)
+    assert 'aumentó de 2 a 12 descargas' in r['roteiro']
 
 
 def test_uppercase_spanish_scene_titles():

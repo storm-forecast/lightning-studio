@@ -82,10 +82,23 @@ def fresh(value, now):
     return 0 <= (now - t).total_seconds() <= 900
 
 
-def evaluate(key, resources):
+def lightning_observed_at(lightning):
+    """Timestamp of a complete, fresh 30-minute lightning observation."""
+    if lightning.get('dados_atrasados') or lightning.get('janela_incompleta', True) or not lightning.get('coberto'):
+        return None
+    try:
+        observed = datetime.fromisoformat(lightning['dados_ate'].replace('Z', '+00:00'))
+        if observed.tzinfo is None or not fresh(lightning['dados_ate'], utc_now()):
+            return None
+        return observed.timestamp()
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return None
+
+
+def evaluate(key, resources, *, lightning=None, density_reference=None):
     name, state, lat, lon = CITIES[key]
     now = utc_now()
-    lightning = resources.json('/alertas/situacao', lat=lat, lon=lon)
+    lightning = lightning if lightning is not None else resources.json('/alertas/situacao', lat=lat, lon=lon)
     point = resources.json('/observado/ponto', lat=lat, lon=lon, raio_km=40).get('agora')
     valid = point and any(fresh(point.get(k), now) for k in ('raios_ate', 'nuvens_de', 'cod_de', 'meteo_de'))
     radar = rain_at(lat, lon)
@@ -104,6 +117,21 @@ def evaluate(key, resources):
         reasons.append('chuva detectada no radar e raios recentes na região')
     if radar_fresh and persistent_yellow:
         reasons.append('chuva forte persistente na escala do radar na área monitorada')
+    density = None
+    current_at = lightning_observed_at(lightning)
+    if density_reference and current_at is not None:
+        elapsed = (current_at - density_reference['observed_at']) / 60
+        before = density_reference['count_15']
+        current = lightning.get('raios_15km')
+        if (5 <= elapsed <= 30 and isinstance(current, int) and 0 <= before and
+                current >= 10 and current - before >= 8 and current >= 2 * max(before, 1) and
+                near and near.get('km', float('inf')) <= 15 and
+                0 <= near.get('minutos_atras', float('inf')) <= 10):
+            density = {'antes_15km': before, 'agora_15km': current,
+                       'intervalo_min': round(elapsed), 'janela_min': 30}
+            if not reasons:
+                reasons.append(f'A atividade elétrica aumentou de {before} para {current} raios '
+                               'na área de 15 quilômetros, na janela móvel de 30 minutos')
     incoming_rain = rain_approach(lat, lon) if reasons else None
     advice = ['Procure abrigo em uma edificação ou veículo fechado.',
               'Evite áreas abertas, árvores isoladas e atividades na água.',
@@ -122,7 +150,8 @@ def evaluate(key, resources):
     report = {'cidade': key, 'nome': name, 'uf': state, 'lat': lat, 'lon': lon,
             'verificado_em': now.isoformat() + 'Z', 'gerar': bool(reasons), 'motivos': reasons,
             'raios': lightning, 'nowcasting': point if valid else None, 'chuva': radar,
-            'roteiro': text, 'recomendacoes': advice, 'raio_km': 40, 'aproximacao_chuva': incoming_rain}
+            'roteiro': text, 'recomendacoes': advice, 'raio_km': 40,
+            'aproximacao_chuva': incoming_rain, 'densidade': density}
     if key in SPANISH_CITIES:
         from .shorts_spanish import localize_report
         localize_report(report)
@@ -137,6 +166,8 @@ class Monitor:
         self.stop = threading.Event()
         with self.db() as db:
             db.execute('CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, city TEXT, created REAL, payload TEXT)')
+            db.execute('CREATE TABLE IF NOT EXISTS lightning_samples '
+                       '(city TEXT, observed_at REAL, count_15 INTEGER, PRIMARY KEY(city, observed_at))')
             # A process restart must not leave a video forever in rendering.
             for ident, payload in db.execute('SELECT id,payload FROM jobs').fetchall():
                 item = json.loads(payload)
@@ -155,6 +186,29 @@ class Monitor:
     def save(self, item):
         with self.db() as db:
             db.execute('UPDATE jobs SET payload=? WHERE id=?', (json.dumps(item), item['id']))
+
+    def evaluate_city(self, key):
+        _, _, lat, lon = CITIES[key]
+        lightning = self.resources.json('/alertas/situacao', lat=lat, lon=lon)
+        observed_at = lightning_observed_at(lightning)
+        reference = None
+        if observed_at is not None:
+            with self.db() as db:
+                row = db.execute('SELECT observed_at,count_15 FROM lightning_samples '
+                                 'WHERE city=? AND observed_at BETWEEN ? AND ? '
+                                 'ORDER BY observed_at DESC LIMIT 1',
+                                 (key, observed_at - 1800, observed_at - 300)).fetchone()
+            if row:
+                reference = {'observed_at': row[0], 'count_15': row[1]}
+        report = evaluate(key, self.resources, lightning=lightning, density_reference=reference)
+        current = lightning.get('raios_15km')
+        if observed_at is not None and isinstance(current, int) and current >= 0:
+            with self.db() as db:
+                db.execute('INSERT OR IGNORE INTO lightning_samples VALUES (?,?,?)',
+                           (key, observed_at, current))
+                db.execute('DELETE FROM lightning_samples WHERE observed_at<?',
+                           (datetime.now(timezone.utc).timestamp() - 7200,))
+        return report
 
     def eligible(self, key):
         seed = Path(__file__).resolve().parents[2] / 'templates/shorts-publications.json'
@@ -183,7 +237,7 @@ class Monitor:
                     if not self.eligible(key):
                         results.append({'cidade':key, 'suprimido':'aviso diário já reservado ou concluído'})
                         continue
-                    report = reports[key] if reports is not None else evaluate(key, self.resources)
+                    report = reports[key] if reports is not None else self.evaluate_city(key)
                     if reports is not None and (report.get('cidade') != key or
                                                 not fresh(report.get('verificado_em'), utc_now())):
                         results.append({'cidade':key, 'erro':'alerta expirado antes da geração', 'gerar':False})
@@ -213,7 +267,7 @@ class Monitor:
         finally:
             self.lock.release()
 
-    def work(self, item, *, recheck=True):
+    def work(self, item, *, recheck=False):
         # One encoder at a time, including jobs dispatched by different monitoring passes.
         with self.render_lock:
             try:

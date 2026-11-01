@@ -6,7 +6,7 @@ import os
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from lightning_video_engine.app.city_shorts import AgentSource,CITIES,Monitor,evaluate
+from lightning_video_engine.app.city_shorts import AgentSource,CITIES,Monitor
 
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('--scan',action='store_true')
@@ -19,7 +19,7 @@ if a.scan:
     for key in CITIES:
         try:
             if monitor.eligible(key):
-                report=evaluate(key,source)
+                report=monitor.evaluate_city(key)
                 if report['gerar']:
                     candidates.append(key)
                     reports[key]=report

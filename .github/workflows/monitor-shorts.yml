@@ -8,6 +8,11 @@ on:
       - 'lightning_video_engine/app/city_shorts.py'
       - 'lightning_video_engine/app/shorts_locales.py'
       - 'lightning_video_engine/app/shorts_spanish.py'
+      - 'lightning_video_engine/app/shorts_presenter.py'
+      - 'lightning_video_engine/app/shorts_rain.py'
+      - 'lightning_video_engine/app/youtube.py'
+      - 'scripts/check_city_shorts.py'
+      - 'requirements.txt'
   workflow_dispatch:
   schedule:
     # Free best-effort monitor every ten minutes, away from the busiest minute.

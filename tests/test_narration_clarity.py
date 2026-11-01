@@ -13,6 +13,21 @@ class NarrationClarityTests(unittest.TestCase):
     def test_time_only_has_one_timezone(self):
         self.assertEqual(spoken_brasilia('15:00 UTC'),'12:00 no horário de Brasília')
 
+    def test_bulletin_names_timezone_once_across_multiple_scenes(self):
+        from lightning_video_engine.app.bulletin_context import concise_brasilia
+        first, announced=concise_brasilia('15:00 UTC e 16:00 UTC')
+        second, announced=concise_brasilia('17:00 UTC', announced)
+        self.assertTrue(announced)
+        self.assertEqual(first.count('horário de Brasília'), 1)
+        self.assertEqual(second, '14:00')
+
+    def test_lightning_narration_rejects_cloud_filler(self):
+        from lightning_video_engine.app.editorial import validate_scene_evidence
+        scene=Segment('08-extrap-0','Extrapolação','extrapolacao','extrapolacao',
+                      narration='Há muitas nuvens nesta região.')
+        with self.assertRaisesRegex(ValueError, 'nuvens'):
+            validate_scene_evidence(scene)
+
     def test_missing_region_filler_is_removed_without_cutting_known_highlight(self):
         text='Há chuva prevista em Belém. Não há informações na região Sul. O Nordeste está sem dados.'
         self.assertEqual(focus_on_available_regions(text),'Há chuva prevista em Belém.')

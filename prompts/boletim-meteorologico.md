@@ -220,6 +220,8 @@ Diga, apenas se os dados suportarem as duas horas:
 indicando a possível evolução e deslocamento das áreas de atividade elétrica.”
 Mostre os quadros em ordem temporal e identifique observação inicial, horizonte
 futuro e incerteza. Se o produto não estimar deslocamento, não invente direção.
+Na fala sobre raios e extrapolação, descreva a atividade elétrica mostrada;
+horários de nuvens pertencem aos metadados técnicos e não precisam ser narrados.
 Se o horizonte for menor, anuncie o período real. Se o produto estiver ausente,
 registre a ausência e não use a frase de duas horas como se estivesse disponível.
 
@@ -318,7 +320,7 @@ localidades disponíveis por frases genéricas sobre o mapa.
 
 A primeira previsão e cada mudança de período devem informar na fala a
 validade real, conforme o produto capturado; a data de geração não substitui a validade. No nowcasting,
-informe a referência das observações e das nuvens. Se o horário não puder ser
+informe a referência temporal do produto exibido sem repetir o fuso em cada cena. Se o horário não puder ser
 confirmado, diga isso em vez de apresentar a informação como atual.
 
 Conecte os cuidados aos perigos: nas localidades destacadas para raios, buscar
@@ -402,6 +404,8 @@ cobertura de todos os destinos fora dos polígonos capturados ou dos dados receb
 
 Na fala, use somente o horário de Brasília, com a data local correta quando
 houver mudança de dia. Não leia UTC, Z nem a conversão entre dois fusos.
+Identifique o fuso uma vez no boletim; nos horários seguintes diga só a hora
+e a data local quando necessária.
 Mantenha a validade uma vez por período; preserve UTC nos dados técnicos.
 Não enumere regiões sem dados: destaque apenas locais com informações
 confirmadas. Isso não autoriza dizer que nas demais regiões não há risco.

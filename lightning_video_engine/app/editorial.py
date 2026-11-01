@@ -82,6 +82,10 @@ def validate_scene_evidence(scene):
         return ''.join(c for c in unicodedata.normalize('NFD', value.casefold())
                        if unicodedata.category(c) != 'Mn')
     text = folded(scene.narration)
+    if (scene.id in ('02-ecens', '03-risco', '06-observado', '08-extrap-0',
+                     '09-extrap-60', '10-extrap-120') or scene.id.startswith('04-local-')) \
+            and re.search(r'\bnuvens?\b|\bnebulosidade\b', text):
+        raise ValueError('a fala sobre raios descreveu nuvens fora do produto exibido')
     if scene.available and scene.place and scene.category == 'destaque':
         city = folded(scene.place.get('nome', '').split(',')[0].strip())
         if city and city not in text:

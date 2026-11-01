@@ -54,7 +54,10 @@ def time_reference(scene):
     if scene.view in ('severidade', 'inundacoes'):
         stamp = spoken_utc(scene.metadata.get('captured_at'))
         return f'Monitoramento consultado em {stamp}.' if stamp else ''
-    if scene.category in ('nowcasting', 'alagamento', 'extrapolacao'):
+    if scene.category == 'extrapolacao':
+        stamp = spoken_utc((scene.metadata.get('nowcast') or {}).get('raios_ate'))
+        return f'Raios observados até {stamp}.' if stamp else 'A hora inicial dos raios não pôde ser confirmada nesta consulta.'
+    if scene.category in ('nowcasting', 'alagamento'):
         now = scene.metadata.get('nowcast') or {}
         stamps = []
         for key, label in (('raios_ate', 'Raios observados até'), ('nuvens_de', 'Imagem de nuvens de')):
@@ -72,7 +75,7 @@ def add_time_reference(scene, spoken_periods=None):
     # Remove our own suffix from resumed scripts before applying bulletin-wide rules.
     normalized = readable_times(reference)
     scene.narration = scene.narration.replace(reference, '').replace(normalized, '').strip()
-    if scene.category in ('previsao', 'destaque') and spoken_periods is not None:
+    if spoken_periods is not None:
         if normalized in spoken_periods:
             return
         spoken_periods.add(normalized)
@@ -128,6 +131,19 @@ def spoken_brasilia(text):
     text = re.sub(r'\b\d{1,2}:\d{2} UTC \((\d{2}:\d{2}) no horário de Brasília([^)]*)\)',
                   r'\1 no horário de Brasília\2', text)
     return text
+
+
+def concise_brasilia(text, already_announced=False):
+    """Convert UTC correctly, but say the time zone only once in a bulletin."""
+    converted = spoken_brasilia(text)
+    seen = already_announced
+    def deduplicate(match):
+        nonlocal seen
+        if not seen:
+            seen = True
+            return match.group()
+        return ''
+    return re.sub(r',?\s+(?:no )?horário de Brasília', deduplicate, converted), seen
 
 
 def focus_on_available_regions(text):

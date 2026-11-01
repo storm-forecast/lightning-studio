@@ -10,7 +10,8 @@ class Source:
     def json(self, path, **query):
         if path == '/alertas/situacao':
             return {'dados_atrasados': self.stale, 'coberto': True, 'raios_40km': self.count,
-                    'tendencia': {'sentido': 'aproximando'} if self.count else None, 'mais_proximo': None}
+                    'tendencia': {'sentido': 'aproximando'} if self.count else None,
+                    'mais_proximo': {'km': 12, 'minutos_atras': 4, 'direcao': 'oeste'} if self.count else None}
         return {'agora': {'risco': self.risk, 'nuvens_de': '2026-11-01T12:00:00Z'}}
 
 
@@ -21,17 +22,19 @@ def test_allowlist():
 
 def test_triggers_and_staleness():
     source=Source()
-    with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), patch('lightning_video_engine.app.city_shorts.rain_at', return_value=None), patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026,11,1,12)):
+    radar={'coberto':True,'neve':False,'classe':0,'hora':datetime(2026,11,1,11,55,tzinfo=timezone.utc).timestamp()}
+    with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), patch('lightning_video_engine.app.city_shorts.rain_at', return_value=radar), patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026,11,1,12)):
         assert not evaluate('curitiba',source)['gerar']
         source.count=3
         assert evaluate('curitiba',source)['gerar']
         source.stale=True
         assert not evaluate('curitiba',source)['gerar']
-        source.risk='alta'
+        source.stale=False
+        radar['hora']-=1800
         assert not evaluate('curitiba',source)['gerar']
 
 
-def test_recent_lightning_within_fifteen_km_triggers_even_when_stationary():
+def test_radar_rain_and_recent_lightning_trigger_even_when_stationary():
     source=Source()
     source.count=3
     source.risk='alta'
@@ -41,8 +44,40 @@ def test_recent_lightning_within_fifteen_km_triggers_even_when_stationary():
                     'tendencia':{'sentido':'parada'},'mais_proximo':{'km':9,'minutos_atras':3,'direcao':'oeste'}}
         return {'agora':{'risco':'alta','nuvens_de':'2026-11-01T12:00:00Z'}}
     source.json=close_lightning
-    with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), patch('lightning_video_engine.app.city_shorts.rain_at', return_value=None), patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026,11,1,12)):
+    radar={'coberto':True,'neve':False,'classe':0,'hora':datetime(2026,11,1,11,55,tzinfo=timezone.utc).timestamp()}
+    with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), patch('lightning_video_engine.app.city_shorts.rain_at', return_value=radar), patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026,11,1,12)):
+        report=evaluate('curitiba',source)
+        assert report['gerar']
+        assert 'chuva detectada no radar' in report['roteiro']
+        assert 'se aproximando' not in report['roteiro']
+        radar['classe']=None
+        assert not evaluate('curitiba',source)['gerar']
+
+
+def test_yellow_radar_requires_persistence_and_freshness():
+    source=Source()
+    radar={'coberto':True,'neve':False,'classe':2,'hora':datetime(2026,11,1,11,55,tzinfo=timezone.utc).timestamp()}
+    with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), \
+         patch('lightning_video_engine.app.city_shorts.rain_at', return_value=radar), \
+         patch('lightning_video_engine.app.city_shorts.rain_duration', return_value=0) as duration, \
+         patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026,11,1,12)):
+        assert not evaluate('curitiba',source)['gerar']
+        duration.return_value=10
         assert evaluate('curitiba',source)['gerar']
+        radar['hora']-=1800
+        assert not evaluate('curitiba',source)['gerar']
+
+
+def test_yellow_persistence_rejects_missing_radar_frames():
+    from lightning_video_engine.app import shorts_rain
+    import numpy as np
+    frames=[{'time':0,'path':'older'},{'time':1200,'path':'latest'}]
+    with patch.object(shorts_rain,'_get_index',return_value={'host':'https://example.test'}), \
+         patch.object(shorts_rain,'_fresh_past',return_value=frames), \
+         patch.object(shorts_rain,'_pixel',return_value=(0,0,0,0)), \
+         patch.object(shorts_rain,'_tile',return_value=np.zeros((1,1,4))), \
+         patch.object(shorts_rain,'_classe',return_value=(2,False)):
+        assert shorts_rain.rain_minutes_at(-20,-44)==0
 
 
 def test_confirmed_scan_survives_changed_second_read(tmp_path):
@@ -69,7 +104,8 @@ def test_expired_scan_is_never_dispatched(tmp_path):
 
 def test_portuguese_script_invites_subscription_and_alerts():
     source=Source();source.count=3
-    with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), patch('lightning_video_engine.app.city_shorts.rain_at', return_value=None), patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026,11,1,12)):
+    radar={'coberto':True,'neve':False,'classe':0,'hora':datetime(2026,11,1,11,55,tzinfo=timezone.utc).timestamp()}
+    with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), patch('lightning_video_engine.app.city_shorts.rain_at', return_value=radar), patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026,11,1,12)):
         script=evaluate('curitiba',source)['roteiro']
     assert 'Inscreva-se no TROVOX TEMPO' in script
     assert 'ative o sino para receber alertas' in script
@@ -96,13 +132,17 @@ def test_daily_limit_survives_new_monitor(tmp_path):
 
 def test_spanish_only_cordoba():
     from lightning_video_engine.app.shorts_spanish import localize_report,screen_es
-    r={'motivos':['tempestade com atividade elétrica se aproximando da região'],'raios':{'dados_atrasados':False,'mais_proximo':None},'nowcasting':None}
+    r={'motivos':['chuva detectada no radar e raios recentes na região'],'raios':{'dados_atrasados':False,'mais_proximo':None},'nowcasting':None}
     localize_report(r)
     assert r['idioma']=='es-AR'
     assert 'Córdoba, Argentina' in r['roteiro']
     assert 'Protección Civil' in r['roteiro']
+    assert 'lluvia detectada por radar' in r['roteiro']
     assert 'active la campana para recibir alertas' in r['roteiro']
     assert screen_es('Raios observados')=='Descargas observadas'
+    r['motivos']=['chuva forte persistente na escala do radar na área monitorada']
+    localize_report(r)
+    assert 'lluvia fuerte persistente' in r['roteiro']
 
 
 def test_uppercase_spanish_scene_titles():

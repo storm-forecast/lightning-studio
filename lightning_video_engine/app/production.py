@@ -16,7 +16,7 @@ from .lightning_agent import LightningAgentClient
 from .speech import prepare_scene_audios
 from .flood_narration import flood_copy
 from .tourism import tourism_direction, tourism_evidence, observed_tourism_copy
-from .bulletin_context import brazilian_highlights, add_time_reference, local_recommendations, readable_times, spoken_brasilia, focus_on_available_regions, observed_precaution, time_reference
+from .bulletin_context import brazilian_highlights, add_time_reference, local_recommendations, readable_times, concise_brasilia, focus_on_available_regions, observed_precaution, time_reference
 from .editorial import regional_scene_direction, validate_scene_evidence
 from .official import render_official
 from .wardrobe import wardrobe_for_job
@@ -59,7 +59,8 @@ def stamp(s):
         period = time_reference(s) or 'Horário da consulta não confirmado'
     elif s.category in ('nowcasting','observacao','alagamento','extrapolacao'):
         n=s.metadata.get('nowcast') or {}
-        period=f"Raios até {n.get('raios_ate','não informado')} | Nuvens: {n.get('nuvens_de','não informado')}"
+        period=(f"Raios até {n.get('raios_ate','não informado')}" if s.category in ('observacao','extrapolacao')
+                else f"Raios até {n.get('raios_ate','não informado')} | Nuvens: {n.get('nuvens_de','não informado')}")
     if s.category in ('previsao','destaque') and s.view in ('deterministico','risco','probabilidade'):
         period = LIGHTNING_METHOD + ' | ' + period
     period = readable_times(period, include_brasilia=True)
@@ -93,7 +94,7 @@ def fallback_narration(scene, presentation_date):
         '05-agora':'Agora passamos das previsões para as condições atuais monitoradas. Este quadro mostra as áreas analisadas no momento; acompanhe os avisos oficiais da Defesa Civil.',
         '06-observado':'Este quadro apresenta a atividade elétrica observada no Brasil no horário indicado. Observação e previsão são produtos diferentes; acompanhe a atualização mais recente.',
         '07-alagamento':'Esta é uma previsão de risco de alagamento para as condições atuais, baseada no monitoramento e na análise de curtíssimo prazo. Não atravesse vias inundadas e acompanhe a Defesa Civil.',
-        '08-extrap-0':'Esta é uma extrapolação da atividade de raios para as próximas duas horas. A camada combina raios e nuvens e este quadro mostra o ponto inicial, não uma previsão ECENS.',
+        '08-extrap-0':'Esta é uma extrapolação da atividade de raios para as próximas duas horas. Este quadro mostra o ponto inicial da atividade elétrica, não uma previsão ECENS.',
         '09-extrap-60':'Esta imagem mostra uma extrapolação para sessenta minutos baseada no movimento medido. Ela indica possível deslocamento das áreas, sem garantir formação ou enfraquecimento.',
         '10-extrap-120':'Esta imagem mostra uma extrapolação para cento e vinte minutos. A incerteza aumenta com o tempo, portanto acompanhe as atualizações e os avisos oficiais.',
         '11-recomendacoes':'Durante tempestades, procure abrigo em construção fechada, evite árvores, áreas abertas, praias e piscinas. Não atravesse vias alagadas e acompanhe a Defesa Civil.',
@@ -189,7 +190,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
         Segment('05-agora','Severidade | Condições monitoradas','nowcasting','severidade','monitoramento'),
         Segment('06-observado','Atividade elétrica observada','observacao','agora','monitoramento'),
         Segment('07-alagamento','Potencial de alagamento | Curtíssimo prazo','alagamento','inundacoes','monitoramento'),
-        Segment('08-extrap-0','Extrapolação de raios e nuvens | Ponto inicial','extrapolacao','extrapolacao','monitoramento',horizon=0),
+        Segment('08-extrap-0','Extrapolação de raios | Ponto inicial','extrapolacao','extrapolacao','monitoramento',horizon=0),
         Segment('09-extrap-60','Extrapolação | +60 minutos','extrapolacao','extrapolacao','monitoramento',horizon=60),
         Segment('10-extrap-120','Extrapolação | +120 minutos','extrapolacao','extrapolacao','monitoramento',horizon=120),
         Segment('11-recomendacoes','Riscos e recomendações','recomendacao','summary'),
@@ -239,6 +240,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             (directory/'observado-erro.json').write_text(json.dumps({'error':str(exc)},ensure_ascii=False))
     audios=directory/'audios';audios.mkdir(exist_ok=True)
     spoken_periods = set()
+    timezone_announced = False
     for s in specs:
         if s.id == '06-observado':
             s.evidence['observed'] = observed
@@ -266,7 +268,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
                 '05-agora':'Consulte os polígonos atuais e destaque as localidades e regiões brasileiras com maior severidade confirmada. Comece: Agora passamos das previsões para as condições atuais monitoradas. Explique os polígonos de severidade no Brasil sustentados pelos dados, sem radar na imagem.',
                 '06-observado':'Consulte o resumo de raios observados e destaque os locais com mais descargas por região brasileira, com contagens e janela do detector quando disponíveis. Não atribua contagens de uma área inteira a uma cidade. Só mencione previsão anterior com comparação explicitamente comprovada para o mesmo local e período. Não afirme que o evento ocorreu sem previsão prévia, pois essa comparação não é sustentada por esta camada.',
                 '07-alagamento':'Cite obrigatoriamente as cidades e estados confirmados em flood_references como região de referência próxima ao polígono. Não invente cidades nem afirme que todo o município está afetado. Destaque por região os locais com maior potencial de alagamento confirmado pela camada, sem inventar ocorrências. Comece exatamente: Esta é uma previsão de risco de alagamento para as condições atuais, baseada no monitoramento e na análise de curtíssimo prazo. Não diga que alagou. Se não houver dados locais confirmados, diga isso.',
-                '08-extrap-0':'Diga exatamente: Esta é uma extrapolação da atividade de raios para as próximas duas horas, indicando a possível evolução e deslocamento das áreas de atividade elétrica. Acrescente que a camada combina raios e nuvens, e que este quadro mostra o ponto inicial, não uma previsão ECENS.',
+                '08-extrap-0':'Diga exatamente: Esta é uma extrapolação da atividade de raios para as próximas duas horas, indicando a possível evolução e deslocamento das áreas de atividade elétrica. Este quadro mostra o ponto inicial, não uma previsão ECENS. Concentre a fala nos raios exibidos.',
                 '09-extrap-60':'A imagem é de +60 minutos. Explique que são áreas deslocadas pelo movimento medido, sem garantir formação ou enfraquecimento. Não invente direção ou localidades sem evidência.',
                 '10-extrap-120':'A imagem é de +120 minutos. Enfatize incerteza e natureza de extrapolação, não uma ocorrência confirmada nem previsão ECENS. Não afirme que a intensidade permanecerá igual.',
                 '11-recomendacoes':'O canal se chama TROVOX TEMPO. A chamada para inscrição, sino, curtida e compartilhamento será acrescentada automaticamente após esta fala; produza somente as recomendações meteorológicas. Finalize com recomendações práticas de raios e alagamentos, relacionadas às regiões antes identificadas quando confirmadas. Não atravesse vias alagadas; abrigo fechado; evite árvores, áreas abertas, praias e piscinas; acompanhe a Defesa Civil.',
@@ -339,7 +341,7 @@ def produce(directory: Path, *, api='https://lightning-agent.onrender.com', titl
             s.narration += ' ' + precaution
         add_time_reference(s, spoken_periods)
         validate_scene_evidence(s)
-        s.narration = spoken_brasilia(channel_narration(s.narration, s.id))
+        s.narration, timezone_announced = concise_brasilia(channel_narration(s.narration, s.id), timezone_announced)
         textfile.write_text(s.narration)
         if any(x in s.narration.lower() for x in ('groq não respondeu','muitas perguntas','tente de novo')):
             raise RuntimeError(f'{s.id}: resposta técnica não pode ser narrada')

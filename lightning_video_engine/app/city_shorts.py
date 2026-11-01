@@ -28,6 +28,11 @@ def rain_approach(lat, lon):
     return approaching_heavy_rain(lat, lon)
 
 
+def rain_duration(lat, lon):
+    from .shorts_rain import rain_minutes_at
+    return rain_minutes_at(lat, lon)
+
+
 class AgentSource:
     def __init__(self, api):
         self.api = api.rstrip('/')
@@ -85,20 +90,21 @@ def evaluate(key, resources):
     valid = point and any(fresh(point.get(k), now) for k in ('raios_ate', 'nuvens_de', 'cod_de', 'meteo_de'))
     radar = rain_at(lat, lon)
     reasons = []
+    radar_fresh = bool(radar and radar.get('coberto') and not radar.get('neve') and
+                       radar.get('classe') is not None and radar.get('hora') is not None and
+                       0 <= (now - datetime.fromtimestamp(radar['hora'], timezone.utc)
+                             .replace(tzinfo=None)).total_seconds() <= 900)
     lightning_fresh = not lightning['dados_atrasados'] and lightning['coberto']
-    trend = (lightning.get('tendencia') or {}).get('sentido')
-    projected = valid and point['risco'] != 'alta' and any(point.get(f'em_{m}_min') == 'alta' for m in (10,20,30))
     near = lightning.get('mais_proximo')
-    # A recent strike inside 15 km is an observed, local threat.  It must not
-    # be discarded merely because its estimated motion becomes stationary.
-    confirmed_close = bool(near and near.get('km', float('inf')) <= 15 and near.get('minutos_atras', float('inf')) <= 15)
-    if lightning_fresh and confirmed_close:
-        reasons.append('atividade elétrica recente muito próxima da região')
-    elif lightning_fresh and (trend == 'aproximando' or (projected and near)):
-        reasons.append('tempestade com atividade elétrica se aproximando da região')
-    incoming_rain = rain_approach(lat, lon)
-    if incoming_rain:
-        reasons.append('ecos de chuva forte se aproximando da região no radar')
+    recent_lightning = bool(lightning_fresh and near and near.get('km', float('inf')) <= 40 and
+                            0 <= near.get('minutos_atras', float('inf')) <= 15)
+    strong_rain_minutes = rain_duration(lat, lon) if radar_fresh and radar['classe'] >= 2 else None
+    persistent_yellow = bool(strong_rain_minutes is not None and strong_rain_minutes >= 10)
+    if radar_fresh and recent_lightning:
+        reasons.append('chuva detectada no radar e raios recentes na região')
+    if radar_fresh and persistent_yellow:
+        reasons.append('chuva forte persistente na escala do radar na área monitorada')
+    incoming_rain = rain_approach(lat, lon) if reasons else None
     advice = ['Procure abrigo em uma edificação ou veículo fechado.',
               'Evite áreas abertas, árvores isoladas e atividades na água.',
               'Não atravesse ruas alagadas. Acompanhe os avisos da Defesa Civil.']

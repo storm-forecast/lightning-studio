@@ -90,6 +90,17 @@ class BulletinPeriodDedupTests(unittest.TestCase):
         self.assertIn('01/11/2026 UTC', scenes[2].narration)
         self.assertEqual(scenes[1].metadata['period'], '31/10/2026 UTC')
 
+    def test_extrapolation_source_time_is_spoken_once_across_three_maps(self):
+        seen=set()
+        scenes=[Segment(f'0{i}-extrap','Extrapolação','extrapolacao','extrapolacao',
+                        narration='Atividade elétrica em deslocamento.',
+                        metadata={'nowcast':{'raios_ate':'2026-11-01T15:00:00Z'}})
+                for i in (8,9,10)]
+        for scene in scenes:
+            add_time_reference(scene,seen)
+        self.assertIn('Raios observados até',scenes[0].narration)
+        self.assertTrue(all('Raios observados até' not in s.narration for s in scenes[1:]))
+
     def test_resumed_script_removes_duplicate_suffix_without_cutting_weather(self):
         from lightning_video_engine.app.bulletin_context import add_time_reference
         scene = Segment('local', 'Teste', 'destaque', 'probabilidade',
@@ -131,9 +142,9 @@ class ProductScopedMonitoringTimeTests(unittest.TestCase):
         self.assertNotIn('nuvens',reference)
         self.assertIn('20:00',reference)
 
-    def test_extrapolation_retains_relevant_source_times(self):
+    def test_extrapolation_speaks_lightning_time_without_cloud_time(self):
         scene=Segment('08-extrap-0','Extrapolação','extrapolacao','extrapolacao',metadata={
             'nowcast':{'raios_ate':'2026-10-31T19:50:00Z','nuvens_de':'2026-10-31T19:40:00Z'}})
         reference=time_reference(scene)
         self.assertIn('Raios observados',reference)
-        self.assertIn('Imagem de nuvens',reference)
+        self.assertNotIn('Imagem de nuvens',reference)

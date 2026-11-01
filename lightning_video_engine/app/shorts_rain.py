@@ -220,8 +220,10 @@ def rain_minutes_at(lat: float, lon: float) -> Optional[float]:
     agora = quadros[-1].get("time")
     if agora is None:
         return None
-    desde, leu = None, False
+    desde, leu, ultimo = None, False, agora
     for frame in reversed(quadros):
+        if ultimo - frame['time'] > 900:
+            break
         data = _tile(index["host"], frame["path"], tx, ty)
         if data is None:
             break
@@ -230,6 +232,7 @@ def rain_minutes_at(lat: float, lon: float) -> Optional[float]:
         if classe is None or classe < PERSIST_CLASS:
             break
         desde = frame.get("time")
+        ultimo = frame['time']
     if not leu:
         return None          # nothing was read; a zero here would be read as "it is not raining"
     if desde is None:

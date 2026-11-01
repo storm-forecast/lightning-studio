@@ -4,11 +4,13 @@ A implementação pertence ao Studio. Os dados de raios e nowcasting vêm da
 API `LIGHTNING_API_URL`, por HTTP; o radar é consultado pelo adaptador
 `shorts_rain.py`. Não depende de importar módulos do checkout Lightning Agent.
 
-São monitoradas somente Rio de Janeiro, Salvador, Florianópolis, Maceió,
-Gramado, São Paulo, Curitiba e Porto Alegre. Gatilhos: raios até 40 km nos
-últimos 30 min, tendência de aproximação, risco alto atual ou projetado em
-até 30 min e chuva forte no radar no centro da cidade. Dados vencidos são
-bloqueados; ausência de dados não significa tempo seguro.
+São monitoradas 23 cidades. Um Short só é candidato quando o radar mostra
+chuva recente no ponto central e há raio observado nos últimos 15 minutos
+em até 40 km; ou quando o radar mostra chuva na classe amarela ou superior
+no ponto central por pelo menos 10 minutos consecutivos. O quadro de radar
+deve ter no máximo 15 minutos. Amarelo é intensidade na paleta do radar,
+não um alerta oficial nem volume em milímetros. Sem cobertura ou com dados
+vencidos, o sistema não presume ausência de risco e não dispara vídeo.
 
 ## Uso local
 
@@ -38,8 +40,9 @@ Todas as rotas exigem cabeçalho `X-Video-Token`:
 - GET `/v1/shorts/{id}`: andamento e evidências.
 - GET `/v1/shorts/{id}/video`: download autenticado do MP4 concluído.
 
-O monitor verifica a cada cinco minutos. Um vídeo por cidade por hora,
-sem duplicar trabalho pendente. Vídeos na fila são reavaliados antes da geração.
+O monitor local verifica a cada 30 minutos. Um vídeo por cidade por dia local,
+sem duplicar trabalho pendente. O workflow guarda o relatório confirmado
+na triagem e só gera enquanto ele estiver dentro de 15 minutos de validade.
 Direção só é narrada quando existe estimativa. Mapas são recortes locais dos
 produtos reais; não há identificação automática de bairros. Risco alto é
 estimativa de tempestade, não confirmação de granizo ou rajadas. Chuva é
@@ -66,17 +69,17 @@ Ativação local não configura nem publica código no Render/GitHub.
 Atualização: 13 cidades, incluindo Santa Maria (RS), Brasília, Belo Horizonte,
 Campo Grande e Manaus. No máximo um aviso por cidade por dia civil local
 (Manaus/Campo Grande nos próprios fusos), com histórico persistido.
-Somente aproximação de atividade elétrica ou de ecos de chuva forte dispara
-o aviso. Presença de raios, chuva no centro ou risco alto isolados não bastam.
-Radar exige três quadros com distância de ecos fortes diminuindo; é tendência
-regional, não trajetória garantida de uma célula. Falhas podem ser tentadas
+Raios isolados, chuva fraca isolada e risco alto estimado não disparam.
+Para o gatilho por chuva amarela sem raios, dois quadros consecutivos do radar
+devem confirmar a intensidade no centro. Falhas podem ser tentadas
 novamente; trabalhos pendentes bloqueiam duplicatas.
 
 ## Operação no GitHub com computador desligado
 
-Workflow `.github/workflows/monitor-shorts.yml`: a cada 30 minutos
-(minutos 07 e 37), consulta as 13 cidades. Instala Wav2Lip somente com gatilho,
-reavalia antes de renderizar e publica no canal. Usa os mesmos Secrets
+Workflow `.github/workflows/monitor-shorts.yml`: configurado a cada 10 minutos
+(minutos 02, 12, 22, 32, 42 e 52), consulta as 23 cidades. Instala Wav2Lip
+somente com gatilho, usa o relatório fresco da triagem e publica no canal.
+Usa os mesmos Secrets
 YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN e
 WAV2LIP_CHECKPOINT_URL dos boletins. O canal usa a variável YOUTUBE_CHANNEL_ID.
 Histórico SQLite é restaurado do último artefato city-shorts-state e salvo

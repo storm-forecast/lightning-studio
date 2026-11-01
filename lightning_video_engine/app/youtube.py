@@ -142,3 +142,52 @@ def publish_bulletin(directory: Path, presented_at: datetime, env=os.environ):
               'title': metadata['snippet']['title']}
     (directory / 'youtube.json').write_text(json.dumps(record, ensure_ascii=False, indent=2))
     return record
+
+
+def publish_short(directory: Path, env=os.environ):
+    """Publish a fresh approved-format city alert, recording the server's actual visibility."""
+    from datetime import timezone
+    import subprocess
+    directory = Path(directory)
+    saved = directory / 'youtube-short.json'
+    if saved.exists():
+        return json.loads(saved.read_text())
+    report = json.loads((directory / 'alerta.json').read_text())
+    started = datetime.fromisoformat(report['verificado_em'].replace('Z', '+00:00'))
+    age = (datetime.now(timezone.utc) - started).total_seconds()
+    if not 0 <= age <= 900:
+        raise YouTubeError('alerta expirado: não publicar Short com mais de 15 minutos')
+    if not report.get('gerar'):
+        raise YouTubeError('Short sem gatilho de alerta confirmado')
+    video = directory / 'short.mp4'
+    probe = json.loads(subprocess.check_output(['ffprobe', '-v', 'error', '-show_streams', '-show_format', '-of', 'json', str(video)]))
+    stream = next(x for x in probe['streams'] if x['codec_type'] == 'video')
+    if stream['height'] <= stream['width'] or float(probe['format']['duration']) > 60:
+        raise YouTubeError('Short deve ser vertical e ter até 60 segundos')
+    privacy = env.get('SHORTS_YOUTUBE_PRIVACY', 'public')
+    if privacy not in PRIVACY:
+        raise ValueError('SHORTS_YOUTUBE_PRIVACY inválido')
+    missing = [key for key in ('YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'YOUTUBE_REFRESH_TOKEN', 'YOUTUBE_CHANNEL_ID') if not env.get(key)]
+    if missing:
+        raise YouTubeError('configure ' + ', '.join(missing))
+    token = access_token(env['YOUTUBE_CLIENT_ID'], env['YOUTUBE_CLIENT_SECRET'], env['YOUTUBE_REFRESH_TOKEN'])
+    channel, name = authorized_channel(token)
+    if channel != env['YOUTUBE_CHANNEL_ID']:
+        raise YouTubeError('o token pertence a outro canal; upload recusado')
+    local = started.astimezone(ZoneInfo('America/Sao_Paulo'))
+    title = f"{report['nome']} ({report['uf']}): alerta de tempestade | {local:%d/%m %H:%M} #Shorts"
+    description = (f"TROVOX TEMPO — atualização de {local:%d/%m/%Y às %H:%M}, horário de Brasília.\n"
+        + report['roteiro'] + '\n\nNowcasting regional, não é aviso oficial. Consulte a Defesa Civil e o INMET.'
+        + '\nApresentadora e voz geradas por IA. Dados: Lightning Agent. Mapa: © OpenStreetMap contributors — https://www.openstreetmap.org/copyright'
+        + '\n#Shorts #previsaodotempo #raios #nowcasting')
+    metadata = {'snippet': {'title': title[:100], 'description': description[:5000],
+        'categoryId': NEWS_CATEGORY, 'defaultLanguage': 'pt-BR', 'defaultAudioLanguage': 'pt-BR',
+        'tags': ['Shorts', report['nome'], 'nowcasting', 'raios', 'TROVOX TEMPO']},
+        'status': {'privacyStatus': privacy, 'selfDeclaredMadeForKids': False, 'containsSyntheticMedia': True}}
+    result = upload(video, metadata, token)
+    if not result.get('id'):
+        raise YouTubeError('upload sem identificador de vídeo')
+    record = {'video_id': result['id'], 'url': 'https://www.youtube.com/shorts/' + result['id'],
+              'channel_id': channel, 'privacy': result.get('status', {}).get('privacyStatus'), 'title': title[:100]}
+    saved.write_text(json.dumps(record, ensure_ascii=False, indent=2))
+    return record

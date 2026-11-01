@@ -1,0 +1,102 @@
+name: Monitor city Shorts
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Every 30 minutes, off the busiest minute of the hour (UTC).
+    - cron: '7,37 * * * *'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: city-shorts-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      SHORTS_OUTPUT_DIR: output/shorts
+      SHORTS_AUTO_PUBLISH: 'true'
+      SHORTS_MONITOR_ENABLED: 'false'
+      SHORTS_YOUTUBE_PRIVACY: public
+      LIGHTNING_API_URL: https://lightning-agent.onrender.com
+      WAV2LIP_CHECKPOINT: ${{ github.workspace }}/.cache/wav2lip/wav2lip-compatible.pth
+      WAV2LIP_CHECKPOINT_URL: ${{ secrets.WAV2LIP_CHECKPOINT_URL }}
+      LIPSYNC_PYTHON: ${{ github.workspace }}/.local/venv/bin/python
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+      YOUTUBE_CHANNEL_ID: ${{ vars.YOUTUBE_CHANNEL_ID || 'UCOrGMudYslWWWmpW8pu3UDg' }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Restore daily publication history
+        env:
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p output/shorts
+          artifact_id="$(gh api "repos/$GH_REPO/actions/artifacts?name=city-shorts-state&per_page=100" --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .id // empty')"
+          if [ -n "$artifact_id" ]; then
+            gh api "repos/$GH_REPO/actions/artifacts/$artifact_id/zip" > /tmp/shorts-state.zip
+            unzip -o /tmp/shorts-state.zip -d output/shorts
+            test -f output/shorts/shorts.sqlite3
+          fi
+
+      - name: Install lightweight monitoring dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Check the thirteen cities
+        id: scan
+        run: python scripts/check_city_shorts.py --scan
+
+      - name: Restore lip-sync checkpoint
+        if: steps.scan.outputs.has_alerts == 'true'
+        uses: actions/cache@v4
+        with:
+          path: .cache/wav2lip
+          key: wav2lip-checkpoint-${{ runner.os }}-${{ hashFiles('deploy/model.json') }}
+
+      - name: Prepare renderer only when an alert is approaching
+        if: steps.scan.outputs.has_alerts == 'true'
+        run: |
+          test -n "$YOUTUBE_CLIENT_ID" && test -n "$YOUTUBE_CLIENT_SECRET" && test -n "$YOUTUBE_REFRESH_TOKEN"
+          test -n "$WAV2LIP_CHECKPOINT_URL"
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core libsndfile1
+          bash scripts/install_local.sh
+
+      - name: Recheck, generate and publish Shorts
+        if: steps.scan.outputs.has_alerts == 'true'
+        run: .local/venv/bin/python scripts/check_city_shorts.py
+
+      - name: Persist daily publication history
+        if: always() && hashFiles('output/shorts/shorts.sqlite3') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: city-shorts-state
+          path: output/shorts/shorts.sqlite3
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Save videos and evidence for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: city-shorts-${{ github.run_id }}
+          path: |
+            output/shorts/scan.json
+            output/shorts/*/short.mp4
+            output/shorts/*/alerta.json
+            output/shorts/*/youtube-short.json
+          retention-days: 2
+          if-no-files-found: ignore

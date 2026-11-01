@@ -205,6 +205,22 @@ if AUTOSTART:
         DailyScheduler(jobs, SCHEDULE_HOUR_UTC).start()
 app = FastAPI(title="Lightning Studio API", version="0.1.0")
 
+from .city_shorts import AgentSource, Monitor
+from .shorts_routes import router as shorts_router
+app.include_router(shorts_router)
+
+@app.on_event("startup")
+def start_city_shorts():
+    app.state.city_shorts = Monitor(AgentSource(API), os.environ.get('SHORTS_OUTPUT_DIR', str(OUTPUT / 'shorts')))
+    if os.environ.get('SHORTS_MONITOR_ENABLED', '').lower() == 'true':
+        app.state.city_shorts.start()
+
+@app.on_event("shutdown")
+def stop_city_shorts():
+    if getattr(app.state, 'city_shorts', None):
+        app.state.city_shorts.stop.set()
+
+
 
 def guard(token: Optional[str]) -> None:
     if not TOKEN or token != TOKEN:

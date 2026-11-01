@@ -5,3 +5,5 @@ edge-tts==7.3.1
 pillow>=11
 python-dotenv>=1.0,<2
 gdown>=5.2,<6
+
+numpy>=1.26,<3  # radar decoding for city nowcasting shorts

@@ -90,3 +90,9 @@ voz argentina, narração, telas, título e descrição em espanhol e horário
 America/Argentina/Cordoba. Os 13 locais brasileiros permanecem em português.
 O arquivo templates/shorts-publications.json registra o teste manual para
 impedir outro envio automático no mesmo dia. Nos demais dias vale o SQLite.
+
+Expansão em espanhol: Buenos Aires, Santa Cruz de la Sierra, Santiago, Bogotá,
+Guayaquil, Asunción, Lima, Montevideo e Caracas, mantendo Córdoba.
+Total: 23 cidades (13 em português e 10 em espanhol). Cada cidade estrangeira
+usa seu fuso IANA, inclusive mudanças sazonais, e limite diário no horário local.
+Narração e metadados identificam o país correto, sem referências fixas à Argentina.

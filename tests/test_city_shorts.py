@@ -15,7 +15,7 @@ class Source:
 
 
 def test_allowlist():
-    assert len(CITIES) == 14
+    assert len(CITIES) == 23
     assert {'sao-paulo','curitiba','porto-alegre'} <= CITIES.keys()
 
 
@@ -56,7 +56,7 @@ def test_spanish_only_cordoba():
     localize_report(r)
     assert r['idioma']=='es-AR'
     assert 'Córdoba, Argentina' in r['roteiro']
-    assert 'Defensa Civil' in r['roteiro']
+    assert 'Protección Civil' in r['roteiro']
     assert screen_es('Raios observados')=='Descargas observadas'
 
 
@@ -64,3 +64,19 @@ def test_uppercase_spanish_scene_titles():
     from lightning_video_engine.app.shorts_spanish import screen_es
     assert screen_es('RAIOS OBSERVADOS') == 'DESCARGAS OBSERVADAS'
     assert screen_es('RECOMENDAÇÕES FINAIS') == 'RECOMENDACIONES FINALES'
+
+
+def test_spanish_commercial_cities_and_local_clocks():
+    from zoneinfo import ZoneInfo
+    from lightning_video_engine.app.shorts_locales import SPANISH_CITIES,city_timezone
+    from lightning_video_engine.app.shorts_spanish import localize_report
+    assert len(SPANISH_CITIES)==10
+    assert len(set(CITIES)-set(SPANISH_CITIES))==13
+    for key,(country,tz) in SPANISH_CITIES.items():
+        assert key in CITIES
+        ZoneInfo(tz)
+        r={'cidade':key,'nome':CITIES[key][0],'motivos':[], 'raios':{'dados_atrasados':True},'nowcasting':None}
+        localize_report(r)
+        assert r['nome'] in r['roteiro'] and country in r['roteiro']
+        assert r['idioma'].startswith('es')
+        assert r['timezone']==city_timezone(key,CITIES[key][1])

@@ -1,11 +1,14 @@
-"""Spanish is restricted to Córdoba; Brazilian alerts retain Portuguese."""
+"""Spanish for configured South American cities; Brazilian alerts retain Portuguese."""
 DIRECTIONS={'norte':'norte','nordeste':'noreste','leste':'este','sudeste':'sureste','sul':'sur','sudoeste':'suroeste','oeste':'oeste','noroeste':'noroeste'}
 
 def localize_report(report, observed_test=False):
-    report.update(idioma='es-AR',voz='es-AR-ElenaNeural',timezone='America/Argentina/Cordoba')
+    from .shorts_locales import SPANISH_CITIES
+    key=report.get('cidade','cordoba')
+    country,tz=SPANISH_CITIES[key]
+    report.update(idioma='es-AR' if country=='Argentina' else 'es',voz='es-AR-ElenaNeural',timezone=tz,pais=country)
     advice=['Busque refugio en un edificio o vehículo cerrado.',
             'Evite espacios abiertos, árboles aislados y actividades en el agua.',
-            'No cruce calles inundadas. Siga los avisos del Servicio Meteorológico Nacional y Defensa Civil.']
+            'No cruce calles inundadas. Siga los avisos del servicio meteorológico y Protección Civil de su país.']
     report['recomendacoes']=advice
     reasons=[]
     if observed_test:
@@ -14,7 +17,7 @@ def localize_report(report, observed_test=False):
         if any('elétrica' in x for x in report['motivos']):reasons.append('tormenta con actividad eléctrica acercándose a la región')
         if report.get('aproximacao_chuva'):reasons.append('ecos de lluvia fuerte acercándose en el radar')
     report['motivos']=reasons
-    text='Atención, Córdoba, Argentina. Monitoreo de la zona hasta 40 kilómetros del centro. '
+    text=f"Atención, {report.get('nome','Córdoba')}, {country}. Monitoreo de la zona hasta 40 kilómetros del centro. "
     text+=('; '.join(reasons)+'. ') if reasons else 'Sin señal confirmada de aproximación. '
     near=report['raios'].get('mais_proximo')
     if near and not report['raios']['dados_atrasados']:

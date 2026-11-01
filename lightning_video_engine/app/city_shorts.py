@@ -8,6 +8,7 @@ import threading
 import uuid
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
+from .shorts_locales import SPANISH_CITIES, city_timezone
 from pathlib import Path
 
 import numpy as np
@@ -57,6 +58,15 @@ CITIES = {
     'campo-grande': ('Campo Grande', 'MS', -20.4697, -54.6201),
     'manaus': ('Manaus', 'AM', -3.1190, -60.0217),
     'cordoba': ('Córdoba', 'Argentina', -31.4065, -64.1885),
+    'buenos-aires': ('Buenos Aires', 'Argentina', -34.6037, -58.3816),
+    'santa-cruz-de-la-sierra': ('Santa Cruz de la Sierra', 'Bolivia', -17.7833, -63.1821),
+    'santiago': ('Santiago', 'Chile', -33.4489, -70.6693),
+    'bogota': ('Bogotá', 'Colombia', 4.7110, -74.0721),
+    'guayaquil': ('Guayaquil', 'Ecuador', -2.1709, -79.9224),
+    'asuncion': ('Asunción', 'Paraguay', -25.2637, -57.5759),
+    'lima': ('Lima', 'Perú', -12.0464, -77.0428),
+    'montevideo': ('Montevideo', 'Uruguay', -34.9011, -56.1645),
+    'caracas': ('Caracas', 'Venezuela', 10.4806, -66.9036),
 }
 
 
@@ -101,7 +111,7 @@ def evaluate(key, resources):
             'verificado_em': now.isoformat() + 'Z', 'gerar': bool(reasons), 'motivos': reasons,
             'raios': lightning, 'nowcasting': point if valid else None, 'chuva': radar,
             'roteiro': text, 'recomendacoes': advice, 'raio_km': 40, 'aproximacao_chuva': incoming_rain}
-    if key == 'cordoba':
+    if key in SPANISH_CITIES:
         from .shorts_spanish import localize_report
         localize_report(report)
     return report
@@ -139,11 +149,11 @@ class Monitor:
         if seed.exists():
             record = json.loads(seed.read_text()).get(key)
             if record:
-                tz = ZoneInfo('America/Argentina/Cordoba' if key == 'cordoba' else 'America/Sao_Paulo')
+                tz = ZoneInfo(city_timezone(key, CITIES[key][1]))
                 published = datetime.fromisoformat(record['published_at'].replace('Z','+00:00'))
                 if published.astimezone(tz).date() == datetime.now(tz).date():
                     return False
-        tz = ZoneInfo({'AM':'America/Manaus', 'MS':'America/Campo_Grande'}.get(CITIES[key][1], 'America/Sao_Paulo'))
+        tz = ZoneInfo(city_timezone(key, CITIES[key][1]))
         midnight = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
         with self.db() as db:
             rows = db.execute('SELECT created,payload FROM jobs WHERE city=?', (key,)).fetchall()
@@ -164,7 +174,7 @@ class Monitor:
                     report = evaluate(key, self.resources)
                     if report['gerar']:
                         with self.db() as db:
-                            tz = ZoneInfo({'AM':'America/Manaus', 'MS':'America/Campo_Grande'}.get(CITIES[key][1], 'America/Sao_Paulo'))
+                            tz = ZoneInfo(city_timezone(key, CITIES[key][1]))
                             now_local = datetime.now(tz)
                             midnight = now_local.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
                             recent = db.execute('SELECT payload FROM jobs WHERE city=? AND created>=?',

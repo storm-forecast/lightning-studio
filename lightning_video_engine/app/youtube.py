@@ -184,14 +184,14 @@ def publish_short(directory: Path, env=os.environ):
         'categoryId': NEWS_CATEGORY, 'defaultLanguage': 'pt-BR', 'defaultAudioLanguage': 'pt-BR',
         'tags': ['Shorts', report['nome'], 'nowcasting', 'raios', 'TROVOX TEMPO']},
         'status': {'privacyStatus': privacy, 'selfDeclaredMadeForKids': False, 'containsSyntheticMedia': True}}
-    if report.get('idioma') == 'es-AR':
-        title = f"Córdoba, Argentina: alerta de tormenta | {local:%d/%m %H:%M} #Shorts"
-        metadata['snippet'].update(title=title[:100], defaultLanguage='es-AR', defaultAudioLanguage='es-AR',
-            tags=['Shorts','Córdoba','Argentina','tormentas','rayos','TROVOX TEMPO'],
-            description=(f"TROVOX TEMPO — {local:%d/%m/%Y %H:%M}, hora de Argentina.\n" + report['roteiro']
-            + '\nEstimación regional. Consulte al Servicio Meteorológico Nacional y Defensa Civil.'
+    if report.get('idioma', '').startswith('es'):
+        title = f"{report['nome']}, {report.get('pais', report['uf'])}: alerta de tormenta | {local:%d/%m %H:%M} #Shorts"
+        metadata['snippet'].update(title=title[:100], defaultLanguage=report['idioma'], defaultAudioLanguage=report['idioma'],
+            tags=['Shorts',report['nome'],report.get('pais',report['uf']),'tormentas','rayos','TROVOX TEMPO'],
+            description=(f"TROVOX TEMPO — {local:%d/%m/%Y %H:%M}, hora local.\n" + report['roteiro']
+            + '\nEstimación regional. Consulte al servicio meteorológico y Protección Civil de su país.'
             + '\nPresentadora y voz generadas por IA. Datos: Lightning Agent. Mapa: © OpenStreetMap contributors — https://www.openstreetmap.org/copyright'
-            + '\n#Shorts #tormentas #rayos #Argentina'))
+            + '\n#Shorts #tormentas #rayos'))
     result = upload(video, metadata, token)
     if not result.get('id'):
         raise YouTubeError('upload sem identificador de vídeo')

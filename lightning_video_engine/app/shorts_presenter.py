@@ -17,10 +17,14 @@ def layout(image, report, title, kind):
     canvas = Image.new('RGB', (720,1280), '#081522')
     d = ImageDraw.Draw(canvas)
     def text(value, x, y, size=24, color='white', bold=False, width=None):
-        if report.get('idioma') == 'es-AR':
+        if report.get('idioma', '').startswith('es'):
             from .shorts_spanish import screen_es
             value = screen_es(value)
         font = ImageFont.truetype(BOLD if bold else FONT,size)
+        if not width:
+            while font.getlength(value) > 656 and size > 17:
+                size -= 1
+                font = ImageFont.truetype(BOLD if bold else FONT,size)
         lines = textwrap.wrap(value,width) if width else [value]
         for line in lines:
             d.text((x,y),line,font=font,fill=color);y += size+9
@@ -33,7 +37,7 @@ def layout(image, report, title, kind):
     text(f"{report['nome']} • {report['uf']}",32,122,38,bold=True)
     timezone = ZoneInfo(report.get('timezone','America/Sao_Paulo'))
     time = datetime.fromisoformat(report['verificado_em'].replace('Z','+00:00')).astimezone(timezone)
-    text(time.strftime('%d/%m/%Y • %H:%M') + (' • Argentina (UTC−3)' if report.get('idioma') == 'es-AR' else ' • Brasília (UTC−3)'),32,181,20,'#bed3e4')
+    text(time.strftime('%d/%m/%Y • %H:%M') + (' • hora local (UTC' + time.strftime('%z') + ')' if report.get('idioma', '').startswith('es') else ' • Brasília (UTC−3)'),32,181,20,'#bed3e4')
     text(title.upper(),32,233,22,bold=True)
     card((30,280,690,760))
     if kind != 'fim':

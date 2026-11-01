@@ -2,11 +2,11 @@ name: Generate weather bulletin
 
 on:
   workflow_dispatch:
-  # Daily generation starts in Brasilia (UTC-3): 05:30, 09:00, 12:00, 13:00, 14:00, 15:00.
-  # GitHub cron expressions use UTC. Upload follows completion of rendering.
+  # Start 75 minutes before the requested public slots in Belém (UTC-3):
+  # 05:30, 09:00, 12:00, 13:00, 14:00 and 15:00. GitHub cron uses UTC.
   schedule:
-    - cron: '30 8 * * *'
-    - cron: '0 12,15,16,17,18 * * *'
+    - cron: '15 7 * * *'
+    - cron: '45 10,13,14,15,16 * * *'
 
 permissions:
   contents: read
@@ -34,9 +34,26 @@ jobs:
       YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
       YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
       YOUTUBE_CHANNEL_ID: ${{ vars.YOUTUBE_CHANNEL_ID || 'UCOrGMudYslWWWmpW8pu3UDg' }}
-      YOUTUBE_PRIVACY: ${{ vars.YOUTUBE_PRIVACY || 'private' }}
+      YOUTUBE_PRIVACY: ${{ vars.YOUTUBE_PRIVACY || 'public' }}
     steps:
       - uses: actions/checkout@v4
+
+      # Save the target before dependency installation and rendering consume the
+      # preparation window.  The hour ranges tolerate a modest Actions delay.
+      - name: Set the requested YouTube publication time
+        if: github.event_name == 'schedule'
+        run: |
+          hour="$(date -u +%H)"
+          case "$hour" in
+            07|08) target='08:30' ;;
+            10|11) target='12:00' ;;
+            13|14) target='15:00' ;;
+            15) target='16:00' ;;
+            16) target='17:00' ;;
+            17) target='18:00' ;;
+            *) echo "Unexpected scheduled start hour: $hour" >&2; exit 1 ;;
+          esac
+          echo "YOUTUBE_PUBLISH_AT=$(date -u -d "today $target" +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
       - uses: actions/setup-python@v5
         with:
@@ -77,7 +94,12 @@ jobs:
       # Without the OAuth secrets the bulletin is still kept as an artifact.
       - name: Upload to YouTube
         if: success() && env.YOUTUBE_REFRESH_TOKEN != ''
-        run: .local/venv/bin/python scripts/upload_youtube.py --directory "$BULLETIN_DIR"
+        run: |
+          args=(--directory "$BULLETIN_DIR")
+          if [ -n "${YOUTUBE_PUBLISH_AT:-}" ]; then
+            args+=(--publish-at "$YOUTUBE_PUBLISH_AT")
+          fi
+          .local/venv/bin/python scripts/upload_youtube.py "${args[@]}"
 
       - name: Upload video for download
         if: always()

@@ -3,6 +3,9 @@
 Canal de destino: `UCOrGMudYslWWWmpW8pu3UDg`.
 
 O workflow `generate-video.yml` envia `boletim.mp4` logo após a geração.
+Nas execuções agendadas, ele envia como privado com `publishAt`; o YouTube o
+torna público no horário configurado. Execuções manuais publicam imediatamente
+(salvo uma variável `YOUTUBE_PRIVACY` diferente no repositório).
 O vídeo vai para o canal da conta que autorizou o OAuth; antes de cada envio,
 o script confere que esse canal é `YOUTUBE_CHANNEL_ID` e recusa outro canal.
 

@@ -39,6 +39,13 @@ class Metadata(unittest.TestCase):
             with self.assertRaises(ValueError):
                 youtube.bulletin_metadata(Path(folder), AT, privacy='publico')
 
+    def test_scheduled_publish_is_private_until_the_requested_instant(self):
+        publish_at = datetime(2026, 11, 1, 12, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as folder:
+            meta = youtube.bulletin_metadata(Path(folder), AT, privacy='public', publish_at=publish_at)
+        self.assertEqual(meta['status']['privacyStatus'], 'private')
+        self.assertEqual(meta['status']['publishAt'], '2026-11-01T12:00:00Z')
+
 
 class Publish(unittest.TestCase):
     def setUp(self):
@@ -64,6 +71,15 @@ class Publish(unittest.TestCase):
             record = youtube.publish_bulletin(self.directory, AT, ENV)
         self.assertEqual(record['url'], 'https://youtu.be/abc')
         self.assertEqual(json.loads((self.directory / 'youtube.json').read_text())['video_id'], 'abc')
+
+    def test_records_scheduled_publication(self):
+        publish_at = datetime(2026, 11, 1, 12, tzinfo=timezone.utc)
+        with patch.object(youtube, 'access_token', return_value='t'), \
+             patch.object(youtube, 'authorized_channel', return_value=(ENV['YOUTUBE_CHANNEL_ID'], 'Canal')), \
+             patch.object(youtube, 'upload', return_value={'id': 'abc', 'status': {'privacyStatus': 'private'}}) as upload:
+            record = youtube.publish_bulletin(self.directory, AT, ENV, publish_at=publish_at)
+        self.assertEqual(record['scheduled_publish_at'], '2026-11-01T12:00:00Z')
+        self.assertEqual(upload.call_args.args[1]['status']['publishAt'], '2026-11-01T12:00:00Z')
 
     def test_missing_secrets_are_named(self):
         with self.assertRaisesRegex(youtube.YouTubeError, 'YOUTUBE_REFRESH_TOKEN'):

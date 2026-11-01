@@ -7,7 +7,7 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -68,7 +68,7 @@ def authorized_channel(token):
     return items[0]['id'], items[0]['snippet'].get('title', '')
 
 
-def bulletin_metadata(directory: Path, presented_at: datetime, *, timezone_name='America/Belem', privacy='private'):
+def bulletin_metadata(directory: Path, presented_at: datetime, *, timezone_name='America/Belem', privacy='private', publish_at=None):
     if privacy not in PRIVACY:
         raise ValueError(f'YOUTUBE_PRIVACY deve ser um de {sorted(PRIVACY)}')
     local = presented_at.astimezone(ZoneInfo(timezone_name))
@@ -95,12 +95,20 @@ def bulletin_metadata(directory: Path, presented_at: datetime, *, timezone_name=
               'Apresentadora e voz geradas por inteligência artificial. Dados e mapas: Lightning Agent.',
               '',
               '#previsaodotempo #raios #chuva #Brasil']
+    status = {'privacyStatus': privacy, 'selfDeclaredMadeForKids': False,
+              'containsSyntheticMedia': True}
+    if publish_at is not None:
+        if publish_at.tzinfo is None:
+            raise ValueError('YOUTUBE_PUBLISH_AT deve incluir fuso horário')
+        # The YouTube API accepts publishAt only for a private video.  It makes
+        # the video public at the supplied instant without a worker remaining up.
+        status['privacyStatus'] = 'private'
+        status['publishAt'] = publish_at.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
     return {'snippet': {'title': title.replace('<', '').replace('>', '')[:100],
                         'description': '\n'.join(lines)[:5000], 'tags': TAGS,
                         'categoryId': NEWS_CATEGORY, 'defaultLanguage': 'pt-BR',
                         'defaultAudioLanguage': 'pt-BR'},
-            'status': {'privacyStatus': privacy, 'selfDeclaredMadeForKids': False,
-                       'containsSyntheticMedia': True}}
+            'status': status}
 
 
 def upload(video: Path, metadata, token):
@@ -120,7 +128,7 @@ def upload(video: Path, metadata, token):
                                  'Content-Length': str(size)})[1]
 
 
-def publish_bulletin(directory: Path, presented_at: datetime, env=os.environ):
+def publish_bulletin(directory: Path, presented_at: datetime, env=os.environ, publish_at=None):
     """Upload `boletim.mp4` only when the token belongs to YOUTUBE_CHANNEL_ID."""
     video = directory / 'boletim.mp4'
     if not video.is_file():
@@ -133,13 +141,19 @@ def publish_bulletin(directory: Path, presented_at: datetime, env=os.environ):
     channel, name = authorized_channel(token)
     if channel != env['YOUTUBE_CHANNEL_ID']:
         raise YouTubeError(f'o token pertence ao canal {channel} ({name}), não a {env["YOUTUBE_CHANNEL_ID"]}')
+    if publish_at is None and env.get('YOUTUBE_PUBLISH_AT'):
+        try:
+            publish_at = datetime.fromisoformat(env['YOUTUBE_PUBLISH_AT'].replace('Z', '+00:00'))
+        except ValueError as exc:
+            raise YouTubeError('YOUTUBE_PUBLISH_AT deve ser uma data ISO-8601 válida') from exc
     metadata = bulletin_metadata(directory, presented_at,
                                  timezone_name=env.get('VIDEO_TIMEZONE', 'America/Belem'),
-                                 privacy=env.get('YOUTUBE_PRIVACY', 'private'))
+                                 privacy=env.get('YOUTUBE_PRIVACY', 'private'), publish_at=publish_at)
     result = upload(video, metadata, token)
     record = {'video_id': result.get('id'), 'url': f"https://youtu.be/{result.get('id')}",
               'channel_id': channel, 'privacy': result.get('status', {}).get('privacyStatus'),
-              'title': metadata['snippet']['title']}
+              'title': metadata['snippet']['title'],
+              'scheduled_publish_at': metadata['status'].get('publishAt')}
     (directory / 'youtube.json').write_text(json.dumps(record, ensure_ascii=False, indent=2))
     return record
 

@@ -29,9 +29,9 @@ def rain_approach(lat, lon):
     return approaching_heavy_rain(lat, lon)
 
 
-def rain_duration(lat, lon):
+def rain_duration(lat, lon, min_class=2):
     from .shorts_rain import rain_minutes_at
-    return rain_minutes_at(lat, lon)
+    return rain_minutes_at(lat, lon, min_class=min_class)
 
 
 class AgentSource:
@@ -121,14 +121,14 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
     recent_lightning = bool(lightning_fresh and near and near.get('km', float('inf')) <= 40 and
                             0 <= near.get('minutos_atras', float('inf')) <= 15)
     try:
-        persistent_rain_minutes = rain_duration(lat, lon) if radar_fresh and radar['classe'] >= 1 else None
+        persistent_rain_minutes = rain_duration(lat, lon, 1) if radar_fresh and radar['classe'] >= 1 else None
     except (OSError, ValueError, KeyError, TypeError):
         persistent_rain_minutes = None
     persistent_moderate = bool(persistent_rain_minutes is not None and persistent_rain_minutes >= 10)
     flood_only = key in SP_FLOOD_CITIES
-    flood_risk = bool(radar_fresh and radar['classe'] >= 2 and persistent_rain_minutes is not None and persistent_rain_minutes >= 20)
+    flood_risk = bool(radar_fresh and radar['classe'] >= 1 and persistent_rain_minutes is not None and persistent_rain_minutes >= 10)
     if flood_only and flood_risk:
-        reasons.append('chuva forte persistente com potencial de alagamento no município')
+        reasons.append('chuva moderada ou forte persistente com potencial de alagamento no município')
     if not flood_only and radar_fresh and recent_lightning:
         reasons.append('chuva detectada no radar e raios recentes na região')
     if not flood_only and radar_fresh and persistent_moderate:

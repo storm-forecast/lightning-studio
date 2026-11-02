@@ -204,13 +204,15 @@ PERSIST_FRAMES = 5      # ~50 minutes back, well past FLOOD_RUN_MINUTES
 PERSIST_CLASS = 2       # the radar's yellow: below it there is no flood question to ask
 
 
-def rain_minutes_at(lat: float, lon: float) -> Optional[float]:
-    """Minutes the rain has been at PERSIST_CLASS or above without a break, or None if unreadable.
+def rain_minutes_at(lat: float, lon: float, min_class: int = PERSIST_CLASS) -> Optional[float]:
+    """Minutes the rain has been at ``min_class`` or above without a break, or None if unreadable.
 
     Zero is a real answer -- it is raining hard now and was not ten minutes ago -- and is what tells a
     passing squall from the rain that fills a street. None means the frames could not be read, which is
     not the same thing and must not be counted as a break.
     """
+    if not 0 <= int(min_class) < len(CLASSES):
+        raise ValueError('classe mínima de chuva inválida')
     index = _get_index()
     past = _fresh_past(index)
     if not past:
@@ -229,7 +231,7 @@ def rain_minutes_at(lat: float, lon: float) -> Optional[float]:
             break
         leu = True
         classe, _ = _classe(data, px, py)
-        if classe is None or classe < PERSIST_CLASS:
+        if classe is None or classe < min_class:
             break
         desde = frame.get("time")
         ultimo = frame['time']

@@ -128,6 +128,11 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
     if radar_fresh and persistent_moderate:
         intensity = 'forte' if radar['classe'] >= 2 else 'moderada'
         reasons.append(f'chuva {intensity} persistente na escala do radar na área monitorada')
+    close_count = lightning.get('raios_15km')
+    intense_lightning = bool(recent_lightning and isinstance(close_count, int) and close_count >= 10 and
+                             near.get('km', float('inf')) <= 15 and near.get('minutos_atras', float('inf')) <= 10)
+    if intense_lightning:
+        reasons.append(f'atividade elétrica intensa: {close_count} raios observados em até 15 quilômetros')
     density = None
     current_at = lightning_observed_at(lightning)
     if density_reference and current_at is not None:

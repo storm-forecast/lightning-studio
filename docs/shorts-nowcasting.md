@@ -11,6 +11,8 @@ no ponto central por pelo menos 10 minutos consecutivos. O quadro de radar
 deve ter no máximo 15 minutos. Amarelo é intensidade na paleta do radar,
 não um alerta oficial nem volume em milímetros. Sem cobertura ou com dados
 vencidos, o sistema não presume ausência de risco e não dispara vídeo.
+Também dispara com pelo menos 10 raios observados em até 15 km nos últimos
+10 minutos, mesmo quando o radar não classifica chuva no ponto.
 Um terceiro gatilho compara duas leituras completas da mesma área de 15 km,
 separadas por 5 a 30 minutos. Exige pelo menos 10 raios na janela atual de
 30 minutos, aumento de pelo menos 8 e de pelo menos 100% sobre a contagem

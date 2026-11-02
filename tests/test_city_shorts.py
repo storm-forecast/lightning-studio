@@ -82,6 +82,20 @@ def test_moderate_radar_requires_persistence_before_alerting():
     assert any('chuva moderada persistente' in reason for reason in report['motivos'])
 
 
+def test_intense_close_lightning_triggers_without_radar():
+    class IntenseLightning:
+        def json(self,path,**query):
+            if path == '/alertas/situacao':
+                return {'dados_atrasados':False,'coberto':True,'raios_15km':24,'raios_40km':100,
+                        'mais_proximo':{'km':8,'minutos_atras':4,'direcao':'nordeste'}}
+            return {'agora':None}
+    with patch('lightning_video_engine.app.city_shorts.rain_at', return_value=None), \
+         patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None):
+        report=evaluate('curitiba',IntenseLightning())
+    assert report['gerar']
+    assert any('atividade elétrica intensa' in reason for reason in report['motivos'])
+
+
 def test_yellow_persistence_rejects_missing_radar_frames():
     from lightning_video_engine.app import shorts_rain
     import numpy as np

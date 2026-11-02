@@ -20,6 +20,9 @@ def localize_report(report, observed_test=False):
             reasons.append('lluvia fuerte persistente en la escala del radar en la zona vigilada')
         if any('chuva moderada persistente' in x for x in report['motivos']):
             reasons.append('lluvia moderada persistente en la escala del radar en la zona vigilada')
+        if any('atividade elétrica intensa' in x for x in report['motivos']):
+            count=report['raios'].get('raios_15km')
+            reasons.append(f'actividad eléctrica intensa: {count} descargas observadas en un radio de 15 kilómetros')
         density=report.get('densidade')
         if density and not reasons:
             reasons.append(f"la actividad eléctrica aumentó de {density['antes_15km']} a "

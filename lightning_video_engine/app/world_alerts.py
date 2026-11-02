@@ -66,6 +66,23 @@ def _miami_official_alerts():
              'geometria_alerta': feature.get('geometry'), 'timezone': 'America/New_York',
              'fonte': props.get('senderName', 'National Weather Service'), 'oficial': True}]
 
+
+def _oklahoma_city_official_alerts():
+    request = Request('https://api.weather.gov/alerts/active?point=35.4676,-97.5164', headers={
+        'User-Agent': 'TROVOX-GLOBAL weather nowcasting'})
+    with urlopen(request, timeout=20) as response:
+        features = json.load(response).get('features', [])
+    feature = next((value for value in features if value.get('properties', {}).get('event') == 'Tornado Watch'), None)
+    if feature is None:
+        return []
+    props = feature['properties']
+    return [{'id': 'oklahoma-city-severe', 'cidade': 'Oklahoma City, Oklahoma', 'pais': 'United States',
+             'lat': 35.4676, 'lon': -97.5164, 'nivel': 'alta', 'gatilhos': ['official_severe_alert'],
+             'evento_oficial': props['event'], 'areas_afetadas': props.get('areaDesc', 'Oklahoma City area'),
+             'instrucao_oficial': props.get('instruction', ''), 'observado_em': props.get('sent'),
+             'geometria_alerta': feature.get('geometry'), 'timezone': 'America/Chicago',
+             'fonte': props.get('senderName', 'National Weather Service'), 'oficial': True}]
+
 def alerts():
     global _cache
     if time.time()-_cache[0] < 600:return _cache[1]
@@ -104,4 +121,8 @@ def alerts():
         rows.extend(_miami_official_alerts())
     except Exception as exc:
         rows.append({'id':'miami-flood','cidade':'Miami, Florida','erro':str(exc),'fonte':'NWS','oficial':True})
+    try:
+        rows.extend(_oklahoma_city_official_alerts())
+    except Exception as exc:
+        rows.append({'id':'oklahoma-city-severe','cidade':'Oklahoma City, Oklahoma','erro':str(exc),'fonte':'NWS','oficial':True})
     _cache=(time.time(),rows);return rows

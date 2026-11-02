@@ -171,8 +171,8 @@ def render(directory: Path, item):
             strike_x, strike_y = xy(strike_lat, strike_lon)
             draw.ellipse((strike_x - 4, strike_y - 4, strike_x + 4, strike_y + 4), fill='#ffdf35', outline='#613f00', width=1)
     draw.rounded_rectangle((38, 310, 350, 365), radius=10, fill='#081522cc')
-    layer = ('SEVERITY + OFFICIAL FLOOD AREA + LIGHTNING' if points and item.get('raios', {}).get('coberto') and severity is not None
-             else 'SEVERITY + OFFICIAL FLOOD AREA' if points and severity is not None
+    layer = ('SEVERITY + OFFICIAL ALERT AREA + LIGHTNING' if points and item.get('raios', {}).get('coberto') and severity is not None
+             else 'SEVERITY + OFFICIAL ALERT AREA' if points and severity is not None
              else 'SEVERITY NOWCASTING MAP' if severity is not None else 'LOCAL RISK MAP — SEVERITY UNAVAILABLE')
     draw.text((55, 325), layer, font=ImageFont.truetype(BOLD, 18), fill='white')
     # High-contrast, readable caption between map and presenter.

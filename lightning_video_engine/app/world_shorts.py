@@ -5,6 +5,7 @@ import json
 import math
 import os
 import subprocess
+import textwrap
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode
@@ -86,15 +87,22 @@ def report(row):
     observed = ("Rain is currently affecting the city area." if current > 0
                 else "No rain is measured at this point right now.")
     if official_event:
-        observed = f"The National Weather Service has issued this alert for {row.get('areas_afetadas', 'the affected area')}. "
+        areas = textwrap.shorten(str(row.get('areas_afetadas') or 'the affected area'), width=120, placeholder='…')
+        observed = f"The National Weather Service has issued this alert for {areas}. "
     lightning_line = (f"Satellite lightning nowcasting reports {lightning.get('raios_40km', 0)} lightning strikes within 40 kilometres in the last 30 minutes. "
                       if lightning.get('coberto') else "Satellite lightning nowcasting is not available over this location. ")
     forecast_line = '' if official_event else f"The highest precipitation probability over the next six hours is {probability} percent. "
-    advisory_line = (f"Follow the official instruction: {row.get('instrucao_oficial', '')} " if official_event
+    instruction = textwrap.shorten(str(row.get('instrucao_oficial') or 'Follow official instructions.'), width=150, placeholder='…')
+    advisory_line = (f"Follow the official instruction: {instruction} " if official_event
                      else "This is an automated weather estimate, not an official warning. ")
     script = (f"Nowcasting update: {headline} in {city}, {country}. {observed} " + forecast_line
               + lightning_line + advisory_line + "Follow your local weather service and emergency guidance. "
               + "Subscribe to TROVOX GLOBAL for global weather updates.")
+    # A Short must remain below sixty seconds after TTS, including official alerts
+    # whose area descriptions can contain dozens of counties.
+    script = textwrap.shorten(script, width=520, placeholder='…')
+    if 'Subscribe to TROVOX GLOBAL' not in script:
+        script = textwrap.shorten(script, width=440, placeholder='…') + ' Subscribe to TROVOX GLOBAL for updates.'
     return {'cidade': row['id'], 'nome': city, 'uf': country, 'pais': country,
             'verificado_em': now.isoformat().replace('+00:00', 'Z'), 'gerar': True,
             'motivos': triggers,

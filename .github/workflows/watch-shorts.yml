@@ -47,6 +47,8 @@ jobs:
       WORLD_YOUTUBE_CLIENT_SECRET: ${{ secrets.WORLD_YOUTUBE_CLIENT_SECRET }}
       WORLD_YOUTUBE_REFRESH_TOKEN: ${{ secrets.WORLD_YOUTUBE_REFRESH_TOKEN }}
       WORLD_YOUTUBE_CHANNEL_ID: UCO2hrF6OlctVIEd3AcIxilw
+      INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+      INSTAGRAM_USER_ID: ${{ vars.INSTAGRAM_USER_ID }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -121,6 +123,7 @@ jobs:
             output/shorts/*/short.mp4
             output/shorts/*/alerta.json
             output/shorts/*/youtube-short.json
+            output/shorts/*/instagram.json
             output/world-shorts/*/short.mp4
           retention-days: 2
           if-no-files-found: ignore

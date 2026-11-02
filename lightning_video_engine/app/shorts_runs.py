@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .city_shorts import CITIES, Monitor, utc_now
+from .instagram import cross_post
 from .sp_flood_shorts import SP_FLOOD_CITIES
 from .youtube import QuotaExceeded, block_quota, publish_short, quota_blocked_until
 
@@ -93,6 +94,8 @@ def publish_cities(monitor, root, reports):
         item = monitor.get(ident)
         youtube = item.get('youtube', {})
         lines.append(f"{report['cidade']} {item['estado']} {json.dumps(youtube, ensure_ascii=False)}")
+        if item.get('instagram'):
+            lines.append(f"{report['cidade']} Instagram {json.dumps(item['instagram'], ensure_ascii=False)}")
         if item['estado'] == 'falhou' and not youtube.get('quota'):
             failed = True
     return lines, failed
@@ -142,6 +145,8 @@ def publish_world(root, requested=''):
         history[item['cidade']] = {'dia': today, 'prioridade': priority(row)}
         history_file.write_text(json.dumps(history, ensure_ascii=False, indent=2))
         lines.append(f"Published: {saved['url']}")
+        if (instagram := cross_post(directory)) is not None:
+            lines.append(f"Instagram: {instagram.get('url') or instagram.get('error')}")
     return lines
 
 

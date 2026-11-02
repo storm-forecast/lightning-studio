@@ -330,6 +330,9 @@ class Monitor:
                     from .youtube import QuotaExceeded, block_quota, publish_short
                     try:
                         item['youtube'] = publish_short(self.root / item['id'])
+                        from .instagram import cross_post
+                        if (instagram := cross_post(self.root / item['id'])) is not None:
+                            item['instagram'] = instagram
                     except QuotaExceeded as exc:
                         until = block_quota(self.root, str(exc))
                         item['youtube'] = {'error': str(exc), 'quota': True, 'ate': until.isoformat()}

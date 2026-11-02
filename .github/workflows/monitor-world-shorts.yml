@@ -33,6 +33,8 @@ jobs:
       WAV2LIP_CHECKPOINT: ${{ github.workspace }}/.cache/wav2lip/wav2lip-compatible.pth
       WAV2LIP_CHECKPOINT_URL: ${{ secrets.WAV2LIP_CHECKPOINT_URL }}
       LIPSYNC_PYTHON: ${{ github.workspace }}/.local/venv/bin/python
+      INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+      INSTAGRAM_USER_ID: ${{ vars.INSTAGRAM_USER_ID }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4

@@ -40,6 +40,7 @@ def _florida_official_alerts():
              'lat': lat, 'lon': lon, 'nivel': 'alta', 'gatilhos': ['official_flood_alert'],
              'evento_oficial': props['event'], 'areas_afetadas': props.get('areaDesc', ''),
              'instrucao_oficial': props.get('instruction', ''), 'observado_em': props.get('sent'),
+             'geometria_alerta': geometry,
              'timezone': 'America/New_York', 'fonte': props.get('senderName', 'National Weather Service'),
              'oficial': True}]
 

@@ -33,6 +33,19 @@ def lightning_nowcast(lat, lon):
         return {'coberto': False, 'indisponivel': 'source unavailable'}
 
 
+def lightning_points(bounds):
+    """Recent observed strikes inside the displayed map bounds, for a factual nowcast layer."""
+    base = os.environ.get('LIGHTNING_API_URL', 'https://lightning-agent.onrender.com').rstrip('/')
+    west, east, south, north = bounds
+    try:
+        with urlopen(base + '/observado/mapa', timeout=45) as response:
+            payload = json.load(response)
+        return [(lat, lon) for lat, lon, _count, _unforecast, age in payload.get('pontos', [])
+                if age * payload.get('idade_passo_min', 10) < 30 and south <= lat <= north and west <= lon <= east]
+    except Exception:
+        return []
+
+
 def report(row):
     now = datetime.now(timezone.utc)
     city, country = row['cidade'], row['pais']
@@ -66,13 +79,14 @@ def report(row):
             'chuva_atual_mm': current, 'probabilidade_6h': probability, 'gatilhos': triggers, 'raios': lightning,
             'oficial': bool(official_event), 'fonte': row.get('fonte', 'Open-Meteo'),
             'lat': row['lat'], 'lon': row['lon'],
+            'geometria_alerta': row.get('geometria_alerta'),
             'titulo_short': f"{city}: {headline.lower()} #Shorts", 'headline': headline, 'severity': severity}
 
 
 def render(directory: Path, item):
     """Render a British-English map Short with the same presenter pipeline as TROVOX TEMPO."""
     import edge_tts
-    from .regional_map import basemap
+    from .regional_map import basemap, mercator
     from .shorts_presenter import synchronize
 
     directory.mkdir(parents=True, exist_ok=True)
@@ -87,20 +101,49 @@ def render(directory: Path, item):
     draw.text((42, 178), item['nome'], font=bold, fill='white')
     draw.text((42, 238), item['pais'], font=regular, fill='#bed3e4')
     lat, lon = item['lat'], item['lon']
-    span = .55
-    lon_span = span / max(.25, math.cos(math.radians(lat)))
-    region = basemap((lon - lon_span, lon + lon_span, lat - span, lat + span), directory.parent / 'map-tile-cache')
+    geometry = item.get('geometria_alerta') or {}
+    rings = (geometry.get('coordinates') or [])
+    if geometry.get('type') == 'Polygon':
+        rings = [rings]
+    points = [point for ring_set in rings for ring in ring_set for point in ring]
+    if points:
+        west, east = min(point[0] for point in points), max(point[0] for point in points)
+        south, north = min(point[1] for point in points), max(point[1] for point in points)
+        pad = .08
+        west, east, south, north = west - pad, east + pad, south - pad, north + pad
+    else:
+        span = .55
+        lon_span = span / max(.25, math.cos(math.radians(lat)))
+        west, east, south, north = lon - lon_span, lon + lon_span, lat - span, lat + span
+    bounds = (west, east, south, north)
+    region = basemap(bounds, directory.parent / 'map-tile-cache')
     image.paste(region, (40, 300))
-    # This is a city-centred forecast signal, not a fabricated inundation polygon.
     overlay = Image.new('RGBA', (640, 600), (0, 0, 0, 0))
     risk = ImageDraw.Draw(overlay)
     colour = '#e9484a' if item['severity'] == 'HIGH' else '#f49a28'
-    risk.ellipse((150, 110, 490, 450), fill=colour + '55', outline=colour + 'dd', width=5)
+    def xy(point_lat, point_lon):
+        x = 40 + (point_lon - west) / (east - west) * 640
+        y = 300 + (mercator(north) - mercator(point_lat)) / (mercator(north) - mercator(south)) * 600
+        return int(x), int(y)
+    if points:
+        for ring_set in rings:
+            for ring in ring_set:
+                risk.polygon([(x - 40, y - 300) for x, y in (xy(point[1], point[0]) for point in ring)],
+                             fill=colour + '66', outline=colour + 'ee', width=4)
+    else:
+        # Point forecasts are shown as a point signal, never as a made-up flood boundary.
+        risk.ellipse((280, 240, 360, 320), fill=colour + '55', outline=colour + 'dd', width=4)
     image.paste(overlay, (40, 300), overlay)
     draw.rectangle((40, 300, 680, 900), outline='white', width=2)
-    draw.ellipse((352, 592, 368, 608), fill='#ed3d3d', outline='white', width=2)
+    marker_x, marker_y = xy(lat, lon)
+    draw.ellipse((marker_x - 8, marker_y - 8, marker_x + 8, marker_y + 8), fill='#ed3d3d', outline='white', width=2)
+    if item.get('raios', {}).get('coberto'):
+        for strike_lat, strike_lon in lightning_points(bounds):
+            strike_x, strike_y = xy(strike_lat, strike_lon)
+            draw.ellipse((strike_x - 4, strike_y - 4, strike_x + 4, strike_y + 4), fill='#ffdf35', outline='#613f00', width=1)
     draw.rounded_rectangle((38, 315, 350, 370), radius=10, fill='#081522cc')
-    draw.text((55, 330), 'CITY NOWCASTING RISK MAP', font=ImageFont.truetype(BOLD, 18), fill='white')
+    layer = 'OFFICIAL FLOOD AREA + LIGHTNING' if points and item.get('raios', {}).get('coberto') else 'CITY NOWCASTING RISK MAP'
+    draw.text((55, 330), layer, font=ImageFont.truetype(BOLD, 18), fill='white')
     draw.rounded_rectangle((38, 930, 682, 1175), radius=24, fill='#142b3e')
     draw.text((68, 954), f"NOWCASTING SEVERITY: {item['severity']}", font=ImageFont.truetype(BOLD, 26), fill=colour)
     draw.text((68, 1008), item['headline'].upper(), font=ImageFont.truetype(BOLD, 27), fill='white')
@@ -110,7 +153,9 @@ def render(directory: Path, item):
                       if lightning.get('coberto') else 'LIGHTNING NOWCAST: satellite coverage unavailable')
     draw.text((68, 1088), lightning_text, font=ImageFont.truetype(FONT, 18), fill='#dceaf4')
     draw.text((68, 1125), 'Subscribe to TROVOX GLOBAL for weather updates.', font=ImageFont.truetype(FONT, 20), fill='#dceaf4')
-    draw.text((42, 1210), 'Source: Open-Meteo • Not an official warning', font=ImageFont.truetype(FONT, 18), fill='#bed3e4')
+    source_line = (f"Official source: {item['fonte']}" if item.get('oficial')
+                   else 'Source: Open-Meteo • Not an official warning')
+    draw.text((42, 1210), source_line, font=ImageFont.truetype(FONT, 18), fill='#bed3e4')
     image.save(directory / 'card.png')
     duration = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', str(directory / 'voz.mp3')]))
     if duration > 60:

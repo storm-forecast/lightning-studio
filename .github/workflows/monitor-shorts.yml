@@ -67,7 +67,17 @@ jobs:
           fi
 
       - name: Install lightweight monitoring dependencies
-        run: python -m pip install -r requirements.txt
+        run: |
+          python -m pip install -r requirements.txt playwright
+          python -m playwright install chromium --with-deps
+          mkdir -p .cache/chromium
+          browser="$(find "$HOME/.cache/ms-playwright" -type f -name chrome | head -n 1)"
+          test -n "$browser"
+          ln -sf "$browser" .cache/chromium/chrome
+
+      - name: Read official flood-potential polygons
+        run: |
+          CHROMIUM_BIN="$GITHUB_WORKSPACE/.cache/chromium/chrome" python -c "from lightning_video_engine.app.directed_scenes import capture_flood_areas; import json, pathlib; pathlib.Path('output/shorts').mkdir(parents=True, exist_ok=True); pathlib.Path('output/shorts/flood-areas.json').write_text(json.dumps(capture_flood_areas('https://lightning-agent.onrender.com/app/'), ensure_ascii=False))"
 
       - name: Check configured Brazilian and Spanish-speaking cities
         id: scan

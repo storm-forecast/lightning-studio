@@ -33,6 +33,22 @@ CLEAN_CSS = '''
 '''
 
 
+def capture_flood_areas(app_url: str):
+    """Read the official flood-potential polygons once, without inferring areas."""
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        browser=p.chromium.launch(headless=True, executable_path=os.environ.get('CHROMIUM_BIN') or '/opt/google/chrome/chrome', args=['--no-sandbox','--disable-gpu'])
+        try:
+            page=browser.new_page(viewport={'width':1440,'height':810}, timezone_id='America/Belem')
+            page.goto(app_url,wait_until='domcontentloaded',timeout=90000)
+            page.wait_for_function('typeof map !== "undefined" && typeof severeLayer !== "undefined"',timeout=90000)
+            page.evaluate('''async()=>{abreGrupo('nowcasting');currentView='inundacoes';await setProduct(VISTAS.inundacoes.produto,true);showForecast()}''')
+            page.wait_for_function('rainAreaFeita !== null && severeLayer !== null',timeout=90000)
+            return page.evaluate('''()=>severeLayer.getLayers().filter(x=>x.options.fill!==false).slice(0,8).map((x,i)=>({id:'alagamento-'+i,geometria:x.toGeoJSON().geometry}))''')
+        finally:
+            browser.close()
+
+
 def capture_segments(app_url: str, segments: list[Segment], directory: Path):
     from playwright.sync_api import sync_playwright
     directory.mkdir(parents=True, exist_ok=True)

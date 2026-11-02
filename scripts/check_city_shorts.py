@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from lightning_video_engine.app.city_shorts import AgentSource,CITIES,Monitor
+from lightning_video_engine.app.sp_flood_shorts import SP_FLOOD_CITIES
+from lightning_video_engine.app.sp_flood_zones import confirmed_zones
 
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('--scan',action='store_true')
@@ -16,10 +18,22 @@ source=AgentSource(os.environ.get('LIGHTNING_API_URL','https://lightning-agent.o
 monitor=Monitor(source,root)
 if a.scan:
     candidates=[];reports={};errors=[]
+    flood_areas=[]
+    flood_file=root/'flood-areas.json'
+    if flood_file.exists():
+        flood_areas=json.loads(flood_file.read_text())
     for key in CITIES:
         try:
             if monitor.eligible(key):
                 report=monitor.evaluate_city(key)
+                if key in SP_FLOOD_CITIES and flood_areas:
+                    name,state,_,_=CITIES[key]
+                    zones=confirmed_zones(source,name,state,flood_areas)
+                    if zones:
+                        report['flood_zones']=zones
+                        report['zona_id']=zones[0]['zona_id']
+                        report['gerar']=True
+                        report['motivos']=['polígono oficial de potencial de alagamento associado ao município']
                 if report['gerar']:
                     candidates.append(key)
                     reports[key]=report

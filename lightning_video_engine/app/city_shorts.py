@@ -48,6 +48,9 @@ class AgentSource:
     def json(self, path, **query):
         return json.loads(self.read(path, **query))
 
+    def municipal_boundary(self, city, state):
+        return self.json('/previsao/limite-municipal', nome=f'{city}, {state}, Brasil')
+
 
 CITIES = {
     'rio-de-janeiro': ('Rio de Janeiro', 'RJ', -22.907, -43.173),
@@ -240,6 +243,8 @@ class Monitor:
         return report
 
     def eligible(self, key):
+        if key in SP_FLOOD_CITIES:
+            return True
         seed = Path(__file__).resolve().parents[2] / 'templates/shorts-publications.json'
         if seed.exists():
             record = json.loads(seed.read_text()).get(key)
@@ -279,8 +284,16 @@ class Monitor:
                             recent = db.execute('SELECT payload FROM jobs WHERE city=? AND created>=?',
                                                 (key, midnight)).fetchall()
                             pending = db.execute('SELECT payload FROM jobs WHERE city=?', (key,)).fetchall()
-                            blocked = any(json.loads(r[0])['estado'] in ('fila', 'gerando') for r in pending)
-                            blocked |= any(json.loads(r[0])['estado'] == 'concluido' for r in recent)
+                            if key in SP_FLOOD_CITIES:
+                                zone=report.get('zona_id')
+                                daily=[json.loads(r[0]) for r in recent]
+                                used={x.get('alerta',{}).get('zona_id') for x in daily if x.get('alerta',{}).get('zona_id')}
+                                pending_zones={json.loads(r[0]).get('alerta',{}).get('zona_id') for r in pending if json.loads(r[0])['estado'] in ('fila','gerando')}
+                                blocked=not zone or zone in used or zone in pending_zones or len(used) >= 5
+                                if blocked: report['suprimido']='zona já publicada ou limite diário de cinco zonas atingido'
+                            else:
+                                blocked = any(json.loads(r[0])['estado'] in ('fila', 'gerando') for r in pending)
+                                blocked |= any(json.loads(r[0])['estado'] == 'concluido' for r in recent)
                             if not blocked:
                                 item = {'id': uuid.uuid4().hex, 'estado': 'fila', 'alerta': report}
                                 db.execute('INSERT INTO jobs VALUES (?,?,?,?)',

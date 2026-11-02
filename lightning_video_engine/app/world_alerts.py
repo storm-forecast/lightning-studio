@@ -45,6 +45,24 @@ def _florida_official_alerts():
              'timezone': 'America/New_York', 'fonte': props.get('senderName', 'National Weather Service'),
              'oficial': True}]
 
+
+def _miami_official_alerts():
+    """A Miami-specific official flood watch; do not reuse a warning from another county."""
+    request = Request('https://api.weather.gov/alerts/active?point=25.7617,-80.1918', headers={
+        'User-Agent': 'TROVOX-GLOBAL weather nowcasting'})
+    with urlopen(request, timeout=20) as response:
+        features = json.load(response).get('features', [])
+    feature = next((value for value in features if value.get('properties', {}).get('event') == 'Flood Watch'), None)
+    if feature is None:
+        return []
+    props = feature['properties']
+    return [{'id': 'miami-flood', 'cidade': 'Miami, Florida', 'pais': 'United States',
+             'lat': 25.7617, 'lon': -80.1918, 'nivel': 'alta', 'gatilhos': ['official_flood_alert'],
+             'evento_oficial': props['event'], 'areas_afetadas': props.get('areaDesc', 'Miami area'),
+             'instrucao_oficial': props.get('instruction', ''), 'observado_em': props.get('sent'),
+             'geometria_alerta': feature.get('geometry'), 'timezone': 'America/New_York',
+             'fonte': props.get('senderName', 'National Weather Service'), 'oficial': True}]
+
 def alerts():
     global _cache
     if time.time()-_cache[0] < 600:return _cache[1]
@@ -79,4 +97,8 @@ def alerts():
         rows.extend(_florida_official_alerts())
     except Exception as exc:
         rows.append({'id':'florida-flood','cidade':'Affected parts of Florida','erro':str(exc),'fonte':'NWS','oficial':True})
+    try:
+        rows.extend(_miami_official_alerts())
+    except Exception as exc:
+        rows.append({'id':'miami-flood','cidade':'Miami, Florida','erro':str(exc),'fonte':'NWS','oficial':True})
     _cache=(time.time(),rows);return rows

@@ -31,6 +31,12 @@ def check(service=Depends(monitor)):
     return service.check()
 
 
+@router.get('/alertas-mundiais')
+def world_alerts(service=Depends(monitor)):
+    from .world_alerts import alerts
+    return {'tipo':'previsao_e_nowcasting','oficial':False,'cidades':alerts()}
+
+
 @router.get('/{video_id}')
 def status(video_id: str, service=Depends(monitor)):
     item = service.get(video_id)

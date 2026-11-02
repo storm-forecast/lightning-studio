@@ -6,7 +6,7 @@ API `LIGHTNING_API_URL`, por HTTP; o radar é consultado pelo adaptador
 
 São monitoradas 23 cidades. Um Short só é candidato quando o radar mostra
 chuva recente no ponto central e há raio observado nos últimos 15 minutos
-em até 40 km; ou quando o radar mostra chuva na classe amarela ou superior
+em até 40 km; ou quando o radar mostra chuva moderada ou superior
 no ponto central por pelo menos 10 minutos consecutivos. O quadro de radar
 deve ter no máximo 15 minutos. Amarelo é intensidade na paleta do radar,
 não um alerta oficial nem volume em milímetros. Sem cobertura ou com dados

@@ -119,14 +119,15 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
     recent_lightning = bool(lightning_fresh and near and near.get('km', float('inf')) <= 40 and
                             0 <= near.get('minutos_atras', float('inf')) <= 15)
     try:
-        strong_rain_minutes = rain_duration(lat, lon) if radar_fresh and radar['classe'] >= 2 else None
+        persistent_rain_minutes = rain_duration(lat, lon) if radar_fresh and radar['classe'] >= 1 else None
     except (OSError, ValueError, KeyError, TypeError):
-        strong_rain_minutes = None
-    persistent_yellow = bool(strong_rain_minutes is not None and strong_rain_minutes >= 10)
+        persistent_rain_minutes = None
+    persistent_moderate = bool(persistent_rain_minutes is not None and persistent_rain_minutes >= 10)
     if radar_fresh and recent_lightning:
         reasons.append('chuva detectada no radar e raios recentes na região')
-    if radar_fresh and persistent_yellow:
-        reasons.append('chuva forte persistente na escala do radar na área monitorada')
+    if radar_fresh and persistent_moderate:
+        intensity = 'forte' if radar['classe'] >= 2 else 'moderada'
+        reasons.append(f'chuva {intensity} persistente na escala do radar na área monitorada')
     density = None
     current_at = lightning_observed_at(lightning)
     if density_reference and current_at is not None:

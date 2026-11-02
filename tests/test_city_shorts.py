@@ -68,6 +68,20 @@ def test_yellow_radar_requires_persistence_and_freshness():
         assert not evaluate('curitiba',source)['gerar']
 
 
+def test_moderate_radar_requires_persistence_before_alerting():
+    source=Source()
+    radar={'coberto':True,'neve':False,'classe':1,'hora':datetime(2026,11,1,11,55,tzinfo=timezone.utc).timestamp()}
+    with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), \
+         patch('lightning_video_engine.app.city_shorts.rain_at', return_value=radar), \
+         patch('lightning_video_engine.app.city_shorts.rain_duration', return_value=9) as duration, \
+         patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026,11,1,12)):
+        assert not evaluate('curitiba',source)['gerar']
+        duration.return_value=10
+        report=evaluate('curitiba',source)
+    assert report['gerar']
+    assert any('chuva moderada persistente' in reason for reason in report['motivos'])
+
+
 def test_yellow_persistence_rejects_missing_radar_frames():
     from lightning_video_engine.app import shorts_rain
     import numpy as np

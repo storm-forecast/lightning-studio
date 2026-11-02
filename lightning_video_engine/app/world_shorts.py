@@ -1,5 +1,6 @@
 """Independent global rain Shorts for the TROVOX GLOB YouTube channel."""
 import asyncio
+import io
 import json
 import math
 import os
@@ -44,6 +45,29 @@ def lightning_points(bounds):
                 if age * payload.get('idade_passo_min', 10) < 30 and south <= lat <= north and west <= lon <= east]
     except Exception:
         return []
+
+
+def severity_overlay(bounds, size):
+    """Crop the real Lightning Agent severity raster to the local Short map."""
+    base = os.environ.get('LIGHTNING_API_URL', 'https://lightning-agent.onrender.com').rstrip('/')
+    west, east, south, north = bounds
+    try:
+        with urlopen(base + '/previsao/agora', timeout=30) as response:
+            meta = json.load(response)
+        with urlopen(base + '/previsao/agora.png', timeout=60) as response:
+            source = Image.open(io.BytesIO(response.read())).convert('RGBA')
+        (south_map, west_map), (north_map, east_map) = meta['limites']
+        def mercator_value(value):
+            return math.log(math.tan(math.pi / 4 + math.radians(value) / 2))
+        x0, x1 = ((west - west_map) / (east_map - west_map) * source.width,
+                  (east - west_map) / (east_map - west_map) * source.width)
+        y0 = (mercator_value(north_map) - mercator_value(north)) / (mercator_value(north_map) - mercator_value(south_map)) * source.height
+        y1 = (mercator_value(north_map) - mercator_value(south)) / (mercator_value(north_map) - mercator_value(south_map)) * source.height
+        crop = source.crop((int(x0), int(y0), int(x1) + 1, int(y1) + 1)).resize(size, Image.Resampling.LANCZOS)
+        crop.putalpha(crop.getchannel('A').point(lambda alpha: int(alpha * .60)))
+        return crop
+    except Exception:
+        return None
 
 
 def report(row):
@@ -121,6 +145,9 @@ def render(directory: Path, item):
     map_left, map_top, map_width, map_height = 40, 295, 640, 420
     region = basemap(bounds, directory.parent / 'map-tile-cache', size=(map_width, map_height))
     image.paste(region, (map_left, map_top))
+    severity = severity_overlay(bounds, (map_width, map_height))
+    if severity is not None:
+        image.paste(severity, (map_left, map_top), severity)
     overlay = Image.new('RGBA', (map_width, map_height), (0, 0, 0, 0))
     risk = ImageDraw.Draw(overlay)
     colour = '#e9484a' if item['severity'] == 'HIGH' else '#f49a28'
@@ -133,9 +160,6 @@ def render(directory: Path, item):
             for ring in ring_set:
                 risk.polygon([(x - map_left, y - map_top) for x, y in (xy(point[1], point[0]) for point in ring)],
                              fill=colour + '66', outline=colour + 'ee', width=4)
-    else:
-        # Point forecasts are shown as a point signal, never as a made-up flood boundary.
-        risk.ellipse((280, 170, 360, 250), fill=colour + '55', outline=colour + 'dd', width=4)
     image.paste(overlay, (map_left, map_top), overlay)
     draw.rectangle((map_left, map_top, map_left + map_width, map_top + map_height), outline='white', width=2)
     marker_x, marker_y = xy(lat, lon)
@@ -145,7 +169,9 @@ def render(directory: Path, item):
             strike_x, strike_y = xy(strike_lat, strike_lon)
             draw.ellipse((strike_x - 4, strike_y - 4, strike_x + 4, strike_y + 4), fill='#ffdf35', outline='#613f00', width=1)
     draw.rounded_rectangle((38, 310, 350, 365), radius=10, fill='#081522cc')
-    layer = 'OFFICIAL FLOOD AREA + LIGHTNING' if points and item.get('raios', {}).get('coberto') else 'CITY NOWCASTING RISK MAP'
+    layer = ('SEVERITY + OFFICIAL FLOOD AREA + LIGHTNING' if points and item.get('raios', {}).get('coberto') and severity is not None
+             else 'SEVERITY + OFFICIAL FLOOD AREA' if points and severity is not None
+             else 'SEVERITY NOWCASTING MAP' if severity is not None else 'LOCAL RISK MAP — SEVERITY UNAVAILABLE')
     draw.text((55, 325), layer, font=ImageFont.truetype(BOLD, 18), fill='white')
     # High-contrast, readable caption between map and presenter.
     draw.rounded_rectangle((30, 730, 690, 775), radius=10, fill='#081522')
@@ -167,6 +193,7 @@ def render(directory: Path, item):
                       if lightning.get('coberto') else 'LIGHTNING NOWCAST: satellite coverage unavailable')
     for line in textwrap.wrap(lightning_text, width=31):
         draw.text((50, y + 12), line, font=ImageFont.truetype(FONT, 17), fill='#dceaf4'); y += 22
+    draw.text((50, 1132), 'Severity layer: Lightning Agent', font=ImageFont.truetype(FONT, 15), fill='#bed3e4')
     draw.text((50, 1155), 'Subscribe for global weather updates.', font=ImageFont.truetype(FONT, 17), fill='#dceaf4')
     source_line = (f"Official source: {item['fonte']}" if item.get('oficial')
                    else 'Source: Open-Meteo • Not an official warning')

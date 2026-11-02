@@ -128,6 +128,8 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
     if radar_fresh and persistent_moderate:
         intensity = 'forte' if radar['classe'] >= 2 else 'moderada'
         reasons.append(f'chuva {intensity} persistente na escala do radar na área monitorada')
+    # A single fresh, intense local lightning observation is sufficient: a
+    # prior scan may be unavailable after a scheduled-run delay.
     close_count = lightning.get('raios_15km')
     intense_lightning = bool(recent_lightning and isinstance(close_count, int) and close_count >= 10 and
                              near.get('km', float('inf')) <= 15 and near.get('minutos_atras', float('inf')) <= 10)

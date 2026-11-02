@@ -77,9 +77,10 @@ nem reduz o custo de sincronizar novas falas.
 
 ## Agenda ativa no GitHub Actions
 
-Seis gerações por dia, no horário de Brasília (America/Sao_Paulo):
-05:30, 09:00, 12:00, 13:00, 14:00 e 15:00.
-Os cron correspondentes são 08:30 UTC e 12:00, 15:00, 16:00, 17:00 e 18:00 UTC.
+Uma geração por dia, às 05:30 no horário de Brasília (08:30 UTC). O restante da
+quota diária do YouTube (cerca de seis uploads por projeto) fica para os Shorts de
+alerta; ao atingir o limite, os monitores de Shorts param até a quota renovar
+(meia-noite no horário do Pacífico).
 O upload ocorre após a renderização; disparos podem atrasar no GitHub.
 A opção de intervalo do worker local/Render descrita acima permanece opcional
 e não deve ser ativada simultaneamente para evitar gerações duplicadas.

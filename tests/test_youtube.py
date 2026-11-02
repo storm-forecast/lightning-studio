@@ -128,3 +128,16 @@ class RenderWorker(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class QuotaStop(unittest.TestCase):
+    def test_quota_renews_at_next_pacific_midnight(self):
+        # 31/10 17:17 UTC is 10:17 PDT; the quota renews at 01/11 00:00 PDT = 07:00 UTC.
+        self.assertEqual(youtube.quota_reset_after(AT), datetime(2026, 11, 1, 7, tzinfo=timezone.utc))
+
+    def test_blocked_until_renewal_then_released(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.assertIsNone(youtube.quota_blocked_until(Path(folder), AT))
+            until = youtube.block_quota(Path(folder), 'quotaExceeded', AT)
+            self.assertEqual(youtube.quota_blocked_until(Path(folder), AT + timedelta(hours=13)), until)
+            self.assertIsNone(youtube.quota_blocked_until(Path(folder), until))

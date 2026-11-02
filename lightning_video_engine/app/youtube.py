@@ -7,7 +7,7 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -30,6 +30,33 @@ class YouTubeError(RuntimeError):
 
 class QuotaExceeded(YouTubeError):
     """Daily API quota or channel upload limit reached; the next slot may succeed."""
+
+
+QUOTA_FILE = 'quota.json'
+
+
+def quota_reset_after(now=None):
+    """The YouTube Data API quota renews at midnight Pacific time."""
+    pacific = ZoneInfo('America/Los_Angeles')
+    local = (now or datetime.now(timezone.utc)).astimezone(pacific)
+    midnight = datetime(local.year, local.month, local.day, tzinfo=pacific)
+    return (midnight + timedelta(days=1)).astimezone(timezone.utc)
+
+
+def block_quota(root: Path, reason: str, now=None):
+    """Record an exhausted quota so monitors stop rendering until it renews."""
+    until = quota_reset_after(now)
+    (Path(root) / QUOTA_FILE).write_text(json.dumps({'ate': until.isoformat(), 'motivo': reason}, ensure_ascii=False))
+    return until
+
+
+def quota_blocked_until(root: Path, now=None):
+    """The renewal instant while the recorded quota is still exhausted, otherwise None."""
+    try:
+        until = datetime.fromisoformat(json.loads((Path(root) / QUOTA_FILE).read_text())['ate'])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return until if (now or datetime.now(timezone.utc)) < until else None
 
 
 def _request(url, *, data=None, headers=None, method=None):

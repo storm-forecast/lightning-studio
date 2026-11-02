@@ -84,8 +84,9 @@ O deploy online depende de conectar este repositório ao provedor de hospedagem.
 
 ## Geração gratuita no GitHub Actions
 
-O workflow remoto envia os boletins ao YouTube para publicação diária às
-**05:30, 09:00, 12:00, 13:00, 14:00 e 15:00, no horário de Brasília**. Ele
+O workflow remoto envia um boletim por dia ao YouTube, publicado às
+**05:30 no horário de Brasília** (08:30 UTC); o restante da quota diária fica
+para os Shorts de alerta. Ele
 começa a geração cerca de 75 minutos antes. Um despachante leve verifica os
 slots a cada dez minutos e aciona o renderizador com o horário de publicação
 explícito, reduzindo o risco de um cron isolado ser perdido. Ele publica um artefato

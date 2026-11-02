@@ -44,7 +44,8 @@ jobs:
           recorded = json.loads(state.read_text()).get('slots', [])
           seen = {item['publish_at'] for item in recorded}
           now = datetime.now(timezone.utc)
-          targets = ('08:30', '12:00', '15:00', '16:00', '17:00', '18:00')
+          # One bulletin a day; the rest of the YouTube quota goes to alert Shorts.
+          targets = ('08:30',)
           due = None
           for clock in targets:
               target = datetime.strptime(f'{now:%Y-%m-%d}T{clock}:00+0000', '%Y-%m-%dT%H:%M:%S%z')

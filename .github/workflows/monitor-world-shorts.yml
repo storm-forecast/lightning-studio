@@ -49,25 +49,34 @@ jobs:
             gh api "repos/$GH_REPO/actions/artifacts/$artifact_id/zip" > /tmp/world-shorts-state.zip
             unzip -o /tmp/world-shorts-state.zip -d output/world-shorts
           fi
+      - name: Stop while the YouTube quota is exhausted
+        id: quota
+        run: python scripts/quota_gate.py output/world-shorts
+
       - name: Restore presenter checkpoint
+        if: steps.quota.outputs.blocked != 'true'
         uses: actions/cache@v4
         with:
           path: .cache/wav2lip
           key: wav2lip-checkpoint-${{ runner.os }}-${{ hashFiles('deploy/model.json') }}
       - name: Install presenter renderer
+        if: steps.quota.outputs.blocked != 'true'
         run: |
           test -n "$WAV2LIP_CHECKPOINT_URL"
           sudo apt-get update
           sudo apt-get install -y ffmpeg fonts-dejavu-core libsndfile1
           bash scripts/install_local.sh
       - name: Create and publish global rain Short
+        if: steps.quota.outputs.blocked != 'true'
         run: .local/venv/bin/python scripts/check_world_shorts.py
       - name: Persist global publication history
-        if: always() && hashFiles('output/world-shorts/published.json') != ''
+        if: always() && hashFiles('output/world-shorts/published.json', 'output/world-shorts/quota.json') != ''
         uses: actions/upload-artifact@v4
         with:
           name: world-shorts-state
-          path: output/world-shorts/published.json
+          path: |
+            output/world-shorts/published.json
+            output/world-shorts/quota.json
           retention-days: 7
       - name: Save global result
         if: always()

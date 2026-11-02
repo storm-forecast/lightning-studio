@@ -9,6 +9,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from lightning_video_engine.app.city_shorts import AgentSource,CITIES,Monitor
 from lightning_video_engine.app.sp_flood_shorts import SP_FLOOD_CITIES
 from lightning_video_engine.app.sp_flood_zones import confirmed_zones
+from lightning_video_engine.app.youtube import quota_blocked_until
 
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('--scan',action='store_true')
@@ -16,6 +17,14 @@ a=p.parse_args()
 root=Path(os.environ.get('SHORTS_OUTPUT_DIR','output/shorts'))
 source=AgentSource(os.environ.get('LIGHTNING_API_URL','https://lightning-agent.onrender.com'))
 monitor=Monitor(source,root)
+until=quota_blocked_until(root)
+if until:
+    # Quota exhausted: stop scanning and rendering until YouTube renews it.
+    (root/'scan.json').write_text(json.dumps({'candidatas':[],'relatorios':{},'erros':[],'quota_esgotada_ate':until.isoformat()},ensure_ascii=False,indent=2))
+    if os.environ.get('GITHUB_OUTPUT'):
+        with open(os.environ['GITHUB_OUTPUT'],'a') as output:output.write('has_alerts=false\n')
+    print('Quota do YouTube esgotada até',until.isoformat(),'— monitor parado.',flush=True)
+    raise SystemExit(0)
 if a.scan:
     candidates=[];reports={};errors=[]
     flood_areas=[]
@@ -60,8 +69,14 @@ else:
         ident=report.get('video_id')
         if not ident:continue
         item=monitor.get(ident)
+        if quota_blocked_until(root):
+            # Do not render videos that can no longer be uploaded today.
+            item.update(estado='falhou',erro='quota do YouTube esgotada; não renderizado')
+            monitor.save(item)
+            continue
         Monitor.work(monitor,item,recheck=False)
         item=monitor.get(ident)
         print(report['cidade'],item['estado'],json.dumps(item.get('youtube',{}),ensure_ascii=False),flush=True)
-        if item['estado']=='falhou' or item.get('youtube',{}).get('error'):failed=True
+        youtube=item.get('youtube',{})
+        if item['estado']=='falhou' or (youtube.get('error') and not youtube.get('quota')):failed=True
     if failed:raise SystemExit('Uma ou mais cidades falharam; consulte os artefatos')

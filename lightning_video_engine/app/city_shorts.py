@@ -262,6 +262,10 @@ class Monitor:
                        for created,payload in rows)
 
     def check(self, reports=None):
+        from .youtube import quota_blocked_until
+        until = quota_blocked_until(self.root)
+        if until:
+            return {'quota_esgotada_ate': until.isoformat(), 'resultados': []}
         if not self.lock.acquire(blocking=False):
             return {'ocupado': True, 'resultados': []}
         try:
@@ -323,9 +327,12 @@ class Monitor:
                 item['estado'] = 'concluido'
                 self.save(item)
                 if os.environ.get('SHORTS_AUTO_PUBLISH', '').lower() == 'true':
+                    from .youtube import QuotaExceeded, block_quota, publish_short
                     try:
-                        from .youtube import publish_short
                         item['youtube'] = publish_short(self.root / item['id'])
+                    except QuotaExceeded as exc:
+                        until = block_quota(self.root, str(exc))
+                        item['youtube'] = {'error': str(exc), 'quota': True, 'ate': until.isoformat()}
                     except Exception as exc:
                         item['youtube'] = {'error': str(exc)}
             except Exception as exc:

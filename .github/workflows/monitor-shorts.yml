@@ -66,7 +66,12 @@ jobs:
             test -f output/shorts/shorts.sqlite3
           fi
 
+      - name: Stop while the YouTube quota is exhausted
+        id: quota
+        run: python scripts/quota_gate.py output/shorts
+
       - name: Install lightweight monitoring dependencies
+        if: steps.quota.outputs.blocked != 'true'
         run: |
           python -m pip install -r requirements.txt playwright
           python -m playwright install chromium --with-deps
@@ -76,11 +81,13 @@ jobs:
           ln -sf "$browser" .cache/chromium/chrome
 
       - name: Read official flood-potential polygons
+        if: steps.quota.outputs.blocked != 'true'
         run: |
           CHROMIUM_BIN="$GITHUB_WORKSPACE/.cache/chromium/chrome" python -c "from lightning_video_engine.app.directed_scenes import capture_flood_areas; import json, pathlib; pathlib.Path('output/shorts').mkdir(parents=True, exist_ok=True); pathlib.Path('output/shorts/flood-areas.json').write_text(json.dumps(capture_flood_areas('https://lightning-agent.onrender.com/app/'), ensure_ascii=False))"
 
       - name: Check configured Brazilian and Spanish-speaking cities
         id: scan
+        if: steps.quota.outputs.blocked != 'true'
         run: |
           python scripts/check_city_shorts.py --scan
           python - <<'PY'
@@ -120,7 +127,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: city-shorts-state
-          path: output/shorts/shorts.sqlite3
+          path: |
+            output/shorts/shorts.sqlite3
+            output/shorts/quota.json
           retention-days: 7
           if-no-files-found: error
 

@@ -1,0 +1,91 @@
+name: Dispatch scheduled weather bulletins
+
+on:
+  workflow_dispatch:
+  # A lightweight heartbeat avoids tying expensive rendering to a fragile,
+  # sparse cron schedule.  It runs away from GitHub's busiest minute.
+  schedule:
+    - cron: '2,12,22,32,42,52 * * * *'
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: bulletin-dispatcher
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore dispatched slots
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p state
+          artifact_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=bulletin-dispatch-state&per_page=100" --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .id // empty')"
+          if [ -n "$artifact_id" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > /tmp/bulletin-state.zip
+            unzip -o /tmp/bulletin-state.zip -d state
+          fi
+          test -f state/dispatched.json || echo '{"slots":[]}' > state/dispatched.json
+
+      - name: Select a due publication slot
+        id: slot
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+
+          state = Path('state/dispatched.json')
+          recorded = json.loads(state.read_text()).get('slots', [])
+          seen = {item['publish_at'] for item in recorded}
+          now = datetime.now(timezone.utc)
+          targets = ('08:30', '12:00', '15:00', '16:00', '17:00', '18:00')
+          due = None
+          for clock in targets:
+              target = datetime.strptime(f'{now:%Y-%m-%d}T{clock}:00+0000', '%Y-%m-%dT%H:%M:%S%z')
+              stamp = target.strftime('%Y-%m-%dT%H:%M:%SZ')
+              if target - timedelta(minutes=75) <= now < target and stamp not in seen:
+                  due = stamp
+                  break
+          if due:
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+                  output.write(f'publish_at={due}\n')
+          PY
+
+      - name: Dispatch the bulletin renderer
+        if: steps.slot.outputs.publish_at != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run generate-video.yml --ref main -f publish_at="${{ steps.slot.outputs.publish_at }}"
+
+      - name: Record the dispatched slot
+        if: steps.slot.outputs.publish_at != ''
+        env:
+          PUBLISH_AT: ${{ steps.slot.outputs.publish_at }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+
+          state = Path('state/dispatched.json')
+          slots = json.loads(state.read_text()).get('slots', [])
+          cutoff = datetime.now(timezone.utc) - timedelta(days=14)
+          slots = [item for item in slots if datetime.fromisoformat(item['publish_at'].replace('Z', '+00:00')) >= cutoff]
+          slots.append({'publish_at': os.environ['PUBLISH_AT'], 'dispatched_at': datetime.now(timezone.utc).isoformat()})
+          state.write_text(json.dumps({'slots': slots}, indent=2) + '\n')
+          PY
+
+      - name: Persist dispatched slots
+        if: steps.slot.outputs.publish_at != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: bulletin-dispatch-state
+          path: state/dispatched.json
+          retention-days: 14

@@ -6,15 +6,11 @@ on:
     branches: [main]
     paths: ['.github/workflows/generate-video.yml']
   workflow_dispatch:
-  # Start 75 minutes before the requested public slots in Belém (UTC-3):
-  # 05:30, 09:00, 12:00, 13:00, 14:00 and 15:00. GitHub cron uses UTC.
-  schedule:
-    - cron: '15 7 * * *'
-    - cron: '45 10 * * *'
-    - cron: '45 13 * * *'
-    - cron: '45 14 * * *'
-    - cron: '45 15 * * *'
-    - cron: '45 16 * * *'
+    inputs:
+      publish_at:
+        description: 'Instante ISO-8601 UTC em que o YouTube deve tornar o vídeo público'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -47,20 +43,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set the requested YouTube publication time
-        if: github.event_name == 'schedule'
+        if: inputs.publish_at != ''
         env:
-          SCHEDULE_CRON: ${{ github.event.schedule }}
+          REQUESTED_PUBLISH_AT: ${{ inputs.publish_at }}
         run: |
-          case "$SCHEDULE_CRON" in
-            '15 7 * * *') target='08:30' ;;
-            '45 10 * * *') target='12:00' ;;
-            '45 13 * * *') target='15:00' ;;
-            '45 14 * * *') target='16:00' ;;
-            '45 15 * * *') target='17:00' ;;
-            '45 16 * * *') target='18:00' ;;
-            *) echo "Unexpected schedule: $SCHEDULE_CRON" >&2; exit 1 ;;
-          esac
-          echo "YOUTUBE_PUBLISH_AT=$(date -u -d "today $target" +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          normalized="$(date -u -d "$REQUESTED_PUBLISH_AT" +%Y-%m-%dT%H:%M:%SZ)"
+          test "$normalized" = "$REQUESTED_PUBLISH_AT"
+          echo "YOUTUBE_PUBLISH_AT=$normalized" >> "$GITHUB_ENV"
 
       - name: Confirm upload credentials
         run: |

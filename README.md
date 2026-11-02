@@ -86,7 +86,9 @@ O deploy online depende de conectar este repositório ao provedor de hospedagem.
 
 O workflow remoto envia os boletins ao YouTube para publicação diária às
 **05:30, 09:00, 12:00, 13:00, 14:00 e 15:00, no horário de Brasília**. Ele
-começa a geração 75 minutos antes e publica um artefato
+começa a geração cerca de 75 minutos antes. Um despachante leve verifica os
+slots a cada dez minutos e aciona o renderizador com o horário de publicação
+explícito, reduzindo o risco de um cron isolado ser perdido. Ele publica um artefato
 temporário por 1 dia na aba **Actions**. Em **Settings → Secrets and variables
 → Actions**, crie `WAV2LIP_CHECKPOINT_URL` com o link público do pacote do
 modelo. Não envie o ZIP nem tokens ao Git. O agendamento é uma conveniência:

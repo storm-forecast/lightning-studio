@@ -58,6 +58,7 @@ CITIES = {
     'curitiba': ('Curitiba', 'PR', -25.429, -49.267),
     'porto-alegre': ('Porto Alegre', 'RS', -30.034, -51.230),
     'santa-maria': ('Santa Maria', 'RS', -29.6858, -53.8072),
+    'novo-horizonte': ('Novo Horizonte', 'SC', -26.444, -52.834),
     'brasilia': ('Brasília', 'DF', -15.7939, -47.8828),
     'belo-horizonte': ('Belo Horizonte', 'MG', -19.9167, -43.9345),
     'campo-grande': ('Campo Grande', 'MS', -20.4697, -54.6201),

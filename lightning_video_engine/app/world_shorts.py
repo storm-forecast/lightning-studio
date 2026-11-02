@@ -2,9 +2,12 @@
 import asyncio
 import json
 import math
+import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlencode
+from urllib.request import urlopen
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -19,28 +22,42 @@ def candidates():
     return [row for row in alerts() if row.get('nivel') == 'alta' and row.get('gatilhos') and not row.get('erro')]
 
 
+def lightning_nowcast(lat, lon):
+    """Observed satellite lightning where the Lightning Agent has coverage; never invent strikes."""
+    base = os.environ.get('LIGHTNING_API_URL', 'https://lightning-agent.onrender.com').rstrip('/')
+    try:
+        with urlopen(base + '/alertas/situacao?' + urlencode({'lat': lat, 'lon': lon}), timeout=30) as response:
+            value = json.load(response)
+        return value if not value.get('dados_atrasados') else {'coberto': False, 'indisponivel': 'stale data'}
+    except Exception:
+        return {'coberto': False, 'indisponivel': 'source unavailable'}
+
+
 def report(row):
     now = datetime.now(timezone.utc)
     city, country = row['cidade'], row['pais']
     current = row['chuva_atual_mm']
     probability = row['probabilidade_6h']
     triggers = row.get('gatilhos', [])
+    lightning = lightning_nowcast(row['lat'], row['lon'])
     headline = ('Potential flooding' if 'potential_flooding' in triggers else
                 'Severe weather potential' if 'severe_weather' in triggers else 'Heavy rain potential')
     observed = (f"Rain is currently observed at {current:.1f} millimetres." if current > 0
                 else "No rain is measured at this point right now.")
+    lightning_line = (f"Satellite lightning nowcasting reports {lightning.get('raios_40km', 0)} lightning strikes within 40 kilometres in the last 30 minutes. "
+                      if lightning.get('coberto') else "Satellite lightning nowcasting is not available over this location. ")
     script = (f"{headline} in {city}, {country}. {observed} "
               f"The highest precipitation probability over the next six hours is {probability} percent. "
-              "This is an automated weather estimate, not an official warning. "
+              + lightning_line + "This is an automated weather estimate, not an official warning. "
               "Follow your local weather service and emergency guidance. "
-              "Subscribe to TROVOX GLOB for global weather updates.")
+              "Subscribe to TROVOX GLOBAL for global weather updates.")
     return {'cidade': row['id'], 'nome': city, 'uf': country, 'pais': country,
             'verificado_em': now.isoformat().replace('+00:00', 'Z'), 'gerar': True,
             'motivos': triggers,
             'roteiro': script, 'recomendacoes': ['Check your local weather service.',
                                                   'Follow official emergency guidance.'],
             'timezone': row.get('timezone', 'UTC'), 'idioma': 'en-GB', 'fonte': 'Open-Meteo', 'oficial': False,
-            'chuva_atual_mm': current, 'probabilidade_6h': probability, 'gatilhos': triggers,
+            'chuva_atual_mm': current, 'probabilidade_6h': probability, 'gatilhos': triggers, 'raios': lightning,
             'lat': row['lat'], 'lon': row['lon'],
             'titulo_short': f"{city}: {headline.lower()} #Shorts", 'headline': headline}
 
@@ -58,7 +75,7 @@ def render(directory: Path, item):
     draw = ImageDraw.Draw(image)
     regular, bold = ImageFont.truetype(FONT, 30), ImageFont.truetype(BOLD, 48)
     draw.rectangle((0, 0, 720, 12), fill='#60e5cf')
-    draw.text((42, 50), 'TROVOX GLOB', font=ImageFont.truetype(BOLD, 31), fill='#60e5cf')
+    draw.text((42, 50), 'TROVOX GLOBAL', font=ImageFont.truetype(BOLD, 31), fill='#60e5cf')
     draw.text((42, 112), item['headline'].upper(), font=ImageFont.truetype(BOLD, 20), fill='#ffbe61')
     draw.text((42, 178), item['nome'], font=bold, fill='white')
     draw.text((42, 238), item['pais'], font=regular, fill='#bed3e4')
@@ -72,7 +89,11 @@ def render(directory: Path, item):
     draw.rounded_rectangle((38, 930, 682, 1175), radius=24, fill='#142b3e')
     draw.text((68, 954), f"RAIN NOW: {item['chuva_atual_mm']:.1f} mm", font=ImageFont.truetype(BOLD, 30), fill='#60e5cf')
     draw.text((68, 1008), f"6-HOUR RAIN CHANCE: {item['probabilidade_6h']}%", font=ImageFont.truetype(BOLD, 27), fill='white')
-    draw.text((68, 1060), 'Subscribe to TROVOX GLOB for weather updates.', font=ImageFont.truetype(FONT, 22), fill='#dceaf4')
+    lightning = item.get('raios', {})
+    lightning_text = (f"LIGHTNING NOWCAST: {lightning.get('raios_40km', 0)} strikes / 40 km / 30 min"
+                      if lightning.get('coberto') else 'LIGHTNING NOWCAST: satellite coverage unavailable')
+    draw.text((68, 1060), lightning_text, font=ImageFont.truetype(FONT, 18), fill='#dceaf4')
+    draw.text((68, 1102), 'Subscribe to TROVOX GLOBAL for weather updates.', font=ImageFont.truetype(FONT, 20), fill='#dceaf4')
     draw.text((42, 1210), 'Source: Open-Meteo • Not an official warning', font=ImageFont.truetype(FONT, 18), fill='#bed3e4')
     image.save(directory / 'card.png')
     duration = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', str(directory / 'voz.mp3')]))

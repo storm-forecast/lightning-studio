@@ -1,3 +1,4 @@
+# Automated bulletin generation and YouTube publication.
 name: Generate weather bulletin
 
 on:

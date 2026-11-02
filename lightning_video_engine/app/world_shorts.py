@@ -15,8 +15,8 @@ BOLD = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
 
 
 def candidates():
-    """Only high rain conditions produce automatic global videos."""
-    return [row for row in alerts() if row.get('nivel') == 'alta' and not row.get('erro')]
+    """Only high rain, flood-potential, or severe-weather conditions publish automatically."""
+    return [row for row in alerts() if row.get('nivel') == 'alta' and row.get('gatilhos') and not row.get('erro')]
 
 
 def report(row):
@@ -24,22 +24,25 @@ def report(row):
     city, country = row['cidade'], row['pais']
     current = row['chuva_atual_mm']
     probability = row['probabilidade_6h']
+    triggers = row.get('gatilhos', [])
+    headline = ('Potential flooding' if 'potential_flooding' in triggers else
+                'Severe weather potential' if 'severe_weather' in triggers else 'Heavy rain potential')
     observed = (f"Rain is currently observed at {current:.1f} millimetres." if current > 0
                 else "No rain is measured at this point right now.")
-    script = (f"Global rain update for {city}, {country}. {observed} "
+    script = (f"{headline} in {city}, {country}. {observed} "
               f"The highest precipitation probability over the next six hours is {probability} percent. "
               "This is an automated weather estimate, not an official warning. "
               "Follow your local weather service and emergency guidance. "
               "Subscribe to TROVOX GLOB for global weather updates.")
     return {'cidade': row['id'], 'nome': city, 'uf': country, 'pais': country,
             'verificado_em': now.isoformat().replace('+00:00', 'Z'), 'gerar': True,
-            'motivos': ['high rain condition or elevated six-hour precipitation probability'],
+            'motivos': triggers,
             'roteiro': script, 'recomendacoes': ['Check your local weather service.',
                                                   'Follow official emergency guidance.'],
             'timezone': row.get('timezone', 'UTC'), 'idioma': 'en-GB', 'fonte': 'Open-Meteo', 'oficial': False,
-            'chuva_atual_mm': current, 'probabilidade_6h': probability,
+            'chuva_atual_mm': current, 'probabilidade_6h': probability, 'gatilhos': triggers,
             'lat': row['lat'], 'lon': row['lon'],
-            'titulo_short': f"{city}: rain and forecast for the next few hours #Shorts"}
+            'titulo_short': f"{city}: {headline.lower()} #Shorts", 'headline': headline}
 
 
 def render(directory: Path, item):
@@ -56,7 +59,7 @@ def render(directory: Path, item):
     regular, bold = ImageFont.truetype(FONT, 30), ImageFont.truetype(BOLD, 48)
     draw.rectangle((0, 0, 720, 12), fill='#60e5cf')
     draw.text((42, 50), 'TROVOX GLOB', font=ImageFont.truetype(BOLD, 31), fill='#60e5cf')
-    draw.text((42, 112), 'GLOBAL RAIN NOWCASTING', font=ImageFont.truetype(BOLD, 20), fill='#ffbe61')
+    draw.text((42, 112), item['headline'].upper(), font=ImageFont.truetype(BOLD, 20), fill='#ffbe61')
     draw.text((42, 178), item['nome'], font=bold, fill='white')
     draw.text((42, 238), item['pais'], font=regular, fill='#bed3e4')
     lat, lon = item['lat'], item['lon']

@@ -33,7 +33,10 @@ def alerts():
             rain=float(current.get('rain') or current.get('precipitation') or 0)
             code=int(current.get('weather_code') or 0)
             flood=rain>=5 or accumulated_3h>=20 or accumulated_6h>=35
-            severe=code in (95,96,99) or gust>=70
+            # Strong gusts can cause local disruption before the conventional
+            # severe-thunderstorm threshold. Publish a clearly-labelled
+            # severe-weather-potential Short from 50 km/h upward.
+            severe=code in (95,96,99) or gust>=50
             heavy_rain=probability>=80 and accumulated_6h>=15
             level='alta' if flood or severe or heavy_rain else 'moderada' if rain>0 or probability>=40 else 'baixa'
             triggers=[]

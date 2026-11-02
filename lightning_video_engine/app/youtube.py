@@ -204,15 +204,24 @@ def publish_short(directory: Path, env=os.environ, *, prefix='YOUTUBE', brand='T
         raise YouTubeError('o token pertence a outro canal; upload recusado')
     local = started.astimezone(ZoneInfo(report.get('timezone','America/Sao_Paulo')))
     title = report.get('titulo_short') or f"{report['nome']} ({report['uf']}): alerta de tempestade | {local:%d/%m %H:%M} #Shorts"
+    language = report.get('idioma', 'pt-BR')
     description = (f"{brand} — atualização de {local:%d/%m/%Y às %H:%M}, horário local.\n"
         + report['roteiro'] + '\n\nNowcasting regional, não é aviso oficial. Consulte a Defesa Civil e o INMET.'
         + '\nApresentadora e voz geradas por IA. Dados: Lightning Agent. Mapa: © OpenStreetMap contributors — https://www.openstreetmap.org/copyright'
         + '\n#Shorts #previsaodotempo #raios #nowcasting')
     metadata = {'snippet': {'title': title[:100], 'description': description[:5000],
-        'categoryId': NEWS_CATEGORY, 'defaultLanguage': 'pt-BR', 'defaultAudioLanguage': 'pt-BR',
+        'categoryId': NEWS_CATEGORY, 'defaultLanguage': language, 'defaultAudioLanguage': language,
         'tags': ['Shorts', report['nome'], 'nowcasting', 'chuva', brand]},
         'status': {'privacyStatus': privacy, 'selfDeclaredMadeForKids': False, 'containsSyntheticMedia': True}}
-    if report.get('idioma', '').startswith('es'):
+    if language.startswith('en'):
+        metadata['snippet'].update(
+            title=title[:100], defaultLanguage=language, defaultAudioLanguage=language,
+            tags=['Shorts', report['nome'], report.get('pais', report['uf']), 'rain', 'nowcasting', brand],
+            description=(f"{brand} — update for {local:%Y-%m-%d %H:%M}, local time.\n" + report['roteiro']
+                + '\n\nAutomated regional estimate, not an official warning. Check your local weather service.'
+                + '\nAI-generated narration. Data: Open-Meteo.'
+                + '\n#Shorts #rain #weather #nowcasting'))
+    elif language.startswith('es'):
         title = f"{report['nome']}, {report.get('pais', report['uf'])}: alerta de tormenta | {local:%d/%m %H:%M} #Shorts"
         metadata['snippet'].update(title=title[:100], defaultLanguage=report['idioma'], defaultAudioLanguage=report['idioma'],
             tags=['Shorts',report['nome'],report.get('pais',report['uf']),'tormentas','rayos','TROVOX TEMPO'],

@@ -47,7 +47,7 @@ def report(row):
                 else "No rain is measured at this point right now.")
     lightning_line = (f"Satellite lightning nowcasting reports {lightning.get('raios_40km', 0)} lightning strikes within 40 kilometres in the last 30 minutes. "
                       if lightning.get('coberto') else "Satellite lightning nowcasting is not available over this location. ")
-    script = (f"{headline} in {city}, {country}. {observed} "
+    script = (f"Nowcasting update: {headline} in {city}, {country}. {observed} "
               f"The highest precipitation probability over the next six hours is {probability} percent. "
               + lightning_line + "This is an automated weather estimate, not an official warning. "
               "Follow your local weather service and emergency guidance. "
@@ -77,7 +77,7 @@ def render(directory: Path, item):
     regular, bold = ImageFont.truetype(FONT, 30), ImageFont.truetype(BOLD, 48)
     draw.rectangle((0, 0, 720, 12), fill='#60e5cf')
     draw.text((42, 50), 'TROVOX GLOBAL', font=ImageFont.truetype(BOLD, 31), fill='#60e5cf')
-    draw.text((42, 112), item['headline'].upper(), font=ImageFont.truetype(BOLD, 20), fill='#ffbe61')
+    draw.text((42, 112), 'GLOBAL NOWCASTING', font=ImageFont.truetype(BOLD, 20), fill='#ffbe61')
     draw.text((42, 178), item['nome'], font=bold, fill='white')
     draw.text((42, 238), item['pais'], font=regular, fill='#bed3e4')
     lat, lon = item['lat'], item['lon']
@@ -94,11 +94,11 @@ def render(directory: Path, item):
     draw.rectangle((40, 300, 680, 900), outline='white', width=2)
     draw.ellipse((352, 592, 368, 608), fill='#ed3d3d', outline='white', width=2)
     draw.rounded_rectangle((38, 315, 350, 370), radius=10, fill='#081522cc')
-    draw.text((55, 330), 'CITY-CENTRED RISK MAP', font=ImageFont.truetype(BOLD, 18), fill='white')
+    draw.text((55, 330), 'CITY NOWCASTING RISK MAP', font=ImageFont.truetype(BOLD, 18), fill='white')
     draw.rounded_rectangle((38, 930, 682, 1175), radius=24, fill='#142b3e')
-    draw.text((68, 954), f"SEVERITY: {item['severity']}", font=ImageFont.truetype(BOLD, 30), fill=colour)
+    draw.text((68, 954), f"NOWCASTING SEVERITY: {item['severity']}", font=ImageFont.truetype(BOLD, 26), fill=colour)
     draw.text((68, 1008), item['headline'].upper(), font=ImageFont.truetype(BOLD, 27), fill='white')
-    draw.text((68, 1054), 'Forecast / nowcast signal for the city area', font=ImageFont.truetype(FONT, 20), fill='#dceaf4')
+    draw.text((68, 1054), 'Short-range risk signal for the city area', font=ImageFont.truetype(FONT, 20), fill='#dceaf4')
     lightning = item.get('raios', {})
     lightning_text = (f"LIGHTNING NOWCAST: {lightning.get('raios_40km', 0)} strikes / 40 km / 30 min"
                       if lightning.get('coberto') else 'LIGHTNING NOWCAST: satellite coverage unavailable')

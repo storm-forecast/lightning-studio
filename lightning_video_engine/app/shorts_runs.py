@@ -100,7 +100,7 @@ def publish_cities(monitor, root, reports):
 
 def publish_world(root, requested=''):
     """Publish high-condition global Shorts, at most one per city per UTC day; returns printed lines."""
-    from .world_shorts import candidates, render, report
+    from .world_shorts import URGENT, candidates, priority, render, report
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
     until = quota_blocked_until(root)
@@ -109,14 +109,27 @@ def publish_world(root, requested=''):
     history_file = root / 'published.json'
     history = json.loads(history_file.read_text()) if history_file.exists() else {}
     today = datetime.now(timezone.utc).date().isoformat()
-    rows = [row for row in candidates() if history.get(row['id']) != today]
+
+    def published_today(city):
+        # Older history stored only the day, without what was published; never repeat it that day.
+        entry = history.get(city)
+        if isinstance(entry, str):
+            entry = {'dia': entry, 'prioridade': 0}
+        if not entry or entry.get('dia') != today:
+            return None
+        return entry.get('prioridade', 4)
+
+    # One Short per city per UTC day, unless a more urgent condition follows (forecast, then storm).
+    rows = [row for row in candidates()
+            if published_today(row['id']) is None or priority(row) < published_today(row['id'])]
     if requested:
         wanted = {value.strip() for value in requested.lower().split(',') if value.strip()}
         rows = [row for row in rows if row['id'] in wanted]
     if not rows:
         return ['Nenhuma condição global alta nova.']
+    urgent = [row for row in rows if priority(row) <= URGENT]
     lines = []
-    for row in rows[:2 if requested else 1]:
+    for row in rows[:2] if requested else urgent[:3] or rows[:1]:
         item = report(row)
         directory = root / f"{item['cidade']}-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
         render(directory, item)
@@ -126,7 +139,7 @@ def publish_world(root, requested=''):
             until = block_quota(root, str(exc))
             lines.append(f'Quota do YouTube esgotada até {until.isoformat()} — monitor parado.')
             break
-        history[item['cidade']] = today
+        history[item['cidade']] = {'dia': today, 'prioridade': priority(row)}
         history_file.write_text(json.dumps(history, ensure_ascii=False, indent=2))
         lines.append(f"Published: {saved['url']}")
     return lines

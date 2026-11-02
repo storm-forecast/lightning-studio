@@ -24,6 +24,7 @@ jobs:
     timeout-minutes: 75
     env:
       WORLD_SHORTS_OUTPUT_DIR: output/world-shorts
+      WORLD_ALERTS_CACHE: output/world-shorts/forecast-cache.json
       WORLD_YOUTUBE_CLIENT_ID: ${{ secrets.WORLD_YOUTUBE_CLIENT_ID }}
       WORLD_YOUTUBE_CLIENT_SECRET: ${{ secrets.WORLD_YOUTUBE_CLIENT_SECRET }}
       WORLD_YOUTUBE_REFRESH_TOKEN: ${{ secrets.WORLD_YOUTUBE_REFRESH_TOKEN }}

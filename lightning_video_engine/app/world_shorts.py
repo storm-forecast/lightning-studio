@@ -19,9 +19,22 @@ FONT = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
 BOLD = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
 
 
+# Lower is more urgent: an official warning or an observed storm outranks a watch or a forecast.
+PRIORITY = {'official_warning': 0, 'storm_overhead': 1, 'storm_approaching': 2,
+            'official_watch': 3, 'official_flood_alert': 3}
+URGENT = 2
+DIRECTIONS = {'norte': 'north', 'nordeste': 'northeast', 'leste': 'east', 'sudeste': 'southeast',
+              'sul': 'south', 'sudoeste': 'southwest', 'oeste': 'west', 'noroeste': 'northwest'}
+
+
+def priority(row):
+    return min((PRIORITY.get(trigger, 4) for trigger in row.get('gatilhos', [])), default=4)
+
+
 def candidates():
-    """Only high rain, flood-potential, or severe-weather conditions publish automatically."""
-    return [row for row in alerts() if row.get('nivel') == 'alta' and row.get('gatilhos') and not row.get('erro')]
+    """High rain, flood-potential, severe-weather or storm conditions, most urgent first."""
+    rows = [row for row in alerts() if row.get('nivel') == 'alta' and row.get('gatilhos') and not row.get('erro')]
+    return sorted(rows, key=priority)
 
 
 def lightning_nowcast(lat, lon):
@@ -80,20 +93,38 @@ def report(row):
     triggers = row.get('gatilhos', [])
     lightning = lightning_nowcast(row['lat'], row['lon'])
     official_event = row.get('evento_oficial')
+    situation = row.get('raios_situacao') or {}
+    near, trend = situation.get('mais_proximo') or {}, situation.get('tendencia') or {}
+    overhead, approaching = 'storm_overhead' in triggers, 'storm_approaching' in triggers
     headline = (f'Official {official_event}' if official_event else
+                'Thunderstorm over the city' if overhead else
+                'Thunderstorm approaching' if approaching else
                 'Potential flooding' if 'potential_flooding' in triggers else
                 'Severe weather potential' if 'severe_weather' in triggers else 'Heavy rain potential')
-    severity = 'HIGH' if 'potential_flooding' in triggers or 'severe_weather' in triggers or official_event else 'ELEVATED'
+    severity = ('HIGH' if 'potential_flooding' in triggers or 'severe_weather' in triggers or official_event
+                or overhead or approaching else 'ELEVATED')
     observed = ("Rain is currently affecting the city area." if current > 0
                 else "No rain is measured at this point right now.")
+    if overhead:
+        observed = (f"Satellite lightning detected a strike {near['km']} kilometres from the city centre "
+                    f"{near['minutos_atras']} minutes ago. ")
+    elif approaching:
+        direction = DIRECTIONS.get(near.get('direcao'), '')
+        speed = f" at about {trend['velocidade_kmh']} kilometres per hour" if trend.get('velocidade_kmh') else ''
+        observed = (f"Satellite lightning shows a thunderstorm {trend['km_agora']} kilometres"
+                    f"{' to the ' + direction if direction else ''}, moving towards the city{speed}. "
+                    f"It may reach the city area in about {trend['minutos_ate_15km']} minutes. ")
     if official_event:
         areas = textwrap.shorten(str(row.get('areas_afetadas') or 'the affected area'), width=120, placeholder='…')
-        observed = f"The National Weather Service has issued this alert for {areas}. "
+        observed = f"The National Weather Service has issued this alert for {areas}. " + (
+            "Satellite lightning also shows a thunderstorm over or approaching the city. " if overhead or approaching else '')
     lightning_line = (f"Satellite lightning nowcasting reports {lightning.get('raios_40km', 0)} lightning strikes within 40 kilometres in the last 30 minutes. "
                       if lightning.get('coberto') else "Satellite lightning nowcasting is not available over this location. ")
-    forecast_line = '' if official_event else f"The highest precipitation probability over the next six hours is {probability} percent. "
+    forecast_line = '' if official_event or overhead or approaching else f"The highest precipitation probability over the next six hours is {probability} percent. "
     instruction = textwrap.shorten(str(row.get('instrucao_oficial') or 'Follow official instructions.'), width=150, placeholder='…')
     advisory_line = (f"Follow the official instruction: {instruction} " if official_event
+                     else "Move indoors now and stay away from open areas and water. "
+                          "This is an automated nowcast, not an official warning. " if overhead or approaching
                      else "This is an automated weather estimate, not an official warning. ")
     script = (f"Nowcasting update: {headline} in {city}, {country}. {observed} " + forecast_line
               + lightning_line + advisory_line + "Follow your local weather service and emergency guidance. "
@@ -214,6 +245,8 @@ def render(directory: Path, item):
     draw.text((50, 1132), 'Severity layer: Lightning Agent', font=ImageFont.truetype(FONT, 15), fill='#bed3e4')
     draw.text((50, 1155), 'Subscribe for global weather updates.', font=ImageFont.truetype(FONT, 17), fill='#dceaf4')
     source_line = (f"Official source: {item['fonte']}" if item.get('oficial')
+                   else 'Source: satellite lightning • Not an official warning'
+                   if {'storm_overhead', 'storm_approaching'} & set(item.get('gatilhos', []))
                    else 'Source: Open-Meteo • Not an official warning')
     draw.text((42, 1210), source_line, font=ImageFont.truetype(FONT, 18), fill='#bed3e4')
     image.save(directory / 'card.png')

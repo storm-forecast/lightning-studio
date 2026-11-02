@@ -30,6 +30,7 @@ jobs:
       WATCH_PASS_LIMIT_SECONDS: '1500'
       SHORTS_OUTPUT_DIR: output/shorts
       WORLD_SHORTS_OUTPUT_DIR: output/world-shorts
+      WORLD_ALERTS_CACHE: output/world-shorts/forecast-cache.json
       SHORTS_AUTO_PUBLISH: 'true'
       SHORTS_MONITOR_ENABLED: 'false'
       SHORTS_YOUTUBE_PRIVACY: public

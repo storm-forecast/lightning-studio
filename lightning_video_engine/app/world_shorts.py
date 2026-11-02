@@ -73,6 +73,7 @@ def severity_overlay(bounds, size):
 def report(row):
     now = datetime.now(timezone.utc)
     city, country = row['cidade'], row['pais']
+    language = 'en-US' if country == 'United States' else 'en-GB'
     current = row.get('chuva_atual_mm', 0)
     probability = row.get('probabilidade_6h', 0)
     triggers = row.get('gatilhos', [])
@@ -99,7 +100,7 @@ def report(row):
             'motivos': triggers,
             'roteiro': script, 'recomendacoes': ['Check your local weather service.',
                                                   'Follow official emergency guidance.'],
-            'timezone': row.get('timezone', 'UTC'), 'idioma': 'en-GB',
+            'timezone': row.get('timezone', 'UTC'), 'idioma': language,
             'chuva_atual_mm': current, 'probabilidade_6h': probability, 'gatilhos': triggers, 'raios': lightning,
             'oficial': bool(official_event), 'fonte': row.get('fonte', 'Open-Meteo'),
             'lat': row['lat'], 'lon': row['lon'],
@@ -115,7 +116,8 @@ def render(directory: Path, item):
 
     directory.mkdir(parents=True, exist_ok=True)
     (directory / 'alerta.json').write_text(json.dumps(item, ensure_ascii=False, indent=2))
-    asyncio.run(edge_tts.Communicate(item['roteiro'], 'en-GB-SoniaNeural').save(str(directory / 'voz.mp3')))
+    voice = 'en-US-AvaNeural' if item.get('idioma') == 'en-US' else 'en-GB-SoniaNeural'
+    asyncio.run(edge_tts.Communicate(item['roteiro'], voice).save(str(directory / 'voz.mp3')))
     image = Image.new('RGB', (720, 1280), '#081522')
     draw = ImageDraw.Draw(image)
     regular, bold = ImageFont.truetype(FONT, 30), ImageFont.truetype(BOLD, 48)

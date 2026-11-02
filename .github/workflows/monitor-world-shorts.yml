@@ -21,7 +21,7 @@ concurrency:
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 75
     env:
       WORLD_SHORTS_OUTPUT_DIR: output/world-shorts
       WORLD_YOUTUBE_CLIENT_ID: ${{ secrets.WORLD_YOUTUBE_CLIENT_ID }}
@@ -29,6 +29,9 @@ jobs:
       WORLD_YOUTUBE_REFRESH_TOKEN: ${{ secrets.WORLD_YOUTUBE_REFRESH_TOKEN }}
       WORLD_YOUTUBE_CHANNEL_ID: UCO2hrF6OlctVIEd3AcIxilw
       WORLD_CITY: ${{ inputs.city }}
+      WAV2LIP_CHECKPOINT: ${{ github.workspace }}/.cache/wav2lip/wav2lip-compatible.pth
+      WAV2LIP_CHECKPOINT_URL: ${{ secrets.WAV2LIP_CHECKPOINT_URL }}
+      LIPSYNC_PYTHON: ${{ github.workspace }}/.local/venv/bin/python
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -46,13 +49,19 @@ jobs:
             gh api "repos/$GH_REPO/actions/artifacts/$artifact_id/zip" > /tmp/world-shorts-state.zip
             unzip -o /tmp/world-shorts-state.zip -d output/world-shorts
           fi
-      - name: Install renderer
+      - name: Restore presenter checkpoint
+        uses: actions/cache@v4
+        with:
+          path: .cache/wav2lip
+          key: wav2lip-checkpoint-${{ runner.os }}-${{ hashFiles('deploy/model.json') }}
+      - name: Install presenter renderer
         run: |
-          python -m pip install -r requirements.txt
+          test -n "$WAV2LIP_CHECKPOINT_URL"
           sudo apt-get update
-          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          sudo apt-get install -y ffmpeg fonts-dejavu-core libsndfile1
+          bash scripts/install_local.sh
       - name: Create and publish global rain Short
-        run: python scripts/check_world_shorts.py
+        run: .local/venv/bin/python scripts/check_world_shorts.py
       - name: Persist global publication history
         if: always() && hashFiles('output/world-shorts/published.json') != ''
         uses: actions/upload-artifact@v4

@@ -16,6 +16,11 @@ services:
         generateValue: true
       - key: VIDEO_AUTOSTART
         value: "false"
+      # GitHub Actions é o único publicador: evita duplicar vídeos e Shorts.
+      - key: SHORTS_MONITOR_ENABLED
+        value: "false"
+      - key: SHORTS_AUTO_PUBLISH
+        value: "false"
       - key: VIDEO_PROFILE
         value: lite
       - key: VIDEO_TIMEZONE

@@ -51,12 +51,11 @@ disponível como artefato do workflow.
 
 ## Render
 
-Quando os boletins são gerados pelo serviço do Render (`VIDEO_AUTOSTART=true`),
-cada job concluído é enviado ao YouTube pelo próprio worker. No painel do
-Render, em *Environment*, preencher `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`
-e `YOUTUBE_REFRESH_TOKEN` (declarados com `sync: false` no `render.yaml`).
-O resultado aparece no campo `youtube` de `GET /v1/videos/{id}`; uma falha de
-envio fica registrada ali sem marcar o vídeo como falho.
+O Blueprint mantém `VIDEO_AUTOSTART`, `SHORTS_MONITOR_ENABLED` e
+`SHORTS_AUTO_PUBLISH` desligados. Assim, o Render serve somente a API e os
+workflows do GitHub Actions são o publicador único do canal, evitando uploads
+duplicados. Não ative esses valores no Render enquanto os workflows remotos
+estiverem ativos.
 
 Se o Render só hospedar a API e a geração continuar no GitHub Actions,
 configure os secrets no GitHub, não no Render, para não enviar o mesmo boletim

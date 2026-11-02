@@ -116,43 +116,58 @@ def render(directory: Path, item):
         lon_span = span / max(.25, math.cos(math.radians(lat)))
         west, east, south, north = lon - lon_span, lon + lon_span, lat - span, lat + span
     bounds = (west, east, south, north)
-    region = basemap(bounds, directory.parent / 'map-tile-cache')
-    image.paste(region, (40, 300))
-    overlay = Image.new('RGBA', (640, 600), (0, 0, 0, 0))
+    # Same visual hierarchy as TROVOX TEMPO: map above, clear caption and
+    # information panel left, presenter anchored in the lower-right corner.
+    map_left, map_top, map_width, map_height = 40, 295, 640, 420
+    region = basemap(bounds, directory.parent / 'map-tile-cache', size=(map_width, map_height))
+    image.paste(region, (map_left, map_top))
+    overlay = Image.new('RGBA', (map_width, map_height), (0, 0, 0, 0))
     risk = ImageDraw.Draw(overlay)
     colour = '#e9484a' if item['severity'] == 'HIGH' else '#f49a28'
     def xy(point_lat, point_lon):
-        x = 40 + (point_lon - west) / (east - west) * 640
-        y = 300 + (mercator(north) - mercator(point_lat)) / (mercator(north) - mercator(south)) * 600
+        x = map_left + (point_lon - west) / (east - west) * map_width
+        y = map_top + (mercator(north) - mercator(point_lat)) / (mercator(north) - mercator(south)) * map_height
         return int(x), int(y)
     if points:
         for ring_set in rings:
             for ring in ring_set:
-                risk.polygon([(x - 40, y - 300) for x, y in (xy(point[1], point[0]) for point in ring)],
+                risk.polygon([(x - map_left, y - map_top) for x, y in (xy(point[1], point[0]) for point in ring)],
                              fill=colour + '66', outline=colour + 'ee', width=4)
     else:
         # Point forecasts are shown as a point signal, never as a made-up flood boundary.
-        risk.ellipse((280, 240, 360, 320), fill=colour + '55', outline=colour + 'dd', width=4)
-    image.paste(overlay, (40, 300), overlay)
-    draw.rectangle((40, 300, 680, 900), outline='white', width=2)
+        risk.ellipse((280, 170, 360, 250), fill=colour + '55', outline=colour + 'dd', width=4)
+    image.paste(overlay, (map_left, map_top), overlay)
+    draw.rectangle((map_left, map_top, map_left + map_width, map_top + map_height), outline='white', width=2)
     marker_x, marker_y = xy(lat, lon)
     draw.ellipse((marker_x - 8, marker_y - 8, marker_x + 8, marker_y + 8), fill='#ed3d3d', outline='white', width=2)
     if item.get('raios', {}).get('coberto'):
         for strike_lat, strike_lon in lightning_points(bounds):
             strike_x, strike_y = xy(strike_lat, strike_lon)
             draw.ellipse((strike_x - 4, strike_y - 4, strike_x + 4, strike_y + 4), fill='#ffdf35', outline='#613f00', width=1)
-    draw.rounded_rectangle((38, 315, 350, 370), radius=10, fill='#081522cc')
+    draw.rounded_rectangle((38, 310, 350, 365), radius=10, fill='#081522cc')
     layer = 'OFFICIAL FLOOD AREA + LIGHTNING' if points and item.get('raios', {}).get('coberto') else 'CITY NOWCASTING RISK MAP'
-    draw.text((55, 330), layer, font=ImageFont.truetype(BOLD, 18), fill='white')
-    draw.rounded_rectangle((38, 930, 682, 1175), radius=24, fill='#142b3e')
-    draw.text((68, 954), f"NOWCASTING SEVERITY: {item['severity']}", font=ImageFont.truetype(BOLD, 26), fill=colour)
-    draw.text((68, 1008), item['headline'].upper(), font=ImageFont.truetype(BOLD, 27), fill='white')
-    draw.text((68, 1054), 'Short-range risk signal for the city area', font=ImageFont.truetype(FONT, 20), fill='#dceaf4')
+    draw.text((55, 325), layer, font=ImageFont.truetype(BOLD, 18), fill='white')
+    # High-contrast, readable caption between map and presenter.
+    draw.rounded_rectangle((30, 730, 690, 775), radius=10, fill='#081522')
+    draw.text((48, 740), f"NOWCASTING: {item['headline'].upper()}", font=ImageFont.truetype(BOLD, 22), fill=colour)
+    draw.rounded_rectangle((30, 785, 420, 1195), radius=20, fill='#142b3e')
+    draw.text((50, 810), 'NOWCASTING SUMMARY', font=ImageFont.truetype(BOLD, 20), fill='#60e5cf')
+    draw.text((50, 855), f"SEVERITY: {item['severity']}", font=ImageFont.truetype(BOLD, 23), fill=colour)
+    headline_font = ImageFont.truetype(BOLD, 22)
+    caption_font = ImageFont.truetype(FONT, 19)
+    import textwrap
+    y = 902
+    for line in textwrap.wrap(item['headline'], width=26):
+        draw.text((50, y), line.upper(), font=headline_font, fill='white'); y += 29
+    y += 10
+    for line in textwrap.wrap('Short-range risk signal for the city area.', width=30):
+        draw.text((50, y), line, font=caption_font, fill='#dceaf4'); y += 25
     lightning = item.get('raios', {})
     lightning_text = (f"LIGHTNING NOWCAST: {lightning.get('raios_40km', 0)} strikes / 40 km / 30 min"
                       if lightning.get('coberto') else 'LIGHTNING NOWCAST: satellite coverage unavailable')
-    draw.text((68, 1088), lightning_text, font=ImageFont.truetype(FONT, 18), fill='#dceaf4')
-    draw.text((68, 1125), 'Subscribe to TROVOX GLOBAL for weather updates.', font=ImageFont.truetype(FONT, 20), fill='#dceaf4')
+    for line in textwrap.wrap(lightning_text, width=31):
+        draw.text((50, y + 12), line, font=ImageFont.truetype(FONT, 17), fill='#dceaf4'); y += 22
+    draw.text((50, 1155), 'Subscribe for global weather updates.', font=ImageFont.truetype(FONT, 17), fill='#dceaf4')
     source_line = (f"Official source: {item['fonte']}" if item.get('oficial')
                    else 'Source: Open-Meteo • Not an official warning')
     draw.text((42, 1210), source_line, font=ImageFont.truetype(FONT, 18), fill='#bed3e4')

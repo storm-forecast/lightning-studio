@@ -77,14 +77,17 @@ jobs:
           test -n "$WAV2LIP_CHECKPOINT_URL"
           sudo apt-get update
           sudo apt-get install -y ffmpeg fonts-dejavu-core libsndfile1
-          bash scripts/install_local.sh
-          .local/venv/bin/python -m playwright install chromium --with-deps
+          # The runtime check in install_local.sh requires the browser to exist first.
+          python -m pip install playwright
+          python -m playwright install chromium --with-deps
           mkdir -p .cache/chromium
           browser="$(find "$HOME/.cache/ms-playwright" -type f -name chrome | head -n 1)"
           test -n "$browser"
           ln -sf "$browser" .cache/chromium/chrome
+          bash scripts/install_local.sh
 
       - name: Watch and publish
+        id: watch
         run: .local/venv/bin/python scripts/watch_shorts.py
 
       - name: Persist city publication history
@@ -121,6 +124,8 @@ jobs:
           retention-days: 2
           if-no-files-found: ignore
 
+      # Only a window that reached the watcher continues the chain; a broken
+      # install stops it instead of looping, and the cron retries later.
       - name: Dispatch the next watch window
-        if: ${{ !cancelled() && vars.SHORTS_WATCHER != 'off' }}
+        if: ${{ !cancelled() && steps.watch.outcome != 'skipped' && vars.SHORTS_WATCHER != 'off' }}
         run: gh workflow run watch-shorts.yml --ref "$GITHUB_REF_NAME"

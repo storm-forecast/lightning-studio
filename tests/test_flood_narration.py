@@ -1,6 +1,6 @@
 import unittest
 from lightning_video_engine.app.segments import Segment
-from lightning_video_engine.app.flood_narration import flood_places, flood_copy
+from lightning_video_engine.app.flood_narration import flood_places, flood_copy, flood_local_references
 from lightning_video_engine.app.editorial import validate_scene_evidence
 from lightning_video_engine.app.production import fallback_narration
 
@@ -41,3 +41,8 @@ class FloodNarrationTests(unittest.TestCase):
         self.assertIn('região de Salvador, Bahia',s.narration)
         self.assertIn('severidade',s.narration)
         self.assertNotIn('alagamento',s.narration)
+
+    def test_local_reference_requires_confirmed_polygon(self):
+        s=self.scene();s.evidence['flood_references']['areas'][0]['referencia_local']={'bairro':'Umarizal','dentro_poligono':True}
+        self.assertEqual(flood_local_references(s),['Umarizal, Belém'])
+        self.assertIn('Umarizal, Belém',flood_copy(s))

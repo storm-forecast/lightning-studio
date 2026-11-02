@@ -16,10 +16,24 @@ def flood_places(scene):
     return names[:3]
 
 
+def flood_local_references(scene):
+    labels=[]
+    for row in scene.evidence.get('flood_references', {}).get('areas', []):
+        local=row.get('referencia_local', {})
+        if not (row.get('cidade_confirmada') and local.get('dentro_poligono') is True):
+            continue
+        name=local.get('bairro') or local.get('via')
+        if name:
+            label=name + ', ' + row['cidade']
+            if label not in labels: labels.append(label)
+    return labels[:3]
+
+
 def flood_copy(scene):
     names = flood_places(scene)
     if not names:
         return ''
+    local=flood_local_references(scene)
     product = 'severidade no monitoramento' if scene.id == '05-agora' else 'potencial de alagamento'
     caveat = ('que já ocorreu alagamento' if scene.id == '07-alagamento' else 'danos confirmados')
     precaution = ('À população dessas regiões: evite vias alagadas e acompanhe os avisos da Defesa Civil.'
@@ -28,4 +42,5 @@ def flood_copy(scene):
     return ('As áreas destacadas para análise de ' + product + ' ficam na região de ' +
             '; '.join(names) + '. Essas localidades são referências geográficas próximas às áreas '
             'do mapa; não significa que todo o município será afetado nem confirma ' + caveat + '. '
+            + ((' Referências locais dentro dos polígonos: ' + '; '.join(local) + '. ') if local else ' ')
             + precaution)

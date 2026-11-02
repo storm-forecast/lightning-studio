@@ -12,7 +12,8 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def render_official(scenes, audio, destination, *, title, subtitle,
-                    ffmpeg='ffmpeg', ffprobe='ffprobe', scene_durations=None, narration_final=False, presenter_source=None):
+                    ffmpeg='ffmpeg', ffprobe='ffprobe', scene_durations=None, narration_final=False, presenter_source=None,
+                    channel_name='TROVOX TEMPO'):
     presenter_source = presenter_source or Path(wardrobe_for_job(Path(destination).parent)['file'])
     python = Path(os.environ.get('LIPSYNC_PYTHON', str(ROOT / '.local/venv/bin/python')))
     model_root = Path(os.environ.get('WAV2LIP_ROOT', str(ROOT / '.local/Wav2Lip')))
@@ -52,4 +53,4 @@ def render_official(scenes, audio, destination, *, title, subtitle,
                        check=True, timeout=3600)
         compose(scenes, speech, destination, title=title, subtitle=subtitle,
                 presenter=synced, timing_final=True, ffmpeg=ffmpeg, ffprobe=ffprobe,
-                scene_durations=scene_durations)
+                scene_durations=scene_durations, channel_name=channel_name)

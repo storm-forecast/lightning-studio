@@ -11,7 +11,8 @@ import textwrap
 
 def compose(scenes: list[Path], audio: Path, destination: Path, *, title: str,
             subtitle: str, presenter: Path | None = None,
-            ffmpeg: str = 'ffmpeg', ffprobe: str = 'ffprobe', timing_final: bool = False, scene_durations: list[float] | None = None) -> None:
+            ffmpeg: str = 'ffmpeg', ffprobe: str = 'ffprobe', timing_final: bool = False, scene_durations: list[float] | None = None,
+            channel_name: str = 'TROVOX TEMPO') -> None:
     presenter_speed = float(os.environ.get('PRESENTER_SPEED', '1.0'))
     narration_speed = float(os.environ.get('NARRATION_SPEED', '0.90'))
     if timing_final:
@@ -80,10 +81,10 @@ def compose(scenes: list[Path], audio: Path, destination: Path, *, title: str,
             graph.append('[base][p]overlay=1504:144:shortest=1[withpresenter]')
             base = 'withpresenter'
         labels = [
-            ('TROVOX TEMPO', 32, 25, 25, '0x65e0d0'),
+            (channel_name, 32, 25, 25, '0x65e0d0'),
             (textwrap.shorten(title, width=64, placeholder='…'), 32, 65, 36, 'white'),
             (textwrap.shorten(subtitle, width=110, placeholder='…'), 32, 985, 24, 'white'),
-            ('Mapas e legendas: TROVOX TEMPO | Apresentação virtual', 32, 1030, 20, '0xb9c8d9'),
+            (f'Maps and captions: {channel_name} | Virtual presenter', 32, 1030, 20, '0xb9c8d9'),
         ]
         if presenter:
             labels.append(('APRESENTAÇÃO VIRTUAL', 1504, 100, 19, '0xb9c8d9'))

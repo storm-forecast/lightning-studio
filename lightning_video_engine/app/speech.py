@@ -10,8 +10,8 @@ def narrate(text: str, destination: Path, *, ffmpeg: str = 'ffmpeg') -> None:
     if not text.strip():
         raise ValueError('roteiro vazio')
     voice = os.environ.get('EDGE_TTS_VOICE', 'pt-BR-FranciscaNeural')
-    if voice != 'pt-BR-FranciscaNeural':
-        raise ValueError('a voz feminina brasileira configurada é pt-BR-FranciscaNeural')
+    if voice not in {'pt-BR-FranciscaNeural', 'en-US-AvaNeural', 'en-GB-SoniaNeural'}:
+        raise ValueError('voz não aprovada para boletim')
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='narration-') as folder:
         script = Path(folder) / 'script.txt'

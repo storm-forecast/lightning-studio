@@ -15,6 +15,9 @@ CITIES={
  'hibbing':('Hibbing, Minnesota','United States',47.42715,-92.93769),
  'international-falls':('International Falls, Minnesota','United States',48.60105,-93.41098),
  'mulvane':('Mulvane, Kansas','United States',37.47446,-97.24393),
+ 'toronto':('Toronto','Canada',43.6532,-79.3832),
+ 'montreal':('Montréal','Canada',45.5017,-73.5673),
+ 'vancouver':('Vancouver','Canada',49.2827,-123.1207),
 }
 _cache=(0,[])
 

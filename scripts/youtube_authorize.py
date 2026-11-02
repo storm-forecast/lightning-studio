@@ -18,6 +18,7 @@ from lightning_video_engine.app.youtube import AUTH_URL, SCOPES, access_token, a
 p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 p.add_argument('--client-secret', type=Path, required=True, help='JSON de credencial OAuth "App para computador"')
 p.add_argument('--env-file', type=Path, help='grava as variáveis neste arquivo em vez de mostrar o token')
+p.add_argument('--prefix', default='YOUTUBE', help='prefixo das variáveis OAuth (ex.: WORLD_YOUTUBE)')
 a = p.parse_args()
 config = json.loads(a.client_secret.read_text())
 config = config.get('installed') or config.get('web') or config
@@ -54,8 +55,11 @@ if 'refresh_token' not in tokens:
     sys.exit('o Google não devolveu refresh token; revogue o acesso em myaccount.google.com/permissions e repita')
 channel, name = authorized_channel(access_token(client_id, client_secret, tokens['refresh_token']))
 print(f'\nCanal autorizado: {name} ({channel})')
-values = {'YOUTUBE_CLIENT_ID': client_id, 'YOUTUBE_CLIENT_SECRET': client_secret,
-          'YOUTUBE_REFRESH_TOKEN': tokens['refresh_token'], 'YOUTUBE_CHANNEL_ID': channel}
+prefix = a.prefix.strip().upper().rstrip('_')
+if not prefix or any(not (part.isidentifier() and part.upper() == part) for part in prefix.split('_')):
+    sys.exit('prefixo inválido; use somente letras maiúsculas, números e sublinhados')
+values = {f'{prefix}_CLIENT_ID': client_id, f'{prefix}_CLIENT_SECRET': client_secret,
+          f'{prefix}_REFRESH_TOKEN': tokens['refresh_token'], f'{prefix}_CHANNEL_ID': channel}
 if a.env_file:
     kept = [line for line in (a.env_file.read_text().splitlines() if a.env_file.is_file() else [])
             if line.split('=', 1)[0] not in values]

@@ -42,7 +42,8 @@ def report(row):
     lightning = lightning_nowcast(row['lat'], row['lon'])
     headline = ('Potential flooding' if 'potential_flooding' in triggers else
                 'Severe weather potential' if 'severe_weather' in triggers else 'Heavy rain potential')
-    observed = (f"Rain is currently observed at {current:.1f} millimetres." if current > 0
+    severity = 'HIGH' if 'potential_flooding' in triggers or 'severe_weather' in triggers else 'ELEVATED'
+    observed = ("Rain is currently affecting the city area." if current > 0
                 else "No rain is measured at this point right now.")
     lightning_line = (f"Satellite lightning nowcasting reports {lightning.get('raios_40km', 0)} lightning strikes within 40 kilometres in the last 30 minutes. "
                       if lightning.get('coberto') else "Satellite lightning nowcasting is not available over this location. ")
@@ -59,7 +60,7 @@ def report(row):
             'timezone': row.get('timezone', 'UTC'), 'idioma': 'en-GB', 'fonte': 'Open-Meteo', 'oficial': False,
             'chuva_atual_mm': current, 'probabilidade_6h': probability, 'gatilhos': triggers, 'raios': lightning,
             'lat': row['lat'], 'lon': row['lon'],
-            'titulo_short': f"{city}: {headline.lower()} #Shorts", 'headline': headline}
+            'titulo_short': f"{city}: {headline.lower()} #Shorts", 'headline': headline, 'severity': severity}
 
 
 def render(directory: Path, item):
@@ -84,16 +85,25 @@ def render(directory: Path, item):
     lon_span = span / max(.25, math.cos(math.radians(lat)))
     region = basemap((lon - lon_span, lon + lon_span, lat - span, lat + span), directory.parent / 'map-tile-cache')
     image.paste(region, (40, 300))
+    # This is a city-centred forecast signal, not a fabricated inundation polygon.
+    overlay = Image.new('RGBA', (640, 600), (0, 0, 0, 0))
+    risk = ImageDraw.Draw(overlay)
+    colour = '#e9484a' if item['severity'] == 'HIGH' else '#f49a28'
+    risk.ellipse((150, 110, 490, 450), fill=colour + '55', outline=colour + 'dd', width=5)
+    image.paste(overlay, (40, 300), overlay)
     draw.rectangle((40, 300, 680, 900), outline='white', width=2)
     draw.ellipse((352, 592, 368, 608), fill='#ed3d3d', outline='white', width=2)
+    draw.rounded_rectangle((38, 315, 350, 370), radius=10, fill='#081522cc')
+    draw.text((55, 330), 'CITY-CENTRED RISK MAP', font=ImageFont.truetype(BOLD, 18), fill='white')
     draw.rounded_rectangle((38, 930, 682, 1175), radius=24, fill='#142b3e')
-    draw.text((68, 954), f"RAIN NOW: {item['chuva_atual_mm']:.1f} mm", font=ImageFont.truetype(BOLD, 30), fill='#60e5cf')
-    draw.text((68, 1008), f"6-HOUR RAIN CHANCE: {item['probabilidade_6h']}%", font=ImageFont.truetype(BOLD, 27), fill='white')
+    draw.text((68, 954), f"SEVERITY: {item['severity']}", font=ImageFont.truetype(BOLD, 30), fill=colour)
+    draw.text((68, 1008), item['headline'].upper(), font=ImageFont.truetype(BOLD, 27), fill='white')
+    draw.text((68, 1054), 'Forecast / nowcast signal for the city area', font=ImageFont.truetype(FONT, 20), fill='#dceaf4')
     lightning = item.get('raios', {})
     lightning_text = (f"LIGHTNING NOWCAST: {lightning.get('raios_40km', 0)} strikes / 40 km / 30 min"
                       if lightning.get('coberto') else 'LIGHTNING NOWCAST: satellite coverage unavailable')
-    draw.text((68, 1060), lightning_text, font=ImageFont.truetype(FONT, 18), fill='#dceaf4')
-    draw.text((68, 1102), 'Subscribe to TROVOX GLOBAL for weather updates.', font=ImageFont.truetype(FONT, 20), fill='#dceaf4')
+    draw.text((68, 1088), lightning_text, font=ImageFont.truetype(FONT, 18), fill='#dceaf4')
+    draw.text((68, 1125), 'Subscribe to TROVOX GLOBAL for weather updates.', font=ImageFont.truetype(FONT, 20), fill='#dceaf4')
     draw.text((42, 1210), 'Source: Open-Meteo • Not an official warning', font=ImageFont.truetype(FONT, 18), fill='#bed3e4')
     image.save(directory / 'card.png')
     duration = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', str(directory / 'voz.mp3')]))

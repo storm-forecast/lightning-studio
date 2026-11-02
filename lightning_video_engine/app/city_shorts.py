@@ -9,6 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from .shorts_locales import SPANISH_CITIES, city_timezone
+from .sp_flood_shorts import SP_FLOOD_CITIES
 from pathlib import Path
 
 import numpy as np
@@ -73,6 +74,7 @@ CITIES = {
     'lima': ('Lima', 'Perú', -12.0464, -77.0428),
     'montevideo': ('Montevideo', 'Uruguay', -34.9011, -56.1645),
     'caracas': ('Caracas', 'Venezuela', 10.4806, -66.9036),
+    **SP_FLOOD_CITIES,
 }
 
 
@@ -123,9 +125,13 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
     except (OSError, ValueError, KeyError, TypeError):
         persistent_rain_minutes = None
     persistent_moderate = bool(persistent_rain_minutes is not None and persistent_rain_minutes >= 10)
-    if radar_fresh and recent_lightning:
+    flood_only = key in SP_FLOOD_CITIES
+    flood_risk = bool(radar_fresh and radar['classe'] >= 2 and persistent_rain_minutes is not None and persistent_rain_minutes >= 20)
+    if flood_only and flood_risk:
+        reasons.append('chuva forte persistente com potencial de alagamento no município')
+    if not flood_only and radar_fresh and recent_lightning:
         reasons.append('chuva detectada no radar e raios recentes na região')
-    if radar_fresh and persistent_moderate:
+    if not flood_only and radar_fresh and persistent_moderate:
         intensity = 'forte' if radar['classe'] >= 2 else 'moderada'
         reasons.append(f'chuva {intensity} persistente na escala do radar na área monitorada')
     # A single fresh, intense local lightning observation is sufficient: a
@@ -133,11 +139,11 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
     close_count = lightning.get('raios_15km')
     intense_lightning = bool(recent_lightning and isinstance(close_count, int) and close_count >= 10 and
                              near.get('km', float('inf')) <= 15 and near.get('minutos_atras', float('inf')) <= 10)
-    if intense_lightning:
+    if not flood_only and intense_lightning:
         reasons.append(f'atividade elétrica intensa: {close_count} raios observados em até 15 quilômetros')
     density = None
     current_at = lightning_observed_at(lightning)
-    if density_reference and current_at is not None:
+    if not flood_only and density_reference and current_at is not None:
         elapsed = (current_at - density_reference['observed_at']) / 60
         before = density_reference['count_15']
         current = lightning.get('raios_15km')
@@ -154,25 +160,27 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
         incoming_rain = rain_approach(lat, lon) if reasons else None
     except (OSError, ValueError, KeyError, TypeError):
         incoming_rain = None
-    advice = ['Procure abrigo em uma edificação ou veículo fechado.',
+    advice = ['Não atravesse vias alagadas nem áreas com correnteza.',
+              'Evite pontos baixos e acompanhe os avisos da Defesa Civil.'] if flood_only else ['Procure abrigo em uma edificação ou veículo fechado.',
               'Evite áreas abertas, árvores isoladas e atividades na água.',
               'Não atravesse ruas alagadas. Acompanhe os avisos da Defesa Civil.']
     motion = point.get('deslocamento') if valid else None
-    text = f"Atenção, {name}, {state}. Monitoramento da área até 40 quilômetros do centro. "
+    text = (f"Atenção, {name}, {state}. Alerta preventivo de potencial de alagamento no município. " if flood_only else f"Atenção, {name}, {state}. Monitoramento da área até 40 quilômetros do centro. ")
     text += '; '.join(reasons) + '. ' if reasons else 'Sem gatilho de vídeo nesta verificação. '
-    if near and not lightning['dados_atrasados']:
+    if not flood_only and near and not lightning['dados_atrasados']:
         text += f"Raio mais próximo a {near['km']} quilômetros, no setor {near['direcao']}. "
-    if motion:
+    if motion and not flood_only:
         text += f"Deslocamento estimado das células na região para {motion['para']}, a {motion['velocidade_kmh']} quilômetros por hora. "
     else:
         text += 'Direção de deslocamento não determinada com confiança. '
-    text += ('O risco é regional; não confirma impacto em todos os bairros. ' + ' '.join(advice)
+    text += ('O risco é localizado; não confirma alagamento em todo o município nem em todos os bairros. ' + ' '.join(advice)
              + ' Inscreva-se no TROVOX TEMPO e ative o sino para receber alertas.')
     report = {'cidade': key, 'nome': name, 'uf': state, 'lat': lat, 'lon': lon,
             'verificado_em': now.isoformat() + 'Z', 'gerar': bool(reasons), 'motivos': reasons,
             'raios': lightning, 'nowcasting': point if valid else None, 'chuva': radar,
             'roteiro': text, 'recomendacoes': advice, 'raio_km': 40,
-            'aproximacao_chuva': incoming_rain, 'densidade': density}
+            'aproximacao_chuva': incoming_rain, 'densidade': density,
+            'secao': 'alagamentos-sp' if flood_only else 'nowcasting'}
     if key in SPANISH_CITIES:
         from .shorts_spanish import localize_report
         localize_report(report)

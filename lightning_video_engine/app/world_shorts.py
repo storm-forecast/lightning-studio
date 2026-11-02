@@ -124,8 +124,15 @@ def render(directory: Path, item):
     draw.rectangle((0, 0, 720, 12), fill='#60e5cf')
     draw.text((42, 50), 'TROVOX GLOBAL', font=ImageFont.truetype(BOLD, 31), fill='#60e5cf')
     draw.text((42, 112), 'GLOBAL NOWCASTING', font=ImageFont.truetype(BOLD, 20), fill='#ffbe61')
-    draw.text((42, 178), item['nome'], font=bold, fill='white')
-    draw.text((42, 238), item['pais'], font=regular, fill='#bed3e4')
+    # Location must stay legible even when the alert headline is long.
+    draw.rounded_rectangle((30, 160, 690, 275), radius=16, fill='#142b3e')
+    draw.text((50, 174), 'ALERT LOCATION', font=ImageFont.truetype(BOLD, 18), fill='#60e5cf')
+    location_font = ImageFont.truetype(BOLD, 34)
+    location = item['nome']
+    while location_font.getlength(location) > 610 and location_font.size > 23:
+        location_font = ImageFont.truetype(BOLD, location_font.size - 1)
+    draw.text((50, 202), location, font=location_font, fill='white')
+    draw.text((50, 246), item['pais'], font=ImageFont.truetype(FONT, 19), fill='#bed3e4')
     lat, lon = item['lat'], item['lon']
     geometry = item.get('geometria_alerta') or {}
     rings = (geometry.get('coordinates') or [])
@@ -177,14 +184,15 @@ def render(directory: Path, item):
     draw.text((55, 325), layer, font=ImageFont.truetype(BOLD, 18), fill='white')
     # High-contrast, readable caption between map and presenter.
     draw.rounded_rectangle((30, 730, 690, 775), radius=10, fill='#081522')
-    draw.text((48, 740), f"NOWCASTING: {item['headline'].upper()}", font=ImageFont.truetype(BOLD, 22), fill=colour)
+    draw.text((48, 740), f"{item['nome'].upper()} • {item['headline'].upper()}", font=ImageFont.truetype(BOLD, 19), fill=colour)
     draw.rounded_rectangle((30, 785, 420, 1195), radius=20, fill='#142b3e')
     draw.text((50, 810), 'NOWCASTING SUMMARY', font=ImageFont.truetype(BOLD, 20), fill='#60e5cf')
-    draw.text((50, 855), f"SEVERITY: {item['severity']}", font=ImageFont.truetype(BOLD, 23), fill=colour)
+    draw.text((50, 838), item['nome'], font=ImageFont.truetype(BOLD, 19), fill='white')
+    draw.text((50, 865), f"SEVERITY: {item['severity']}", font=ImageFont.truetype(BOLD, 23), fill=colour)
     headline_font = ImageFont.truetype(BOLD, 22)
     caption_font = ImageFont.truetype(FONT, 19)
     import textwrap
-    y = 902
+    y = 912
     for line in textwrap.wrap(item['headline'], width=26):
         draw.text((50, y), line.upper(), font=headline_font, fill='white'); y += 29
     y += 10

@@ -171,7 +171,7 @@ def publish_bulletin(directory: Path, presented_at: datetime, env=os.environ, pu
     return record
 
 
-def publish_short(directory: Path, env=os.environ):
+def publish_short(directory: Path, env=os.environ, *, prefix='YOUTUBE', brand='TROVOX TEMPO'):
     """Publish a fresh approved-format city alert, recording the server's actual visibility."""
     from datetime import timezone
     import subprocess
@@ -194,22 +194,23 @@ def publish_short(directory: Path, env=os.environ):
     privacy = env.get('SHORTS_YOUTUBE_PRIVACY', 'public')
     if privacy not in PRIVACY:
         raise ValueError('SHORTS_YOUTUBE_PRIVACY inválido')
-    missing = [key for key in ('YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'YOUTUBE_REFRESH_TOKEN', 'YOUTUBE_CHANNEL_ID') if not env.get(key)]
+    names = {key: f'{prefix}_{key}' for key in ('CLIENT_ID', 'CLIENT_SECRET', 'REFRESH_TOKEN', 'CHANNEL_ID')}
+    missing = [name for name in names.values() if not env.get(name)]
     if missing:
         raise YouTubeError('configure ' + ', '.join(missing))
-    token = access_token(env['YOUTUBE_CLIENT_ID'], env['YOUTUBE_CLIENT_SECRET'], env['YOUTUBE_REFRESH_TOKEN'])
+    token = access_token(env[names['CLIENT_ID']], env[names['CLIENT_SECRET']], env[names['REFRESH_TOKEN']])
     channel, name = authorized_channel(token)
-    if channel != env['YOUTUBE_CHANNEL_ID']:
+    if channel != env[names['CHANNEL_ID']]:
         raise YouTubeError('o token pertence a outro canal; upload recusado')
     local = started.astimezone(ZoneInfo(report.get('timezone','America/Sao_Paulo')))
-    title = f"{report['nome']} ({report['uf']}): alerta de tempestade | {local:%d/%m %H:%M} #Shorts"
-    description = (f"TROVOX TEMPO — atualização de {local:%d/%m/%Y às %H:%M}, horário de Brasília.\n"
+    title = report.get('titulo_short') or f"{report['nome']} ({report['uf']}): alerta de tempestade | {local:%d/%m %H:%M} #Shorts"
+    description = (f"{brand} — atualização de {local:%d/%m/%Y às %H:%M}, horário local.\n"
         + report['roteiro'] + '\n\nNowcasting regional, não é aviso oficial. Consulte a Defesa Civil e o INMET.'
         + '\nApresentadora e voz geradas por IA. Dados: Lightning Agent. Mapa: © OpenStreetMap contributors — https://www.openstreetmap.org/copyright'
         + '\n#Shorts #previsaodotempo #raios #nowcasting')
     metadata = {'snippet': {'title': title[:100], 'description': description[:5000],
         'categoryId': NEWS_CATEGORY, 'defaultLanguage': 'pt-BR', 'defaultAudioLanguage': 'pt-BR',
-        'tags': ['Shorts', report['nome'], 'nowcasting', 'raios', 'TROVOX TEMPO']},
+        'tags': ['Shorts', report['nome'], 'nowcasting', 'chuva', brand]},
         'status': {'privacyStatus': privacy, 'selfDeclaredMadeForKids': False, 'containsSyntheticMedia': True}}
     if report.get('idioma', '').startswith('es'):
         title = f"{report['nome']}, {report.get('pais', report['uf'])}: alerta de tormenta | {local:%d/%m %H:%M} #Shorts"

@@ -1,0 +1,70 @@
+name: Monitor global rain Shorts
+
+on:
+  workflow_dispatch:
+    inputs:
+      city:
+        description: 'Cidade global (identificador, por exemplo ongole); vazio seleciona a condição mais alta'
+        required: false
+        type: string
+  schedule:
+    - cron: '7,27,47 * * * *'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: world-shorts-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      WORLD_SHORTS_OUTPUT_DIR: output/world-shorts
+      WORLD_YOUTUBE_CLIENT_ID: ${{ secrets.WORLD_YOUTUBE_CLIENT_ID }}
+      WORLD_YOUTUBE_CLIENT_SECRET: ${{ secrets.WORLD_YOUTUBE_CLIENT_SECRET }}
+      WORLD_YOUTUBE_REFRESH_TOKEN: ${{ secrets.WORLD_YOUTUBE_REFRESH_TOKEN }}
+      WORLD_YOUTUBE_CHANNEL_ID: UCO2hrF6OlctVIEd3AcIxilw
+      WORLD_CITY: ${{ inputs.city }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Restore global publication history
+        env:
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p output/world-shorts
+          artifact_id="$(gh api "repos/$GH_REPO/actions/artifacts?name=world-shorts-state&per_page=100" --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .id // empty')"
+          if [ -n "$artifact_id" ]; then
+            gh api "repos/$GH_REPO/actions/artifacts/$artifact_id/zip" > /tmp/world-shorts-state.zip
+            unzip -o /tmp/world-shorts-state.zip -d output/world-shorts
+          fi
+      - name: Install renderer
+        run: |
+          python -m pip install -r requirements.txt
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+      - name: Create and publish global rain Short
+        run: python scripts/check_world_shorts.py
+      - name: Persist global publication history
+        if: always() && hashFiles('output/world-shorts/published.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-shorts-state
+          path: output/world-shorts/published.json
+          retention-days: 7
+      - name: Save global result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-shorts-${{ github.run_id }}
+          path: output/world-shorts
+          retention-days: 2
+          if-no-files-found: ignore

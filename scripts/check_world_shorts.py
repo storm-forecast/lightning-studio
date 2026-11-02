@@ -18,14 +18,17 @@ today = datetime.now(timezone.utc).date().isoformat()
 rows = [row for row in candidates() if history.get(row['id']) != today]
 requested = os.environ.get('WORLD_CITY', '').strip().lower()
 if requested:
-    rows = [row for row in rows if row['id'] == requested]
+    wanted = {value.strip() for value in requested.split(',') if value.strip()}
+    rows = [row for row in rows if row['id'] in wanted]
 if not rows:
     print('Nenhuma condição global alta nova para a cidade solicitada.', flush=True)
     raise SystemExit(0)
-item = report(rows[0])
-directory = root / f"{item['cidade']}-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
-render(directory, item)
-saved = publish_short(directory, prefix='WORLD_YOUTUBE', brand='TROVOX GLOB')
-history[item['cidade']] = today
+limit = 2 if requested else 1
+for row in rows[:limit]:
+    item = report(row)
+    directory = root / f"{item['cidade']}-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
+    render(directory, item)
+    saved = publish_short(directory, prefix='WORLD_YOUTUBE', brand='TROVOX GLOBAL')
+    history[item['cidade']] = today
+    print('Published:', saved['url'], flush=True)
 history_file.write_text(json.dumps(history, ensure_ascii=False, indent=2))
-print('Publicado:', saved['url'], flush=True)

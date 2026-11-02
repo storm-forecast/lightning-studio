@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       city:
-        description: 'Cidade global (identificador, por exemplo ongole); vazio seleciona a condição mais alta'
+        description: 'Cidade(s) global(is), separadas por vírgula (ex.: hibbing,international-falls); vazio seleciona condições automáticas'
         required: false
         type: string
   schedule:

@@ -12,6 +12,8 @@ CITIES={
  'sao-paulo':('São Paulo','Brazil',-23.5505,-46.6333),'buenos-aires':('Buenos Aires','Argentina',-34.6037,-58.3816),
  'johannesburg':('Johannesburg','South Africa',-26.2041,28.0473),'cairo':('Cairo','Egypt',30.0444,31.2357),
  'ongole':('Ongole','India',15.50357,80.04454),
+ 'hibbing':('Hibbing, Minnesota','United States',47.42715,-92.93769),
+ 'international-falls':('International Falls, Minnesota','United States',48.60105,-93.41098),
 }
 _cache=(0,[])
 
@@ -32,7 +34,7 @@ def alerts():
             gust=max([float(current.get('wind_gusts_10m') or 0)] + [float(x or 0) for x in hourly.get('wind_gusts_10m',[])[start:start+6]])
             rain=float(current.get('rain') or current.get('precipitation') or 0)
             code=int(current.get('weather_code') or 0)
-            flood=rain>=5 or accumulated_3h>=20 or accumulated_6h>=35
+            flood=rain>=5 or accumulated_3h>=20 or accumulated_6h>=20
             # Strong gusts can cause local disruption before the conventional
             # severe-thunderstorm threshold. Publish a clearly-labelled
             # severe-weather-potential Short from 50 km/h upward.

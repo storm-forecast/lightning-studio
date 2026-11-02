@@ -1,0 +1,126 @@
+name: Watch alert Shorts
+
+# Continuous watcher: one job scans every five minutes for about five and a half
+# hours, then dispatches its successor.  Scheduled runs are rare on GitHub, so
+# the cron below only restarts the chain if it ever breaks.  Set the repository
+# variable SHORTS_WATCHER=off to stop the chain after the current window.
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/watch-shorts.yml']
+  workflow_dispatch:
+  schedule:
+    - cron: '23 */2 * * *'
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: shorts-watcher
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    env:
+      WATCH_MINUTES: '320'
+      WATCH_INTERVAL_SECONDS: '300'
+      WATCH_PASS_LIMIT_SECONDS: '1500'
+      SHORTS_OUTPUT_DIR: output/shorts
+      WORLD_SHORTS_OUTPUT_DIR: output/world-shorts
+      SHORTS_AUTO_PUBLISH: 'true'
+      SHORTS_MONITOR_ENABLED: 'false'
+      SHORTS_YOUTUBE_PRIVACY: public
+      LIGHTNING_API_URL: https://lightning-agent.onrender.com
+      WAV2LIP_CHECKPOINT: ${{ github.workspace }}/.cache/wav2lip/wav2lip-compatible.pth
+      WAV2LIP_CHECKPOINT_URL: ${{ secrets.WAV2LIP_CHECKPOINT_URL }}
+      LIPSYNC_PYTHON: ${{ github.workspace }}/.local/venv/bin/python
+      CHROMIUM_BIN: ${{ github.workspace }}/.cache/chromium/chrome
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+      YOUTUBE_CHANNEL_ID: ${{ vars.YOUTUBE_CHANNEL_ID || 'UCOrGMudYslWWWmpW8pu3UDg' }}
+      WORLD_YOUTUBE_CLIENT_ID: ${{ secrets.WORLD_YOUTUBE_CLIENT_ID }}
+      WORLD_YOUTUBE_CLIENT_SECRET: ${{ secrets.WORLD_YOUTUBE_CLIENT_SECRET }}
+      WORLD_YOUTUBE_REFRESH_TOKEN: ${{ secrets.WORLD_YOUTUBE_REFRESH_TOKEN }}
+      WORLD_YOUTUBE_CHANNEL_ID: UCO2hrF6OlctVIEd3AcIxilw
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Restore publication history
+        run: |
+          restore() {
+            mkdir -p "$2"
+            artifact_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$1&per_page=100" --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .id // empty')"
+            if [ -n "$artifact_id" ]; then
+              gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "/tmp/$1.zip"
+              unzip -o "/tmp/$1.zip" -d "$2"
+            fi
+          }
+          restore city-shorts-state output/shorts
+          restore world-shorts-state output/world-shorts
+
+      - name: Restore lip-sync checkpoint
+        uses: actions/cache@v4
+        with:
+          path: .cache/wav2lip
+          key: wav2lip-checkpoint-${{ runner.os }}-${{ hashFiles('deploy/model.json') }}
+
+      - name: Install renderer once for the whole window
+        run: |
+          test -n "$WAV2LIP_CHECKPOINT_URL"
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core libsndfile1
+          bash scripts/install_local.sh
+          .local/venv/bin/python -m playwright install chromium --with-deps
+          mkdir -p .cache/chromium
+          browser="$(find "$HOME/.cache/ms-playwright" -type f -name chrome | head -n 1)"
+          test -n "$browser"
+          ln -sf "$browser" .cache/chromium/chrome
+
+      - name: Watch and publish
+        run: .local/venv/bin/python scripts/watch_shorts.py
+
+      - name: Persist city publication history
+        if: always() && hashFiles('output/shorts/shorts.sqlite3') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: city-shorts-state
+          path: |
+            output/shorts/shorts.sqlite3
+            output/shorts/quota.json
+          retention-days: 7
+
+      - name: Persist global publication history
+        if: always() && hashFiles('output/world-shorts/published.json', 'output/world-shorts/quota.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-shorts-state
+          path: |
+            output/world-shorts/published.json
+            output/world-shorts/quota.json
+          retention-days: 7
+
+      - name: Save published videos for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: watch-shorts-${{ github.run_id }}
+          path: |
+            output/shorts/scan.json
+            output/shorts/*/short.mp4
+            output/shorts/*/alerta.json
+            output/shorts/*/youtube-short.json
+            output/world-shorts/*/short.mp4
+          retention-days: 2
+          if-no-files-found: ignore
+
+      - name: Dispatch the next watch window
+        if: ${{ !cancelled() && vars.SHORTS_WATCHER != 'off' }}
+        run: gh workflow run watch-shorts.yml --ref "$GITHUB_REF_NAME"

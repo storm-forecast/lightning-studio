@@ -125,7 +125,7 @@ def render(directory: Path, item):
     directory.mkdir(parents=True, exist_ok=True)
     (directory / 'alerta.json').write_text(json.dumps(item, ensure_ascii=False, indent=2))
     voice = 'en-US-AvaNeural' if item.get('idioma') == 'en-US' else 'en-GB-SoniaNeural'
-    asyncio.run(edge_tts.Communicate(item['roteiro'], voice).save(str(directory / 'voz.mp3')))
+    asyncio.run(asyncio.wait_for(edge_tts.Communicate(item['roteiro'], voice).save(str(directory / 'voz.mp3')), timeout=120))
     image = Image.new('RGB', (720, 1280), '#081522')
     draw = ImageDraw.Draw(image)
     regular, bold = ImageFont.truetype(FONT, 30), ImageFont.truetype(BOLD, 48)

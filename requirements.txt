@@ -7,3 +7,4 @@ python-dotenv>=1.0,<2
 gdown>=5.2,<6
 
 numpy>=1.26,<3  # radar decoding for city nowcasting shorts
+shapely>=2,<3  # São Paulo flood zones intersecting municipal boundaries

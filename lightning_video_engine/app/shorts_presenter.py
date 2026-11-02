@@ -81,5 +81,5 @@ def synchronize(directory):
                     "crop=w='if(gt(iw/ih,1),trunc(ih*0.72/2)*2,iw)':h=ih,scale=384:-2,fps=25",
                     '-threads','2',str(face)],check=True,timeout=120)
     subprocess.run(['ffmpeg','-y','-v','error','-i',str(directory/'voz.mp3'),'-ar','16000','-ac','1',str(audio)],check=True,timeout=120)
-    subprocess.run([str(python),str(ROOT/'scripts/sync_presenter.py'),'--face',str(face),'--audio',str(audio),'--output',str(synced)],check=True,timeout=3600)
+    subprocess.run([str(python),str(ROOT/'scripts/sync_presenter.py'),'--face',str(face),'--audio',str(audio),'--output',str(synced)],check=True,timeout=600)
     return synced

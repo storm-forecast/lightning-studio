@@ -334,7 +334,8 @@ class Monitor:
                         until = block_quota(self.root, str(exc))
                         item['youtube'] = {'error': str(exc), 'quota': True, 'ate': until.isoformat()}
                     except Exception as exc:
-                        item['youtube'] = {'error': str(exc)}
+                        # An unpublished alert must not reserve the city for the rest of the day.
+                        item.update(estado='falhou', erro=f'upload: {exc}', youtube={'error': str(exc)})
             except Exception as exc:
                 item.update(estado='falhou', erro=str(exc))
             self.save(item)
@@ -365,7 +366,8 @@ def render(directory, report, resources):
     if not fresh(report['verificado_em'], utc_now()):
         raise ValueError('alerta expirado na fila; aguarde nova verificação')
     (directory / 'alerta.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))
-    asyncio.run(edge_tts.Communicate(report['roteiro'], report.get('voz', 'pt-BR-FranciscaNeural')).save(str(directory / 'voz.mp3')))
+    asyncio.run(asyncio.wait_for(edge_tts.Communicate(report['roteiro'], report.get('voz', 'pt-BR-FranciscaNeural'))
+                                 .save(str(directory / 'voz.mp3')), timeout=120))
     lat, lon = report['lat'], report['lon']
     dx = 0.55 / np.cos(np.radians(lat)) * (620/420)
     west, east, south, north = lon - dx, lon + dx, lat - .55, lat + .55

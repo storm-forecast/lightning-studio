@@ -146,6 +146,7 @@ def radar_frame() -> Optional[dict]:
     return {"host": index["host"], "radar": {"past": [past[-1]]}}
 
 
+@heavy
 def rain_at(lat: float, lon: float) -> Optional[dict]:
     """Rain at the point's radar pixel, or None when no recent frame could be read.
     `coberto` False means no radar looks there, which is not the same as no rain."""
@@ -204,6 +205,7 @@ PERSIST_FRAMES = 5      # ~50 minutes back, well past FLOOD_RUN_MINUTES
 PERSIST_CLASS = 2       # the radar's yellow: below it there is no flood question to ask
 
 
+@heavy
 def rain_minutes_at(lat: float, lon: float, min_class: int = PERSIST_CLASS) -> Optional[float]:
     """Minutes the rain has been at ``min_class`` or above without a break, or None if unreadable.
 

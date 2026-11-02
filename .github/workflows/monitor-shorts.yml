@@ -1,24 +1,9 @@
 name: Monitor city Shorts
 
+# Manual one-off check. Automatic publication runs in watch-shorts.yml; do not
+# start this while the watcher is publishing, or both may use the same history.
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/monitor-shorts.yml'
-      - 'lightning_video_engine/app/city_shorts.py'
-      - 'lightning_video_engine/app/shorts_locales.py'
-      - 'lightning_video_engine/app/shorts_spanish.py'
-      - 'lightning_video_engine/app/shorts_presenter.py'
-      - 'lightning_video_engine/app/shorts_rain.py'
-      - 'lightning_video_engine/app/youtube.py'
-      - 'scripts/check_city_shorts.py'
-      - 'requirements.txt'
   workflow_dispatch:
-  schedule:
-    # Free best-effort monitor every ten minutes, away from the busiest minute.
-    # Scheduled Actions can still be delayed by GitHub, so this is not a
-    # substitute for an always-on worker when a strict real-time SLA is needed.
-    - cron: '2,12,22,32,42,52 * * * *'
 
 permissions:
   contents: read

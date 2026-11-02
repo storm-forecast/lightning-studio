@@ -14,6 +14,7 @@ CITIES={
  'ongole':('Ongole','India',15.50357,80.04454),
  'hibbing':('Hibbing, Minnesota','United States',47.42715,-92.93769),
  'international-falls':('International Falls, Minnesota','United States',48.60105,-93.41098),
+ 'mulvane':('Mulvane, Kansas','United States',37.47446,-97.24393),
 }
 _cache=(0,[])
 

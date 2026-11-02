@@ -36,29 +36,35 @@ def lightning_nowcast(lat, lon):
 def report(row):
     now = datetime.now(timezone.utc)
     city, country = row['cidade'], row['pais']
-    current = row['chuva_atual_mm']
-    probability = row['probabilidade_6h']
+    current = row.get('chuva_atual_mm', 0)
+    probability = row.get('probabilidade_6h', 0)
     triggers = row.get('gatilhos', [])
     lightning = lightning_nowcast(row['lat'], row['lon'])
-    headline = ('Potential flooding' if 'potential_flooding' in triggers else
+    official_event = row.get('evento_oficial')
+    headline = (f'Official {official_event}' if official_event else
+                'Potential flooding' if 'potential_flooding' in triggers else
                 'Severe weather potential' if 'severe_weather' in triggers else 'Heavy rain potential')
-    severity = 'HIGH' if 'potential_flooding' in triggers or 'severe_weather' in triggers else 'ELEVATED'
+    severity = 'HIGH' if 'potential_flooding' in triggers or 'severe_weather' in triggers or official_event else 'ELEVATED'
     observed = ("Rain is currently affecting the city area." if current > 0
                 else "No rain is measured at this point right now.")
+    if official_event:
+        observed = f"The National Weather Service has issued this alert for {row.get('areas_afetadas', 'the affected area')}. "
     lightning_line = (f"Satellite lightning nowcasting reports {lightning.get('raios_40km', 0)} lightning strikes within 40 kilometres in the last 30 minutes. "
                       if lightning.get('coberto') else "Satellite lightning nowcasting is not available over this location. ")
-    script = (f"Nowcasting update: {headline} in {city}, {country}. {observed} "
-              f"The highest precipitation probability over the next six hours is {probability} percent. "
-              + lightning_line + "This is an automated weather estimate, not an official warning. "
-              "Follow your local weather service and emergency guidance. "
-              "Subscribe to TROVOX GLOBAL for global weather updates.")
+    forecast_line = '' if official_event else f"The highest precipitation probability over the next six hours is {probability} percent. "
+    advisory_line = (f"Follow the official instruction: {row.get('instrucao_oficial', '')} " if official_event
+                     else "This is an automated weather estimate, not an official warning. ")
+    script = (f"Nowcasting update: {headline} in {city}, {country}. {observed} " + forecast_line
+              + lightning_line + advisory_line + "Follow your local weather service and emergency guidance. "
+              + "Subscribe to TROVOX GLOBAL for global weather updates.")
     return {'cidade': row['id'], 'nome': city, 'uf': country, 'pais': country,
             'verificado_em': now.isoformat().replace('+00:00', 'Z'), 'gerar': True,
             'motivos': triggers,
             'roteiro': script, 'recomendacoes': ['Check your local weather service.',
                                                   'Follow official emergency guidance.'],
-            'timezone': row.get('timezone', 'UTC'), 'idioma': 'en-GB', 'fonte': 'Open-Meteo', 'oficial': False,
+            'timezone': row.get('timezone', 'UTC'), 'idioma': 'en-GB',
             'chuva_atual_mm': current, 'probabilidade_6h': probability, 'gatilhos': triggers, 'raios': lightning,
+            'oficial': bool(official_event), 'fonte': row.get('fonte', 'Open-Meteo'),
             'lat': row['lat'], 'lon': row['lon'],
             'titulo_short': f"{city}: {headline.lower()} #Shorts", 'headline': headline, 'severity': severity}
 

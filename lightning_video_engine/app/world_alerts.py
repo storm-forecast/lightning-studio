@@ -2,7 +2,7 @@
 import json
 import time
 from urllib.parse import urlencode
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 CITIES={
  'new-york':('New York','United States',40.7128,-74.0060),'london':('London','United Kingdom',51.5072,-0.1276),
@@ -16,6 +16,32 @@ CITIES={
  'international-falls':('International Falls, Minnesota','United States',48.60105,-93.41098),
 }
 _cache=(0,[])
+
+def _florida_official_alerts():
+    """Active NWS flood alerts, kept geographically specific rather than labelling all Florida."""
+    request = Request('https://api.weather.gov/alerts/active?area=FL', headers={
+        'User-Agent': 'TROVOX-GLOBAL weather nowcasting'})
+    with urlopen(request, timeout=20) as response:
+        features = json.load(response).get('features', [])
+    rank = {'Flash Flood Warning': 0, 'Flood Warning': 1, 'Flood Advisory': 2, 'Flood Watch': 3}
+    candidates = [feature for feature in features if feature.get('properties', {}).get('event') in rank]
+    if not candidates:
+        return []
+    feature = min(candidates, key=lambda value: rank[value['properties']['event']])
+    props, geometry = feature['properties'], feature.get('geometry') or {}
+    points = geometry.get('coordinates', [[]])[0] if geometry.get('type') == 'Polygon' else []
+    if points:
+        lon = sum(point[0] for point in points) / len(points)
+        lat = sum(point[1] for point in points) / len(points)
+    else:
+        # A state-wide watch without polygon remains a regional alert, not a fabricated pinpoint.
+        lat, lon = 27.8, -81.7
+    return [{'id': 'florida-flood', 'cidade': 'Affected parts of Florida', 'pais': 'United States',
+             'lat': lat, 'lon': lon, 'nivel': 'alta', 'gatilhos': ['official_flood_alert'],
+             'evento_oficial': props['event'], 'areas_afetadas': props.get('areaDesc', ''),
+             'instrucao_oficial': props.get('instruction', ''), 'observado_em': props.get('sent'),
+             'timezone': 'America/New_York', 'fonte': props.get('senderName', 'National Weather Service'),
+             'oficial': True}]
 
 def alerts():
     global _cache
@@ -47,4 +73,8 @@ def alerts():
             if heavy_rain: triggers.append('heavy_rain')
             rows.append({'id':ident,'cidade':city,'pais':country,'lat':lat,'lon':lon,'nivel':level,'gatilhos':triggers,'chuva_atual_mm':rain,'probabilidade_6h':probability,'chuva_acumulada_3h_mm':round(accumulated_3h,1),'chuva_acumulada_6h_mm':round(accumulated_6h,1),'rajada_maxima_6h_kmh':round(gust,1),'codigo_tempo':code,'observado_em':current.get('time'),'timezone':data.get('timezone','UTC'),'fonte':'Open-Meteo','oficial':False})
         except Exception as exc:rows.append({'id':ident,'cidade':city,'pais':country,'erro':str(exc),'fonte':'Open-Meteo','oficial':False})
+    try:
+        rows.extend(_florida_official_alerts())
+    except Exception as exc:
+        rows.append({'id':'florida-flood','cidade':'Affected parts of Florida','erro':str(exc),'fonte':'NWS','oficial':True})
     _cache=(time.time(),rows);return rows

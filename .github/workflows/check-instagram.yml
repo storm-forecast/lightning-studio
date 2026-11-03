@@ -1,0 +1,43 @@
+name: Check Instagram credentials
+
+# Confirms the Actions secrets can reach the Instagram account, and reports the
+# outcome as an annotation, which the public API shows without signing in.
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/check-instagram.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+      INSTAGRAM_USER_ID: ${{ vars.INSTAGRAM_USER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Reach the Instagram account
+        run: |
+          python - <<'PY'
+          import os
+          from lightning_video_engine.app.instagram import authorized_account
+          token = os.environ.get('INSTAGRAM_ACCESS_TOKEN', '')
+          user = os.environ.get('INSTAGRAM_USER_ID', '')
+          if not token:
+              print('::error title=Instagram::secret INSTAGRAM_ACCESS_TOKEN vazio ou ausente neste repositório')
+              raise SystemExit(1)
+          shape = f"token {token[:3]}… ({len(token)} caracteres); INSTAGRAM_USER_ID={'definido' if user else 'vazio'}"
+          try:
+              account, name = authorized_account(token, user or None)
+          except Exception as exc:
+              print(f"::error title=Instagram::{shape}: {str(exc).replace(token, '***')[:400]}")
+              raise SystemExit(1)
+          print(f'::notice title=Instagram::OK — conta {name} ({account}); {shape}')
+          PY

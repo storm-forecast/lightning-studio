@@ -25,6 +25,7 @@ jobs:
           python-version: '3.11'
       - name: Reach the Instagram account
         run: |
+          python -m pip install -q python-dotenv
           python - <<'PY'
           import os
           from lightning_video_engine.app.instagram import authorized_account

@@ -46,11 +46,15 @@ jobs:
           now = datetime.now(timezone.utc)
           # One bulletin a day; the rest of the YouTube quota goes to alert Shorts.
           targets = ('08:30',)
+          # GitHub often skips this cron for hours, so the window is wide: an
+          # early render waits for the scheduled time, a late one (up to six
+          # hours) is published immediately by publish_bulletin.
+          early, late = timedelta(hours=6), timedelta(hours=6)
           due = None
           for clock in targets:
               target = datetime.strptime(f'{now:%Y-%m-%d}T{clock}:00+0000', '%Y-%m-%dT%H:%M:%S%z')
               stamp = target.strftime('%Y-%m-%dT%H:%M:%SZ')
-              if target - timedelta(minutes=75) <= now < target and stamp not in seen:
+              if target - early <= now < target + late and stamp not in seen:
                   due = stamp
                   break
           if due:

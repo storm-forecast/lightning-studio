@@ -52,6 +52,13 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+
+      # Each window is a reliable heartbeat for the daily bulletin, whose own
+      # cron GitHub runs only a few times a day.
+      - name: Nudge the bulletin dispatcher
+        continue-on-error: true
+        run: gh workflow run dispatch-bulletins.yml --ref "$GITHUB_REF_NAME"
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'

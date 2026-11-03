@@ -51,3 +51,16 @@ class PublishCities(unittest.TestCase):
             lines, failed = shorts_runs.publish_cities(monitor, Path(folder), {'salvador': alert('salvador')})
             self.assertTrue(failed)
             self.assertTrue(monitor.eligible('salvador'))
+
+    def test_youtube_limit_never_pauses_and_releases_the_city_without_instagram(self):
+        from lightning_video_engine.app import youtube
+        with tempfile.TemporaryDirectory() as folder, \
+                patch.dict('os.environ', {'SHORTS_AUTO_PUBLISH': 'true', 'INSTAGRAM_ACCESS_TOKEN': ''}), \
+                patch.object(city_shorts, 'render'), \
+                patch('lightning_video_engine.app.youtube.publish_short', side_effect=youtube.QuotaExceeded('quotaExceeded')):
+            monitor = shorts_runs.DeferredMonitor(object(), folder)
+            shorts_runs.publish_cities(monitor, Path(folder), {'salvador': alert('salvador')})
+            self.assertTrue(monitor.eligible('salvador'))
+            with patch.object(city_shorts.Monitor, 'work') as work:
+                shorts_runs.publish_cities(monitor, Path(folder), {'salvador': alert('salvador')})
+            work.assert_called_once()

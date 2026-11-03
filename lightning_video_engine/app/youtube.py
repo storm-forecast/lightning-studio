@@ -7,7 +7,7 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -35,38 +35,15 @@ class QuotaExceeded(YouTubeError):
 QUOTA_FILE = 'quota.json'
 
 
-def quota_reset_after(now=None):
-    """The YouTube Data API quota renews at midnight Pacific time."""
-    pacific = ZoneInfo('America/Los_Angeles')
-    local = (now or datetime.now(timezone.utc)).astimezone(pacific)
-    midnight = datetime(local.year, local.month, local.day, tzinfo=pacific)
-    return (midnight + timedelta(days=1)).astimezone(timezone.utc)
-
-
-# Only the daily API quota waits for midnight Pacific; the channel upload limit
-# is a rolling window and a rate limit clears in minutes, so both retry sooner.
-RETRY_AFTER = {'uploadLimitExceeded': timedelta(hours=2), 'rateLimitExceeded': timedelta(minutes=15)}
-
-
 def block_quota(root: Path, reason: str, now=None):
-    """Record an exhausted quota so monitors stop rendering until it is worth retrying."""
+    """Record the latest YouTube limit for diagnosis without pausing the monitors.
+
+    The limit is never trusted to last: the next pass simply tries again, so a
+    transient rate or channel limit cannot silence the Shorts for a whole day.
+    """
     now = now or datetime.now(timezone.utc)
-    until = quota_reset_after(now)
-    if 'quotaExceeded' not in reason:
-        pauses = [pause for name, pause in RETRY_AFTER.items() if name in reason]
-        if pauses:
-            until = min(until, now + max(pauses))
-    (Path(root) / QUOTA_FILE).write_text(json.dumps({'ate': until.isoformat(), 'motivo': reason}, ensure_ascii=False))
-    return until
-
-
-def quota_blocked_until(root: Path, now=None):
-    """The renewal instant while the recorded quota is still exhausted, otherwise None."""
-    try:
-        until = datetime.fromisoformat(json.loads((Path(root) / QUOTA_FILE).read_text())['ate'])
-    except (OSError, ValueError, KeyError, TypeError):
-        return None
-    return until if (now or datetime.now(timezone.utc)) < until else None
+    (Path(root) / QUOTA_FILE).write_text(json.dumps({'ultimo_limite': now.isoformat(), 'motivo': reason}, ensure_ascii=False))
+    return now
 
 
 def _request(url, *, data=None, headers=None, method=None):

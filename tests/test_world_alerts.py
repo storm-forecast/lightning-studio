@@ -72,3 +72,29 @@ class Escalation(unittest.TestCase):
         rows = [{'id': f'c{i}', 'gatilhos': ['storm_overhead']} for i in range(4)]
         with tempfile.TemporaryDirectory() as folder:
             self.assertEqual(len(self.publish(folder, {}, rows)), 3)
+
+
+class YouTubeLimit(unittest.TestCase):
+    def publish(self, folder, instagram):
+        rows = [{'id': f'c{i}', 'gatilhos': ['storm_overhead']} for i in range(3)]
+        with patch.object(world_shorts, 'candidates', return_value=rows), \
+                patch.object(world_shorts, 'report', side_effect=lambda row: {'cidade': row['id']}), \
+                patch.object(world_shorts, 'render'), \
+                patch.object(shorts_runs, 'publish_short', side_effect=shorts_runs.QuotaExceeded('uploadLimitExceeded')), \
+                patch.object(shorts_runs, 'cross_post', return_value=instagram) as posted:
+            lines = shorts_runs.publish_world(folder)
+        return lines, posted.call_count
+
+    def test_refused_short_still_goes_to_instagram_and_counts_as_published(self):
+        with tempfile.TemporaryDirectory() as folder:
+            lines, posts = self.publish(folder, {'url': 'https://instagram.com/reel/x'})
+            self.assertEqual(posts, 1)  # stops after the first refusal; the next pass retries
+            self.assertIn('c0', json.loads(Path(folder, 'published.json').read_text()))
+            self.assertFalse(any('monitor parado' in line for line in lines))
+
+    def test_short_published_nowhere_is_retried_next_pass(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.publish(folder, None)
+            self.assertFalse(Path(folder, 'published.json').exists())
+            _, posts = self.publish(folder, None)
+            self.assertEqual(posts, 1)

@@ -26,30 +26,25 @@ def one_pass():
     from lightning_video_engine.app.city_shorts import AgentSource
     from lightning_video_engine.app.shorts_runs import (DeferredMonitor, app_url, capture_flood_areas,
                                                         publish_cities, publish_world, scan_cities)
-    from lightning_video_engine.app.youtube import quota_blocked_until
 
     failed = False
     city_root = Path(os.environ.get('SHORTS_OUTPUT_DIR', 'output/shorts'))
     city_root.mkdir(parents=True, exist_ok=True)
-    until = quota_blocked_until(city_root)
-    if until:
-        log('Cidades: quota do YouTube esgotada até', until.isoformat())
-    else:
-        try:
-            source = AgentSource(os.environ.get('LIGHTNING_API_URL', 'https://lightning-agent.onrender.com'))
-            monitor = DeferredMonitor(source, city_root)
-            areas = capture_flood_areas(city_root, app_url())
-            scan = scan_cities(monitor, source, areas)
-            (city_root / 'scan.json').write_text(json.dumps(scan, ensure_ascii=False, indent=2))
-            log('Cidades com alerta:', ', '.join(scan['candidatas']) or 'nenhuma',
-                f"| falhas de consulta: {len(scan['erros'])}")
-            lines, city_failed = publish_cities(monitor, city_root, scan['relatorios'])
-            failed |= city_failed
-            for line in lines:
-                log('Cidades:', line)
-        except Exception as exc:
-            failed = True
-            log('Cidades: falha no ciclo:', exc)
+    try:
+        source = AgentSource(os.environ.get('LIGHTNING_API_URL', 'https://lightning-agent.onrender.com'))
+        monitor = DeferredMonitor(source, city_root)
+        areas = capture_flood_areas(city_root, app_url())
+        scan = scan_cities(monitor, source, areas)
+        (city_root / 'scan.json').write_text(json.dumps(scan, ensure_ascii=False, indent=2))
+        log('Cidades com alerta:', ', '.join(scan['candidatas']) or 'nenhuma',
+            f"| falhas de consulta: {len(scan['erros'])}")
+        lines, city_failed = publish_cities(monitor, city_root, scan['relatorios'])
+        failed |= city_failed
+        for line in lines:
+            log('Cidades:', line)
+    except Exception as exc:
+        failed = True
+        log('Cidades: falha no ciclo:', exc)
     try:
         for line in publish_world(Path(os.environ.get('WORLD_SHORTS_OUTPUT_DIR', 'output/world-shorts'))):
             log('Global:', line)

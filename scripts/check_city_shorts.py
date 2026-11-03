@@ -8,7 +8,6 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from lightning_video_engine.app.city_shorts import AgentSource,CITIES
 from lightning_video_engine.app.shorts_runs import DeferredMonitor,publish_cities,scan_cities
-from lightning_video_engine.app.youtube import quota_blocked_until
 
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('--scan',action='store_true')
@@ -16,14 +15,6 @@ a=p.parse_args()
 root=Path(os.environ.get('SHORTS_OUTPUT_DIR','output/shorts'))
 source=AgentSource(os.environ.get('LIGHTNING_API_URL','https://lightning-agent.onrender.com'))
 monitor=DeferredMonitor(source,root)
-until=quota_blocked_until(root)
-if until:
-    # Quota exhausted: stop scanning and rendering until YouTube renews it.
-    (root/'scan.json').write_text(json.dumps({'candidatas':[],'relatorios':{},'erros':[],'quota_esgotada_ate':until.isoformat()},ensure_ascii=False,indent=2))
-    if os.environ.get('GITHUB_OUTPUT'):
-        with open(os.environ['GITHUB_OUTPUT'],'a') as output:output.write('has_alerts=false\n')
-    print('Quota do YouTube esgotada até',until.isoformat(),'— monitor parado.',flush=True)
-    raise SystemExit(0)
 if a.scan:
     flood_file=root/'flood-areas.json'
     scan=scan_cities(monitor,source,json.loads(flood_file.read_text()) if flood_file.exists() else [])

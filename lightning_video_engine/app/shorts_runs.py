@@ -8,7 +8,7 @@ from pathlib import Path
 from .city_shorts import CITIES, Monitor, utc_now
 from .instagram import cross_post
 from .sp_flood_shorts import SP_FLOOD_CITIES
-from .youtube import QuotaExceeded, block_quota, publish_short, quota_blocked_until
+from .youtube import QuotaExceeded, block_quota, publish_short
 
 # An alert older than this is not rendered: the next pass re-reads it with fresh data,
 # leaving the render enough time inside the 15-minute publication limit.
@@ -80,11 +80,6 @@ def publish_cities(monitor, root, reports):
         if not ident:
             continue
         item = monitor.get(ident)
-        if quota_blocked_until(root):
-            # Do not render videos that can no longer be uploaded today.
-            item.update(estado='falhou', erro='quota do YouTube esgotada; não renderizado')
-            monitor.save(item)
-            continue
         if report_age(item['alerta']) > MAX_RENDER_AGE:
             item.update(estado='falhou', erro='alerta envelhecido na fila; nova verificação no próximo ciclo')
             monitor.save(item)
@@ -106,9 +101,6 @@ def publish_world(root, requested=''):
     from .world_shorts import URGENT, candidates, priority, render, report
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
-    until = quota_blocked_until(root)
-    if until:
-        return [f'Quota do YouTube esgotada até {until.isoformat()} — monitor parado.']
     history_file = root / 'published.json'
     history = json.loads(history_file.read_text()) if history_file.exists() else {}
     today = datetime.now(timezone.utc).date().isoformat()
@@ -138,15 +130,20 @@ def publish_world(root, requested=''):
         render(directory, item)
         try:
             saved = publish_short(directory, prefix='WORLD_YOUTUBE', brand='TROVOX GLOBAL')
+            lines.append(f"Published: {saved['url']}")
         except QuotaExceeded as exc:
-            until = block_quota(root, str(exc))
-            lines.append(f'Quota do YouTube esgotada até {until.isoformat()} — monitor parado.')
-            break
-        history[item['cidade']] = {'dia': today, 'prioridade': priority(row)}
-        history_file.write_text(json.dumps(history, ensure_ascii=False, indent=2))
-        lines.append(f"Published: {saved['url']}")
-        if (instagram := cross_post(directory)) is not None:
+            block_quota(root, str(exc))
+            lines.append(f'YouTube recusou ({exc}); nova tentativa no próximo ciclo.')
+            saved = None
+        instagram = cross_post(directory)
+        if instagram is not None:
             lines.append(f"Instagram: {instagram.get('url') or instagram.get('error')}")
+        # A city published nowhere stays open for the next pass.
+        if saved or (instagram and not instagram.get('error')):
+            history[item['cidade']] = {'dia': today, 'prioridade': priority(row)}
+            history_file.write_text(json.dumps(history, ensure_ascii=False, indent=2))
+        if saved is None:
+            break  # YouTube is refusing now; the next pass retries the rest.
     return lines
 
 

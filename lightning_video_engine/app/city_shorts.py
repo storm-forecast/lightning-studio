@@ -262,10 +262,6 @@ class Monitor:
                        for created,payload in rows)
 
     def check(self, reports=None):
-        from .youtube import quota_blocked_until
-        until = quota_blocked_until(self.root)
-        if until:
-            return {'quota_esgotada_ate': until.isoformat(), 'resultados': []}
         if not self.lock.acquire(blocking=False):
             return {'ocupado': True, 'resultados': []}
         try:
@@ -327,15 +323,21 @@ class Monitor:
                 item['estado'] = 'concluido'
                 self.save(item)
                 if os.environ.get('SHORTS_AUTO_PUBLISH', '').lower() == 'true':
+                    from .instagram import cross_post
                     from .youtube import QuotaExceeded, block_quota, publish_short
                     try:
                         item['youtube'] = publish_short(self.root / item['id'])
-                        from .instagram import cross_post
                         if (instagram := cross_post(self.root / item['id'])) is not None:
                             item['instagram'] = instagram
                     except QuotaExceeded as exc:
-                        until = block_quota(self.root, str(exc))
-                        item['youtube'] = {'error': str(exc), 'quota': True, 'ate': until.isoformat()}
+                        block_quota(self.root, str(exc))
+                        item['youtube'] = {'error': str(exc), 'quota': True}
+                        # Instagram still gets the alert; only when it also fails is the city retried.
+                        instagram = cross_post(self.root / item['id'])
+                        if instagram is not None:
+                            item['instagram'] = instagram
+                        if not instagram or instagram.get('error'):
+                            item.update(estado='falhou', erro=f'upload: {exc}')
                     except Exception as exc:
                         # An unpublished alert must not reserve the city for the rest of the day.
                         item.update(estado='falhou', erro=f'upload: {exc}', youtube={'error': str(exc)})

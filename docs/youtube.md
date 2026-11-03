@@ -36,10 +36,11 @@ disponível como artefato do workflow.
 
 ## Limites
 
-- **Cota:** a cota padrão é 10.000 unidades/dia e cada upload custa cerca de
-  1.600, ou seja, cerca de 6 vídeos por dia. Com boletins a cada duas horas,
-  os envios que passarem da cota terminam com aviso, sem falhar a geração.
-  Para publicar os 12, solicitar aumento de cota ao Google.
+- **Cota:** a cota padrão é 10.000 unidades/dia e cada upload custa 100
+  unidades desde dezembro de 2025. Um limite do YouTube (cota, uploads do
+  canal ou excesso de requisições) nunca pausa os monitores: o motivo fica em
+  `quota.json`, o Short ainda vai para o Instagram e o próximo ciclo tenta o
+  YouTube de novo.
 - **App não verificado:** enquanto o projeto OAuth não passar pela auditoria
   do Google, os vídeos enviados pela API ficam privados, mesmo com
   `YOUTUBE_PRIVACY=public`.

@@ -139,9 +139,17 @@ def publish_short(directory: Path, env=os.environ):
     return record
 
 
+_warned_missing_token = False
+
+
 def cross_post(directory: Path, env=os.environ):
     """Repeat a published YouTube Short on Instagram; never raises, so YouTube results are kept."""
+    global _warned_missing_token
     if not env.get('INSTAGRAM_ACCESS_TOKEN'):
+        # Said once per process, so a missing secret is visible in the logs without repeating every pass.
+        if not _warned_missing_token:
+            print('Instagram desativado: INSTAGRAM_ACCESS_TOKEN não configurado', flush=True)
+            _warned_missing_token = True
         return None
     try:
         return publish_short(directory, env)

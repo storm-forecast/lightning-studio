@@ -26,5 +26,8 @@ def test_token_kind_selects_host():
     assert instagram._host('IGQ...')=='graph.instagram.com'
     assert instagram._host('EAA...')=='graph.facebook.com'
 
-def test_cross_post_disabled_without_token(tmp_path):
+def test_cross_post_disabled_without_token(tmp_path,capsys,monkeypatch):
+    monkeypatch.setattr(instagram,'_warned_missing_token',False)
     assert instagram.cross_post(tmp_path,{}) is None
+    assert instagram.cross_post(tmp_path,{}) is None
+    assert capsys.readouterr().out.count('INSTAGRAM_ACCESS_TOKEN')==1

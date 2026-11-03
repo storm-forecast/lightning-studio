@@ -141,3 +141,12 @@ class QuotaStop(unittest.TestCase):
             until = youtube.block_quota(Path(folder), 'quotaExceeded', AT)
             self.assertEqual(youtube.quota_blocked_until(Path(folder), AT + timedelta(hours=13)), until)
             self.assertIsNone(youtube.quota_blocked_until(Path(folder), until))
+
+    def test_channel_and_rate_limits_retry_before_midnight(self):
+        with tempfile.TemporaryDirectory() as folder:
+            upload = youtube.block_quota(Path(folder), 'limite do YouTube atingido: uploadLimitExceeded', AT)
+            self.assertEqual(upload, AT + timedelta(hours=2))
+            rate = youtube.block_quota(Path(folder), 'limite do YouTube atingido: rateLimitExceeded', AT)
+            self.assertEqual(rate, AT + timedelta(minutes=15))
+            daily = youtube.block_quota(Path(folder), 'limite do YouTube atingido: quotaExceeded, rateLimitExceeded', AT)
+            self.assertEqual(daily, youtube.quota_reset_after(AT))

@@ -43,9 +43,19 @@ def quota_reset_after(now=None):
     return (midnight + timedelta(days=1)).astimezone(timezone.utc)
 
 
+# Only the daily API quota waits for midnight Pacific; the channel upload limit
+# is a rolling window and a rate limit clears in minutes, so both retry sooner.
+RETRY_AFTER = {'uploadLimitExceeded': timedelta(hours=2), 'rateLimitExceeded': timedelta(minutes=15)}
+
+
 def block_quota(root: Path, reason: str, now=None):
-    """Record an exhausted quota so monitors stop rendering until it renews."""
+    """Record an exhausted quota so monitors stop rendering until it is worth retrying."""
+    now = now or datetime.now(timezone.utc)
     until = quota_reset_after(now)
+    if 'quotaExceeded' not in reason:
+        pauses = [pause for name, pause in RETRY_AFTER.items() if name in reason]
+        if pauses:
+            until = min(until, now + max(pauses))
     (Path(root) / QUOTA_FILE).write_text(json.dumps({'ate': until.isoformat(), 'motivo': reason}, ensure_ascii=False))
     return until
 

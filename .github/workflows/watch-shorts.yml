@@ -9,6 +9,11 @@ on:
     branches: [main]
     paths: ['.github/workflows/watch-shorts.yml']
   workflow_dispatch:
+    inputs:
+      clear_quota:
+        description: 'Liberar o bloqueio de quota do YouTube (cidades e global) e tentar publicar de novo'
+        type: boolean
+        default: false
   schedule:
     - cron: '23 */2 * * *'
 
@@ -75,6 +80,10 @@ jobs:
           }
           restore city-shorts-state output/shorts
           restore world-shorts-state output/world-shorts
+
+      - name: Clear the YouTube quota block
+        if: inputs.clear_quota
+        run: rm -fv output/shorts/quota.json output/world-shorts/quota.json
 
       - name: Restore lip-sync checkpoint
         uses: actions/cache@v4

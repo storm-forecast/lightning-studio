@@ -36,6 +36,32 @@ class LightningTriggers(unittest.TestCase):
         self.assertEqual(self.triggers(stale), [])
 
 
+class ForecastThresholds(unittest.TestCase):
+    def row(self, *, gust=0, probability=0, code=0, rain=0, hourly_rain=0):
+        hours = [f'2026-11-04T{hour:02d}:00' for hour in range(6)]
+        data = {'current': {'time': hours[0], 'rain': rain, 'precipitation': rain, 'weather_code': code, 'wind_gusts_10m': gust},
+                'hourly': {'time': hours, 'precipitation_probability': [probability] * 6,
+                           'precipitation': [hourly_rain] * 6, 'wind_gusts_10m': [gust] * 6}}
+        with patch.object(world_alerts, '_forecast', return_value=data):
+            return world_alerts._city('london', 'London', 'United Kingdom', 51.5, -0.13)
+
+    def test_london_gust_with_no_rain_is_not_an_alert(self):
+        row = self.row(gust=50.8)
+        self.assertEqual(row['gatilhos'], [])
+        self.assertNotEqual(row['nivel'], 'alta')
+
+    def test_storm_force_gust_is_severe(self):
+        self.assertIn('severe_weather', self.row(gust=95)['gatilhos'])
+
+    def test_thunderstorm_code_needs_likely_rain(self):
+        self.assertEqual(self.row(code=95, probability=10)['gatilhos'], [])
+        self.assertIn('severe_weather', self.row(code=95, probability=70)['gatilhos'])
+
+    def test_ordinary_rain_total_is_not_potential_flooding(self):
+        self.assertNotIn('potential_flooding', self.row(probability=70, hourly_rain=4)['gatilhos'])
+        self.assertIn('potential_flooding', self.row(probability=90, hourly_rain=11)['gatilhos'])
+
+
 class Priority(unittest.TestCase):
     def test_warnings_and_storms_come_before_watches_and_forecasts(self):
         rows = [{'id': 'f', 'nivel': 'alta', 'gatilhos': ['heavy_rain']},

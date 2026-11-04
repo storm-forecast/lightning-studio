@@ -124,7 +124,8 @@ def publish_short(directory: Path, env=os.environ):
         footer = ('\n\nNowcasting regional, não é aviso oficial. Consulte a Defesa Civil e o INMET.'
                   '\nApresentadora e voz geradas por IA. Dados: Lightning Agent.'
                   '\n#previsaodotempo #raios #chuva #nowcasting')
-        heading = report.get('titulo_short') or f"{report['nome']}: alerta de tempestade{when} (horário local)"
+        label = 'risco de alagamento' if report.get('secao') == 'alagamentos-sp' else 'alerta de tempestade'
+        heading = report.get('titulo_short') or f"{report['nome']}: {label}{when} (horário local)"
     elif language.startswith('es'):
         footer = ('\n\nEstimación regional, no es un aviso oficial. Consulte al servicio meteorológico y Protección Civil de su país.'
                   '\nPresentadora y voz generadas por IA. Datos: Lightning Agent.'

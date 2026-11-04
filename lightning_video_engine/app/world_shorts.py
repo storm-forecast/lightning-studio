@@ -121,6 +121,9 @@ def report(row):
     lightning_line = (f"Satellite lightning nowcasting reports {lightning.get('raios_40km', 0)} lightning strikes within 40 kilometres in the last 30 minutes. "
                       if lightning.get('coberto') else "Satellite lightning nowcasting is not available over this location. ")
     forecast_line = '' if official_event or overhead or approaching else f"The highest precipitation probability over the next six hours is {probability} percent. "
+    gust = row.get('rajada_maxima_6h_kmh') or 0
+    if forecast_line and 'severe_weather' in triggers and gust >= 90:
+        forecast_line = f"Wind gusts of up to {round(gust)} kilometres per hour are forecast. " + forecast_line
     instruction = textwrap.shorten(str(row.get('instrucao_oficial') or 'Follow official instructions.'), width=150, placeholder='…')
     advisory_line = (f"Follow the official instruction: {instruction} " if official_event
                      else "Move indoors now and stay away from open areas and water. "

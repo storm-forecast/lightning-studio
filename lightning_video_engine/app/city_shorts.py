@@ -169,7 +169,7 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
               'Não atravesse ruas alagadas. Acompanhe os avisos da Defesa Civil.']
     motion = point.get('deslocamento') if valid else None
     text = (f"Atenção, {name}, {state}. Alerta preventivo de potencial de alagamento no município. " if flood_only else f"Atenção, {name}, {state}. Monitoramento da área até 40 quilômetros do centro. ")
-    text += '; '.join(reasons) + '. ' if reasons else 'Sem gatilho de vídeo nesta verificação. '
+    text += '; '.join(reasons) + '. ' if reasons else ''
     if not flood_only and near and not lightning['dados_atrasados']:
         text += f"Raio mais próximo a {near['km']} quilômetros, no setor {near['direcao']}. "
     if motion and not flood_only:
@@ -289,8 +289,10 @@ class Monitor:
                                 daily=[json.loads(r[0]) for r in recent]
                                 used={x.get('alerta',{}).get('zona_id') for x in daily if x.get('alerta',{}).get('zona_id')}
                                 pending_zones={json.loads(r[0]).get('alerta',{}).get('zona_id') for r in pending if json.loads(r[0])['estado'] in ('fila','gerando')}
-                                blocked=not zone or zone in used or zone in pending_zones or len(used) >= 5
-                                if blocked: report['suprimido']='zona já publicada ou limite diário de cinco zonas atingido'
+                                # A polygon's shape changes between scans, so the limit is per city, not per shape.
+                                from .sp_flood_zones import MAX_DAILY_SHORTS_PER_CITY
+                                blocked=not zone or bool(pending_zones) or len(used) >= MAX_DAILY_SHORTS_PER_CITY
+                                if blocked: report['suprimido']='sem área confirmada ou alerta de alagamento já emitido hoje para a cidade'
                             else:
                                 blocked = any(json.loads(r[0])['estado'] in ('fila', 'gerando') for r in pending)
                                 blocked |= any(json.loads(r[0])['estado'] == 'concluido' for r in recent)

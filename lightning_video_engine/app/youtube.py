@@ -217,7 +217,8 @@ def publish_short(directory: Path, env=os.environ, *, prefix='YOUTUBE', brand='T
     if channel != env[names['CHANNEL_ID']]:
         raise YouTubeError('o token pertence a outro canal; upload recusado')
     local = started.astimezone(ZoneInfo(report.get('timezone','America/Sao_Paulo')))
-    title = report.get('titulo_short') or f"{report['nome']} ({report['uf']}): alerta de tempestade | {local:%d/%m %H:%M} #Shorts"
+    label = 'risco de alagamento' if report.get('secao') == 'alagamentos-sp' else 'alerta de tempestade'
+    title = report.get('titulo_short') or f"{report['nome']} ({report['uf']}): {label} | {local:%d/%m %H:%M} #Shorts"
     language = report.get('idioma', 'pt-BR')
     description = (f"{brand} — atualização de {local:%d/%m/%Y às %H:%M}, horário local.\n"
         + report['roteiro'] + '\n\nNowcasting regional, não é aviso oficial. Consulte a Defesa Civil e o INMET.'

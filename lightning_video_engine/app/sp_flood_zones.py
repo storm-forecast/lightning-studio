@@ -2,7 +2,7 @@
 import hashlib
 import json
 
-MAX_DAILY_SHORTS_PER_CITY = 5
+MAX_DAILY_SHORTS_PER_CITY = 1
 
 def zone_key(area):
     """Stable key from a captured official polygon, never a guessed neighbourhood."""

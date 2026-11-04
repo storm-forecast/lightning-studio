@@ -148,11 +148,11 @@ def _city(ident, city, country, lat, lon):
         gust=max([float(current.get('wind_gusts_10m') or 0)] + [float(x or 0) for x in hourly.get('wind_gusts_10m',[])[start:start+6]])
         rain=float(current.get('rain') or current.get('precipitation') or 0)
         code=int(current.get('weather_code') or 0)
-        flood=rain>=5 or accumulated_3h>=20 or accumulated_6h>=20
-        # Strong gusts can cause local disruption before the conventional
-        # severe-thunderstorm threshold. Publish a clearly-labelled
-        # severe-weather-potential Short from 50 km/h upward.
-        severe=code in (95,96,99) or gust>=50
+        flood=rain>=5 or accumulated_3h>=30 or accumulated_6h>=50
+        # A public alert needs a dangerous signal: storm-force gusts, or a
+        # thunderstorm code the same forecast also supports with likely rain.
+        # A 50 km/h gust with a 0% rain chance once produced a London "alert".
+        severe=gust>=90 or (code in (95,96,99) and probability>=60)
         heavy_rain=probability>=80 and accumulated_6h>=15
         level='alta' if flood or severe or heavy_rain else 'moderada' if rain>0 or probability>=40 else 'baixa'
         triggers=[]

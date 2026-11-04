@@ -30,14 +30,16 @@ def scan_cities(monitor, source, flood_areas=(), *, workers=6, deadline=240):
         if not monitor.eligible(key):
             return None
         report = monitor.evaluate_city(key)
-        if key in SP_FLOOD_CITIES and flood_areas:
+        # A flood-potential polygon only locates an alert; it never starts one.
+        # Rain confirmed on radar over the municipality must already have triggered it.
+        if key in SP_FLOOD_CITIES and flood_areas and report.get('gerar'):
             name, state, _, _ = CITIES[key]
             zones = confirmed_zones(source, name, state, flood_areas)
             if zones:
                 report['flood_zones'] = zones
                 report['zona_id'] = zones[0]['zona_id']
-                report['gerar'] = True
-                report['motivos'] = ['polígono oficial de potencial de alagamento associado ao município']
+                report['motivos'] = list(report.get('motivos') or []) + [
+                    'área de potencial de alagamento do mapa TROVOX associada ao município']
         return report
 
     reports, errors = {}, []

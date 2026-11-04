@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -185,6 +186,27 @@ def publish_bulletin(directory: Path, presented_at: datetime, env=os.environ, pu
     return record
 
 
+MAX_DAILY_ALERTS = 7
+ALERT_TITLE = re.compile(r' \| \d{2}/\d{2} \d{2}:\d{2} #Shorts$')
+
+
+def alerts_published_today(token, channel, now=None):
+    """Alert Shorts already on the channel today (Brasília), read from YouTube itself.
+
+    The channel is the only count every monitor shares. Bulletins and hand-made
+    videos do not carry the alert title, so they never use up an alert's place.
+    """
+    headers = {'Authorization': f'Bearer {token}'}
+    items = _request(f'{API}/channels?part=contentDetails&id={channel}', headers=headers)[1].get('items', [])
+    uploads = items[0]['contentDetails']['relatedPlaylists']['uploads']
+    videos = _request(f'{API}/playlistItems?part=snippet&maxResults=50&playlistId={uploads}', headers=headers)[1].get('items', [])
+    zone = ZoneInfo('America/Sao_Paulo')
+    today = (now or datetime.now(zone)).astimezone(zone).date()
+    return sum(1 for video in videos
+               if ALERT_TITLE.search(video['snippet'].get('title', ''))
+               and datetime.fromisoformat(video['snippet']['publishedAt'].replace('Z', '+00:00')).astimezone(zone).date() == today)
+
+
 def publish_short(directory: Path, env=os.environ, *, prefix='YOUTUBE', brand='TROVOX TEMPO'):
     """Publish a fresh approved-format city alert, recording the server's actual visibility."""
     from datetime import timezone
@@ -216,6 +238,14 @@ def publish_short(directory: Path, env=os.environ, *, prefix='YOUTUBE', brand='T
     channel, name = authorized_channel(token)
     if channel != env[names['CHANNEL_ID']]:
         raise YouTubeError('o token pertence a outro canal; upload recusado')
+    if prefix == 'YOUTUBE':
+        # Unknown count means no upload: the cap must hold even when the check fails.
+        try:
+            published = alerts_published_today(token, channel)
+        except Exception as exc:
+            raise QuotaExceeded(f'contagem diária de alertas indisponível: {exc}') from exc
+        if published >= MAX_DAILY_ALERTS:
+            raise QuotaExceeded(f'limite diário de {MAX_DAILY_ALERTS} alertas do canal atingido')
     local = started.astimezone(ZoneInfo(report.get('timezone','America/Sao_Paulo')))
     label = 'risco de alagamento' if report.get('secao') == 'alagamentos-sp' else 'alerta de tempestade'
     title = report.get('titulo_short') or f"{report['nome']} ({report['uf']}): {label} | {local:%d/%m %H:%M} #Shorts"

@@ -362,7 +362,7 @@ def panel(report, labels, scene, time):
         for line in textwrap.wrap(reason[0].upper() + reason[1:], 34)[:4]:
             draw.text((240, y), line, font=font(BOLD, 22), fill=TEXT)
             y += 28
-    for index, line in enumerate((labels['source'], labels['legend'], labels['official'], labels['ai'])):
+    for index, line in enumerate((labels['source'], labels['legend'], labels['official'])):
         draw.text((240, 1106 + index * 23), line, font=font(FONT, 17), fill=MUTED)
     return image
 

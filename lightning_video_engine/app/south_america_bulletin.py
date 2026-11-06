@@ -752,7 +752,7 @@ def render_video(path, timing, layers, scenes, maker, clouds, cloud_times, table
         draw.rounded_rectangle((110, 640, 720, 760), 60, fill=(214, 48, 49))
         wrapped(draw, (415, 668), 'INSCREVA-SE', FB, 58, (255, 255, 255), anchor='ma')
         wrapped(draw, (110, 800), 'Ative o sino para se manter informado.', FB, 38, AMBER)
-        wrapped(draw, (110, 980), 'Previsões, não aviso oficial: siga a Defesa Civil e o Inmet. Apresentadora e voz geradas por IA.', FR, 26, MUT)
+        wrapped(draw, (110, 980), 'Previsões, não aviso oficial: siga a Defesa Civil e o Inmet.', FR, 26, MUT)
     end_layer = overlay(ending)
     credit = overlay(lambda d: wrapped(d, (W - 60, 44), 'Imagens reais do satélite GOES-19', FR, 26, TXT, anchor='ra', shadow=True))
 

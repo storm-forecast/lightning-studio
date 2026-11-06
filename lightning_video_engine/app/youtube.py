@@ -110,6 +110,11 @@ def bulletin_metadata(directory: Path, presented_at: datetime, *, timezone_name=
               'Apresentadora e voz geradas por inteligência artificial. Dados e mapas: Lightning Agent.',
               '',
               '#previsaodotempo #raios #chuva #Brasil']
+    written = directory / 'youtube-metadata.json'
+    if written.is_file():
+        # The producer of this bulletin wrote its own title and description from the day's data.
+        text = json.loads(written.read_text())
+        title, lines = text['title'], [text['description']]
     status = {'privacyStatus': privacy, 'selfDeclaredMadeForKids': False,
               'containsSyntheticMedia': True}
     if publish_at is not None:

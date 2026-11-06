@@ -45,16 +45,19 @@ jobs:
           seen = {item['publish_at'] for item in recorded}
           now = datetime.now(timezone.utc)
           # One bulletin a day; the rest of the YouTube quota goes to alert Shorts.
-          targets = ('08:30',)
-          # GitHub often skips this cron for hours, so the window is wide: an
-          # early render waits for the scheduled time, a late one (up to six
-          # hours) is published immediately by publish_bulletin.
-          early, late = timedelta(hours=6), timedelta(hours=6)
+          # The day's forecast files are complete only at about 15:20 UTC, so the
+          # render starts after them and never before.
+          targets = ('16:30',)
+          # GitHub often skips this cron for hours: a late render (up to six hours)
+          # is published immediately by publish_bulletin.
+          early, late = timedelta(0), timedelta(hours=6)
+          # The bulletin of 2026-11-06 was published by hand.
+          first_day = datetime(2026, 11, 7, tzinfo=timezone.utc)
           due = None
           for clock in targets:
               target = datetime.strptime(f'{now:%Y-%m-%d}T{clock}:00+0000', '%Y-%m-%dT%H:%M:%S%z')
               stamp = target.strftime('%Y-%m-%dT%H:%M:%SZ')
-              if target - early <= now < target + late and stamp not in seen:
+              if target >= first_day and target - early <= now < target + late and stamp not in seen:
                   due = stamp
                   break
           if due:
@@ -66,6 +69,8 @@ jobs:
         if: steps.slot.outputs.publish_at != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          # This job has no checkout, so gh must be told which repository to act on.
+          GH_REPO: ${{ github.repository }}
         run: gh workflow run generate-video.yml --ref main -f publish_at="${{ steps.slot.outputs.publish_at }}"
 
       - name: Record the dispatched slot

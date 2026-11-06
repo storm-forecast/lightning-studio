@@ -2,9 +2,6 @@
 name: Generate weather bulletin
 
 on:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/generate-video.yml']
   workflow_dispatch:
     inputs:
       publish_at:
@@ -22,7 +19,7 @@ concurrency:
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 170
     env:
       VIDEO_PROFILE: balanced
       VIDEO_AUTOSTART: "false"
@@ -73,7 +70,7 @@ jobs:
       - name: Install video and browser dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg fonts-dejavu-core libsndfile1
+          sudo apt-get install -y ffmpeg fonts-dejavu-core fonts-ubuntu gdal-bin libsndfile1
           python -m pip install --upgrade pip playwright
           python -m playwright install chromium --with-deps
           mkdir -p .cache/chromium
@@ -86,10 +83,14 @@ jobs:
           test -n "$WAV2LIP_CHECKPOINT_URL" || { echo 'Configure o secret WAV2LIP_CHECKPOINT_URL'; exit 1; }
           bash scripts/install_local.sh
 
-      - name: Generate optimized bulletin
+      - name: Generate the South America bulletin
         run: |
           stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-          .local/venv/bin/python scripts/produce_bulletin.py --directory "output/trovox-${stamp}"
+          args=(--directory "output/trovox-${stamp}")
+          if [ -n "${YOUTUBE_PUBLISH_AT:-}" ]; then
+            args+=(--publish-at "$YOUTUBE_PUBLISH_AT")
+          fi
+          .local/venv/bin/python scripts/produce_south_america_bulletin.py "${args[@]}"
           echo "BULLETIN_DIR=output/trovox-${stamp}" >> "$GITHUB_ENV"
 
       - name: Upload to YouTube
@@ -105,6 +106,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: trovox-weather-bulletin-${{ github.run_id }}
-          path: output/**
+          path: |
+            output/*/boletim.mp4
+            output/*/roteiro.json
+            output/*/destaques.json
+            output/*/youtube-metadata.json
           if-no-files-found: warn
           retention-days: 1

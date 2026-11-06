@@ -68,7 +68,7 @@ def layout(image, report, title, kind):
     return canvas
 
 
-def synchronize(directory):
+def synchronize(directory, timeout=600):
     python=Path(os.environ.get('LIPSYNC_PYTHON',ROOT/'.local/venv/bin/python'))
     model=Path(os.environ.get('WAV2LIP_ROOT',ROOT/'.local/Wav2Lip'))
     checkpoint=Path(os.environ.get('WAV2LIP_CHECKPOINT',model/'checkpoints/wav2lip-compatible.pth'))
@@ -81,5 +81,5 @@ def synchronize(directory):
                     "crop=w='if(gt(iw/ih,1),trunc(ih*0.72/2)*2,iw)':h=ih,scale=384:-2,fps=25",
                     '-threads','2',str(face)],check=True,timeout=120)
     subprocess.run(['ffmpeg','-y','-v','error','-i',str(directory/'voz.mp3'),'-ar','16000','-ac','1',str(audio)],check=True,timeout=120)
-    subprocess.run([str(python),str(ROOT/'scripts/sync_presenter.py'),'--face',str(face),'--audio',str(audio),'--output',str(synced)],check=True,timeout=600)
+    subprocess.run([str(python),str(ROOT/'scripts/sync_presenter.py'),'--face',str(face),'--audio',str(audio),'--output',str(synced)],check=True,timeout=timeout)
     return synced

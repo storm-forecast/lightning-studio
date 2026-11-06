@@ -49,6 +49,13 @@ LABELS = {
            'scan': 'imagen de satélite', 'rain': 'lluvia', 'now': 'LO QUE OBSERVAMOS AHORA', 'source': 'Imágenes observadas del GOES-19.',
            'legend': 'Puntos amarillos: rayos. Colores fuertes: topes fríos.', 'official': 'No es un aviso oficial: siga a Defensa Civil.', 'ai': 'Presentadora y voz generadas por IA.'},
 }
+LABELS['en'] = {'alert': 'ALERT', 'flood': 'FLOOD POTENTIAL', 'official': 'OFFICIAL ALERT', 'lightning': 'Strikes within 40 km', 'window': 'in 30 min',
+                'nearest': 'Nearest strike', 'none': 'none nearby', 'rain_now': 'Rain now', 'chance': 'Rain chance', 'chance_window': 'next 6 hours', 'dry': 'no rain',
+                'unread': 'unavailable', 'protect': 'STAY SAFE', 'scan': 'satellite image', 'now': 'WHAT WE OBSERVE NOW', 'source': 'Observed GOES-19 images.',
+                'legend': 'Yellow dots: lightning. Strong colours: cold tops.', 'not_official': 'Not an official warning: follow local services.',
+                'ai': 'AI-generated presenter and voice.'}
+EN_DIRECTIONS = {'norte': 'north', 'nordeste': 'northeast', 'leste': 'east', 'sudeste': 'southeast', 'sul': 'south', 'sudoeste': 'southwest', 'oeste': 'west', 'noroeste': 'northwest'}
+MAX_VIEW = 65             # degrees of arc from below the satellite; farther away the disc is too oblique
 RAIN_ES = {'fraca': 'débil', 'moderada': 'moderada', 'forte': 'fuerte', 'intensa': 'intensa', 'extrema': 'extrema'}
 
 
@@ -113,6 +120,12 @@ def scan_angles(lat, lon, lon_origin=-75.2, height=42164160.0, semi_major=637813
     sy = -radius * np.cos(geocentric) * np.sin(lon - math.radians(lon_origin))
     sz = radius * np.sin(geocentric)
     return np.arcsin(-sy / np.sqrt(sx ** 2 + sy ** 2 + sz ** 2)), np.arctan(sz / sx)
+
+
+def in_view(lat, lon, lon_origin=-75.2):
+    """Whether GOES-19 sees this place well enough to show its clouds."""
+    arc = math.cos(math.radians(lat)) * math.cos(math.radians(lon - lon_origin))
+    return math.degrees(math.acos(max(-1, min(1, arc)))) <= MAX_VIEW
 
 
 def view(lat):
@@ -201,12 +214,19 @@ def map_layer(report, others):
     layer = Image.new('RGBA', (W, H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(layer)
     lat, lon = report['lat'], report['lon']
-    outlines = ROOT / 'templates/estados-america-do-sul.json'
-    if outlines.exists():
-        for ring in json.loads(outlines.read_text()):
-            points = [screen_xy(y, x, lat, lon) for x, y in ring]
-            if any(-40 <= px <= W + 40 and -40 <= py <= H + 40 for px, py in points):
-                draw.line(points, fill=(232, 238, 244, 105), width=1)
+    for name, shade, width in (('estados-america-do-sul.json', 105, 1), ('paises-americas.json', 170, 2)):
+        outlines = ROOT / 'templates' / name
+        if outlines.exists():
+            for ring in json.loads(outlines.read_text()):
+                points = [screen_xy(y, x, lat, lon) for x, y in ring]
+                if any(-40 <= px <= W + 40 and -40 <= py <= H + 40 for px, py in points):
+                    draw.line(points, fill=(232, 238, 244, shade), width=width)
+    # An official warning shows its real area, not only the city.
+    geometry = report.get('geometria_alerta') or {}
+    polygons = geometry.get('coordinates') or []
+    for polygon in ([polygons] if geometry.get('type') == 'Polygon' else polygons):
+        for ring in polygon:
+            draw.polygon([screen_xy(y, x, lat, lon) for x, y in ring], fill=(233, 72, 74, 70), outline=(255, 110, 110, 255), width=3)
     per_x, per_y = view(lat)
     taken = [(W / 2, CITY_Y)]
     for name, other_lat, other_lon in others:
@@ -225,7 +245,14 @@ def map_layer(report, others):
     star = [(x + (14 if i % 2 == 0 else 6) * math.sin(i * math.pi / 5), y - (14 if i % 2 == 0 else 6) * math.cos(i * math.pi / 5))
             for i in range(10)]
     draw.polygon(star, fill=(31, 111, 235, 255), outline=(255, 255, 255, 255))
-    shadowed(draw, (x + radius + 10, y - 16), report['nome'], 26)
+    # A long name goes under the circle, shrunk if needed, so that it is never cut by the screen edge.
+    name, size = report['nome'].split(',')[0], 26
+    while font(BOLD, size).getlength(name) > W - 40 and size > 14:
+        size -= 1
+    if x + radius + 10 + font(BOLD, size).getlength(name) <= W - 12:
+        shadowed(draw, (x + radius + 10, y - 16), name, size)
+    else:
+        shadowed(draw, (x, y + radius + 8), name, size, anchor='ma')
     return np.asarray(layer, dtype=np.float32) / 255
 
 
@@ -300,6 +327,19 @@ def write_loop(path, fields, times, cells, end, layer, clock, label):
         raise RuntimeError('falha ao codificar as nuvens')
 
 
+def global_cards(report, labels):
+    lightning = report.get('raios') or {}
+    near = lightning.get('mais_proximo')
+    covered = lightning.get('coberto')
+    count = lightning.get('raios_40km')
+    rain = report.get('chuva_atual_mm')
+    return [(labels['lightning'], f'{count}' if covered and isinstance(count, int) else labels['unread'], labels['window'] if covered else ''),
+            (labels['nearest'], f"{near['km']:.0f} km" if covered and near else labels['none'] if covered else labels['unread'],
+             EN_DIRECTIONS.get(near.get('direcao'), '') if covered and near else ''),
+            (labels['rain_now'], f'{rain:.1f} mm' if rain else labels['dry'], ''),
+            (labels['chance'], f"{report.get('probabilidade_6h', 0)}%", labels['chance_window'])]
+
+
 def panel(report, labels, scene, time):
     """Everything over the clouds for one scene; only the clouds and the clock move."""
     array = np.zeros((H, W, 4), np.uint8)
@@ -310,9 +350,9 @@ def panel(report, labels, scene, time):
     image = Image.fromarray(array)
     draw = ImageDraw.Draw(image)
     draw.rectangle((0, 0, W, 6), fill=AMBER + (255,))
-    shadowed(draw, (32, 26), 'TROVOX TEMPO', 25, AMBER)
+    shadowed(draw, (32, 26), report.get('marca', 'TROVOX TEMPO'), 25, AMBER)
     flood = report.get('secao') == 'alagamentos-sp'
-    chip = labels['flood'] if flood else labels['alert']
+    chip = labels['flood'] if flood else labels['official'] if report.get('oficial') else labels['alert']
     face = font(BOLD, 21)
     width = int(face.getlength(chip)) + 28
     draw.rounded_rectangle((32, 70, 32 + width, 106), 8, fill=RED + (255,))
@@ -322,23 +362,23 @@ def panel(report, labels, scene, time):
     while font(BOLD, size).getlength(name) > 650 and size > 28:
         size -= 2
     shadowed(draw, (32, 118), name, size)
-    shadowed(draw, (32, 182), time.strftime('%d/%m/%Y • %H:%M'), 25, MUTED, bold=False)
+    shadowed(draw, (32, 182), time.strftime('%b %d, %Y • %H:%M' if labels.get('rain_now') else '%d/%m/%Y • %H:%M'), 25, MUTED, bold=False)
     if scene == 'facts':
         shadowed(draw, (32, 712), labels['now'], 22, AMBER)
-        near = report['raios'].get('mais_proximo')
+        near = (report.get('raios') or {}).get('mais_proximo')
         rain = (report.get('chuva') or {})
         rain_name = rain.get('nome')
         if report.get('idioma', '').startswith('es'):
             rain_name = RAIN_ES.get(rain_name, rain_name)
         motion = (report.get('nowcasting') or {}).get('deslocamento')
-        count = report['raios'].get('raios_40km')
-        cards = [(labels['lightning'], f'{count}' if isinstance(count, int) else labels['unread'], labels['window']),
-                 (labels['nearest'], f"{near['km']:.0f} km" if near else labels['none'],
-                  near.get('direcao', '') if near else ''),
-                 (labels['radar'], f"{labels['rain']} {rain_name}" if rain_name else
-                  (labels['dry'] if rain.get('coberto') else labels['unread']), ''),
-                 (labels['motion'], f"{motion['velocidade_kmh']} km/h" if motion else labels['unknown'],
-                  motion['para'] if motion else '')]
+        count = (report.get('raios') or {}).get('raios_40km')
+        cards = [] if labels.get('rain_now') else [
+            (labels['lightning'], f'{count}' if isinstance(count, int) else labels['unread'], labels['window']),
+            (labels['nearest'], ('< 1 km' if near['km'] < 1 else f"{near['km']:.0f} km") if near else labels['none'], near.get('direcao', '') if near else ''),
+            (labels['radar'], f"{labels['rain']} {rain_name}" if rain_name else (labels['dry'] if rain.get('coberto') else labels['unread']), ''),
+            (labels['motion'], f"{motion['velocidade_kmh']} km/h" if motion else labels['unknown'], motion['para'] if motion else '')]
+        if labels.get('rain_now'):
+            cards = global_cards(report, labels)
         for index, (title, value, detail) in enumerate(cards):
             x, y = 30 + (index % 2) * 335, 748 + (index // 2) * 112
             draw.rounded_rectangle((x, y, x + 325, y + 102), 14, fill=(26, 40, 56, 255))
@@ -356,18 +396,22 @@ def panel(report, labels, scene, time):
                 draw.text((60, y), line, font=font(FONT, 24), fill=TEXT)
                 y += 31
             y += 9
-    reason = (report.get('motivos') or [''])[0]
+    reason = report.get('motivo_tela') or (report.get('motivos') or [''])[0]
     if reason:
         y = 985
         for line in textwrap.wrap(reason[0].upper() + reason[1:], 34)[:4]:
             draw.text((240, y), line, font=font(BOLD, 22), fill=TEXT)
             y += 28
-    for index, line in enumerate((labels['source'], labels['legend'], labels['official'])):
+    notice = f"Official source: {report.get('fonte')}" if report.get('oficial') and labels.get('not_official') else labels.get('not_official') or labels['official']
+    for index, line in enumerate((labels['source'], labels['legend'], notice)):
         draw.text((240, 1106 + index * 23), line, font=font(FONT, 17), fill=MUTED)
     return image
 
 
 def nearby(report):
+    if report.get('marca') == 'TROVOX GLOBAL':
+        from .world_alerts import CITIES as WORLD
+        return [(city[0].split(',')[0], city[2], city[3]) for key, city in WORLD.items() if key != report['cidade']]
     from .city_shorts import CITIES
     return [(city[0], city[2], city[3]) for key, city in CITIES.items()
             if key != report['cidade'] and not key.startswith('sp-')]
@@ -377,6 +421,8 @@ def render_clouds(directory, report, resources):
     """Compose short.mp4. Raises when the observed data cannot support the video."""
     from .shorts_locales import city_timezone
     from .shorts_presenter import synchronize
+    if not in_view(report['lat'], report['lon']):
+        raise ValueError('local fora do alcance do GOES-19')
     duration = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0',
                                               str(directory / 'voz.mp3')]))
     if duration > 60:
@@ -393,7 +439,8 @@ def render_clouds(directory, report, resources):
     end = datetime.fromisoformat(flashes['fim'].replace('Z', '+00:00'))
     cells = lightning_cells(flashes, report)
     zone = ZoneInfo(report.get('timezone') or city_timezone(report['cidade'], report['uf']))
-    labels = LABELS['es' if report.get('idioma', '').startswith('es') else 'pt']
+    language = report.get('idioma', '')
+    labels = LABELS['es' if language.startswith('es') else 'en' if language.startswith('en') else 'pt']
     write_loop(directory / 'nuvens.mp4', fields, times, cells, end, map_layer(report, nearby(report)),
                lambda moment: moment.astimezone(zone).strftime('%H:%M'), labels['scan'])
     checked = datetime.fromisoformat(report['verificado_em'].replace('Z', '+00:00')).astimezone(zone)

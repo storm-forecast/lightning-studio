@@ -53,9 +53,22 @@ class ForecastThresholds(unittest.TestCase):
     def test_storm_force_gust_is_severe(self):
         self.assertIn('severe_weather', self.row(gust=95)['gatilhos'])
 
-    def test_thunderstorm_code_needs_likely_rain(self):
-        self.assertEqual(self.row(code=95, probability=10)['gatilhos'], [])
-        self.assertIn('severe_weather', self.row(code=95, probability=70)['gatilhos'])
+    def test_thunderstorm_code_needs_likely_rain_and_observed_lightning(self):
+        with patch.object(world_alerts, '_lightning_observed', return_value=True):
+            self.assertEqual(self.row(code=95, probability=10)['gatilhos'], [])
+            self.assertIn('severe_weather', self.row(code=95, probability=70)['gatilhos'])
+        with patch.object(world_alerts, '_lightning_observed', return_value=False):
+            self.assertEqual(self.row(code=95, probability=70)['gatilhos'], [])
+
+    def test_no_lightning_reading_never_confirms_a_forecast_storm(self):
+        with patch.object(world_alerts, '_lightning_triggers', side_effect=OSError('sem rede')):
+            self.assertFalse(world_alerts._lightning_observed(-23.5, -46.6))
+        far = {'coberto': True, 'dados_atrasados': False, 'mais_proximo': {'km': 92, 'minutos_atras': 5}}
+        with patch.object(world_alerts, '_lightning_triggers', return_value=([], far)):
+            self.assertFalse(world_alerts._lightning_observed(-23.5, -46.6))
+        near = {'coberto': True, 'dados_atrasados': False, 'mais_proximo': {'km': 12, 'minutos_atras': 5}}
+        with patch.object(world_alerts, '_lightning_triggers', return_value=([], near)):
+            self.assertTrue(world_alerts._lightning_observed(-23.5, -46.6))
 
     def test_ordinary_rain_total_is_not_potential_flooding(self):
         self.assertNotIn('potential_flooding', self.row(probability=70, hourly_rain=4)['gatilhos'])

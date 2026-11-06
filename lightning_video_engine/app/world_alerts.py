@@ -113,6 +113,17 @@ def _lightning_triggers(lat, lon):
     return triggers, value
 
 
+def _lightning_observed(lat, lon):
+    """Fresh strikes within 40 km; no reading counts as none, so a forecast alone never alerts."""
+    try:
+        _, value = _lightning_triggers(lat, lon)
+        near = (value or {}).get('mais_proximo') or {}
+    except Exception:
+        return False
+    fresh = value.get('coberto') and not value.get('dados_atrasados')
+    return bool(fresh and near.get('km', float('inf')) <= 40 and 0 <= near.get('minutos_atras', float('inf')) <= 30)
+
+
 def _forecast(ident, lat, lon):
     """Open-Meteo forecast for a city, shared across passes for FORECAST_TTL seconds."""
     path = Path(os.environ['WORLD_ALERTS_CACHE']) if os.environ.get('WORLD_ALERTS_CACHE') else None
@@ -152,7 +163,10 @@ def _city(ident, city, country, lat, lon):
         # A public alert needs a dangerous signal: storm-force gusts, or a
         # thunderstorm code the same forecast also supports with likely rain.
         # A 50 km/h gust with a 0% rain chance once produced a London "alert".
-        severe=gust>=90 or (code in (95,96,99) and probability>=60)
+        # A thunderstorm code alone is only a forecast: it needs lightning actually observed near the city.
+        # A code with 0 strikes in 40 km once published a "severe weather" Short for Sao Paulo.
+        storm_code=code in (95,96,99) and probability>=60
+        severe=gust>=90 or (storm_code and _lightning_observed(lat,lon))
         heavy_rain=probability>=80 and accumulated_6h>=15
         level='alta' if flood or severe or heavy_rain else 'moderada' if rain>0 or probability>=40 else 'baixa'
         triggers=[]

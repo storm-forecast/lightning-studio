@@ -37,6 +37,15 @@ def candidates():
     return sorted(rows, key=priority)
 
 
+class ObservedMap:
+    """The one reading the cloud layout needs from the Lightning Agent."""
+
+    def json(self, path, **_):
+        base = os.environ.get('LIGHTNING_API_URL', 'https://lightning-agent.onrender.com').rstrip('/')
+        with urlopen(base + path, timeout=45) as response:
+            return json.load(response)
+
+
 def lightning_nowcast(lat, lon):
     """Observed satellite lightning where the Lightning Agent has coverage; never invent strikes."""
     base = os.environ.get('LIGHTNING_API_URL', 'https://lightning-agent.onrender.com').rstrip('/')
@@ -160,6 +169,13 @@ def render(directory: Path, item):
     (directory / 'alerta.json').write_text(json.dumps(item, ensure_ascii=False, indent=2))
     voice = 'en-US-AvaNeural' if item.get('idioma') == 'en-US' else 'en-GB-SoniaNeural'
     asyncio.run(asyncio.wait_for(edge_tts.Communicate(item['roteiro'], voice).save(str(directory / 'voz.mp3')), timeout=120))
+    try:
+        from .alert_clouds import render_clouds
+        render_clouds(directory, {**item, 'marca': 'TROVOX GLOBAL', 'motivo_tela': item.get('headline')}, ObservedMap())
+        return
+    except Exception as exc:
+        # Places GOES-19 cannot see, and any satellite failure, keep the map layout below.
+        print('Moving clouds unavailable; using the static layout:', exc, flush=True)
     image = Image.new('RGB', (720, 1280), '#081522')
     draw = ImageDraw.Draw(image)
     regular, bold = ImageFont.truetype(FONT, 30), ImageFont.truetype(BOLD, 48)

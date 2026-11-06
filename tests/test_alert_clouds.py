@@ -64,6 +64,44 @@ def test_panels_render_with_and_without_optional_data(scene, language):
     assert panel(bare, labels, scene, moment).size == (720, 1280)
 
 
+@pytest.mark.parametrize('lat,lon,seen', [(40.7, -74.0, True), (25.8, -80.2, True), (49.3, -123.1, True), (-34.6, -58.4, True),
+                                           (35.7, 139.7, False), (1.35, 103.8, False), (-33.9, 151.2, False), (51.5, -0.1, False), (19.1, 72.9, False)])
+def test_only_places_goes19_sees_get_clouds(lat, lon, seen):
+    assert alert_clouds.in_view(lat, lon) is seen
+
+
+def test_clouds_refuse_a_place_out_of_view_before_any_work(tmp_path):
+    with pytest.raises(ValueError):
+        alert_clouds.render_clouds(tmp_path, {'lat': 35.7, 'lon': 139.7}, object())
+
+
+def global_report(**fields):
+    return dict({'nome': 'New York', 'uf': 'United States', 'marca': 'TROVOX GLOBAL', 'idioma': 'en-US', 'motivo_tela': 'Thunderstorm approaching',
+                 'raios': {'coberto': True, 'raios_40km': 9, 'mais_proximo': {'km': 20.4, 'direcao': 'sudoeste'}}, 'chuva_atual_mm': 2.5, 'probabilidade_6h': 80,
+                 'recomendacoes': ['Check your local weather service.'], 'motivos': ['storm_approaching']}, **fields)
+
+
+def test_global_cards_are_in_english_and_never_show_trigger_codes():
+    cards = alert_clouds.global_cards(global_report(), LABELS['en'])
+    assert cards[1] == ('Nearest strike', '20 km', 'southwest')
+    assert cards[2][1] == '2.5 mm' and cards[3][1] == '80%'
+    uncovered = alert_clouds.global_cards(global_report(raios={'coberto': False}), LABELS['en'])
+    assert uncovered[0][1] == 'unavailable' and uncovered[1][1] == 'unavailable'
+
+
+@pytest.mark.parametrize('scene', ['facts', 'protect'])
+def test_global_panels_render(scene):
+    assert panel(global_report(), LABELS['en'], scene, NOW).size == (720, 1280)
+    assert panel(global_report(oficial=True, raios={}), LABELS['en'], scene, NOW).size == (720, 1280)
+
+
+def test_long_city_names_stay_on_screen():
+    long_name = global_report(nome='Affected parts of Florida', lat=27.2, lon=-82.0, cidade='florida-flood')
+    layer = alert_clouds.map_layer(long_name, [])
+    assert layer.shape[0] == alert_clouds.H and layer.shape[1] == alert_clouds.W
+    assert layer[alert_clouds.CITY_Y + 70, :, 3].max() > 0
+
+
 def test_languages_carry_the_same_labels():
     assert LABELS['pt'].keys() == LABELS['es'].keys()
 

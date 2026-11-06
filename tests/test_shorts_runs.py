@@ -51,7 +51,7 @@ class SaoPauloFloodAlerts(unittest.TestCase):
         self.assertNotIn('zona_id', report)
 
     def test_polygon_with_radar_rain_generates_and_keeps_the_real_reason(self):
-        reason = 'chuva moderada ou forte persistente com potencial de alagamento no município'
+        reason = 'chuva forte persistente com potencial de alagamento no município'
         report = dict(alert('sp-sao-paulo'), motivos=[reason])
         self.assertEqual(self.scan(report)['candidatas'], ['sp-sao-paulo'])
         self.assertEqual(report['zona_id'], 'flood-a')

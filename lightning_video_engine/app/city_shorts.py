@@ -123,18 +123,20 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
     near = lightning.get('mais_proximo')
     recent_lightning = bool(lightning_fresh and near and near.get('km', float('inf')) <= 40 and
                             0 <= near.get('minutos_atras', float('inf')) <= 15)
+    # São Paulo state needs the radar's yellow: blue rain alone published "storm" alerts for drizzle.
+    min_rain_class = 2 if state == 'SP' else 1
     try:
-        persistent_rain_minutes = rain_duration(lat, lon, 1) if radar_fresh and radar['classe'] >= 1 else None
+        persistent_rain_minutes = (rain_duration(lat, lon, min_rain_class)
+                                   if radar_fresh and radar['classe'] >= min_rain_class else None)
     except (OSError, ValueError, KeyError, TypeError):
         persistent_rain_minutes = None
-    persistent_moderate = bool(persistent_rain_minutes is not None and persistent_rain_minutes >= 10)
+    persistent_rain = bool(persistent_rain_minutes is not None and persistent_rain_minutes >= 10)
     flood_only = key in SP_FLOOD_CITIES
-    flood_risk = bool(radar_fresh and radar['classe'] >= 1 and persistent_rain_minutes is not None and persistent_rain_minutes >= 10)
-    if flood_only and flood_risk:
-        reasons.append('chuva moderada ou forte persistente com potencial de alagamento no município')
+    if flood_only and persistent_rain:
+        reasons.append('chuva forte persistente com potencial de alagamento no município')
     if not flood_only and radar_fresh and recent_lightning:
         reasons.append('chuva detectada no radar e raios recentes na região')
-    if not flood_only and radar_fresh and persistent_moderate:
+    if not flood_only and radar_fresh and persistent_rain:
         intensity = 'forte' if radar['classe'] >= 2 else 'moderada'
         reasons.append(f'chuva {intensity} persistente na escala do radar na área monitorada')
     # A single fresh, intense local lightning observation is sufficient: a

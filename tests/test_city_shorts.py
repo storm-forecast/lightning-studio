@@ -1,5 +1,8 @@
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
+
+import pytest
+
 from lightning_video_engine.app.city_shorts import CITIES, Monitor, evaluate
 
 
@@ -80,6 +83,45 @@ def test_moderate_radar_requires_persistence_before_alerting():
         report=evaluate('curitiba',source)
     assert report['gerar']
     assert any('chuva moderada persistente' in reason for reason in report['motivos'])
+
+
+SP_KEYS = [key for key, city in CITIES.items() if city[1] == 'SP']
+
+
+def persistent_rain_report(key, classe, source=None):
+    radar={'coberto':True,'neve':False,'classe':classe,'hora':datetime(2026,11,1,11,55,tzinfo=timezone.utc).timestamp()}
+    with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), \
+         patch('lightning_video_engine.app.city_shorts.rain_at', return_value=radar), \
+         patch('lightning_video_engine.app.city_shorts.rain_duration', return_value=60) as duration, \
+         patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026,11,1,12)):
+        return evaluate(key,source or Source()), duration
+
+
+def test_every_sao_paulo_city_is_covered():
+    assert len(SP_KEYS) == 31 and 'sao-paulo' in SP_KEYS and 'sp-sao-paulo' in SP_KEYS
+
+
+@pytest.mark.parametrize('key', SP_KEYS)
+def test_sao_paulo_blue_rain_never_alerts_however_long_it_lasts(key):
+    report, duration = persistent_rain_report(key, 1)
+    assert not report['gerar'] and report['motivos'] == []
+    duration.assert_not_called()
+
+
+@pytest.mark.parametrize('key', SP_KEYS)
+def test_sao_paulo_yellow_rain_alerts_and_measures_yellow_persistence(key):
+    report, duration = persistent_rain_report(key, 2)
+    assert report['gerar']
+    assert 'chuva forte persistente' in report['motivos'][0] and 'moderada' not in report['motivos'][0]
+    assert duration.call_args.args[2] == 2
+
+
+def test_sao_paulo_lightning_still_alerts_on_blue_rain():
+    source = Source()
+    source.count = 3
+    report, _ = persistent_rain_report('sao-paulo', 1, source)
+    assert report['gerar']
+    assert any('raios recentes' in reason for reason in report['motivos'])
 
 
 def test_intense_close_lightning_triggers_without_radar():

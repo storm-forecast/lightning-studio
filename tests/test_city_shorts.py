@@ -71,25 +71,8 @@ def test_yellow_radar_requires_persistence_and_freshness():
         assert not evaluate('curitiba',source)['gerar']
 
 
-def test_moderate_radar_requires_persistence_before_alerting():
-    source=Source()
-    radar={'coberto':True,'neve':False,'classe':1,'hora':datetime(2026,11,1,11,55,tzinfo=timezone.utc).timestamp()}
-    with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), \
-         patch('lightning_video_engine.app.city_shorts.rain_at', return_value=radar), \
-         patch('lightning_video_engine.app.city_shorts.rain_duration', return_value=9) as duration, \
-         patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026,11,1,12)):
-        assert not evaluate('curitiba',source)['gerar']
-        duration.return_value=10
-        report=evaluate('curitiba',source)
-    assert report['gerar']
-    assert any('chuva moderada persistente' in reason for reason in report['motivos'])
-
-
-SP_KEYS = [key for key, city in CITIES.items() if city[1] == 'SP']
-
-
-def persistent_rain_report(key, classe, source=None):
-    radar={'coberto':True,'neve':False,'classe':classe,'hora':datetime(2026,11,1,11,55,tzinfo=timezone.utc).timestamp()}
+def persistent_rain_report(key, classe, source=None, coberto=True):
+    radar={'coberto':coberto,'neve':False,'classe':classe,'hora':datetime(2026,11,1,11,55,tzinfo=timezone.utc).timestamp()}
     with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), \
          patch('lightning_video_engine.app.city_shorts.rain_at', return_value=radar), \
          patch('lightning_video_engine.app.city_shorts.rain_duration', return_value=60) as duration, \
@@ -97,26 +80,28 @@ def persistent_rain_report(key, classe, source=None):
         return evaluate(key,source or Source()), duration
 
 
-def test_every_sao_paulo_city_is_covered():
-    assert len(SP_KEYS) == 31 and 'sao-paulo' in SP_KEYS and 'sp-sao-paulo' in SP_KEYS
-
-
-@pytest.mark.parametrize('key', SP_KEYS)
-def test_sao_paulo_blue_rain_never_alerts_however_long_it_lasts(key):
+@pytest.mark.parametrize('key', CITIES)
+def test_blue_rain_never_alerts_however_long_it_lasts(key):
     report, duration = persistent_rain_report(key, 1)
     assert not report['gerar'] and report['motivos'] == []
     duration.assert_not_called()
 
 
-@pytest.mark.parametrize('key', SP_KEYS)
-def test_sao_paulo_yellow_rain_alerts_and_measures_yellow_persistence(key):
+@pytest.mark.parametrize('key', CITIES)
+def test_yellow_rain_alerts_and_measures_yellow_persistence(key):
     report, duration = persistent_rain_report(key, 2)
-    assert report['gerar']
-    assert 'chuva forte persistente' in report['motivos'][0] and 'moderada' not in report['motivos'][0]
+    assert report['gerar'] and 'moderada' not in report['roteiro']
     assert duration.call_args.args[2] == 2
 
 
-def test_sao_paulo_lightning_still_alerts_on_blue_rain():
+@pytest.mark.parametrize('key', CITIES)
+def test_persistent_rain_rule_stays_silent_without_radar_coverage(key):
+    report, duration = persistent_rain_report(key, 2, coberto=False)
+    assert not report['gerar'] and report['motivos'] == []
+    duration.assert_not_called()
+
+
+def test_lightning_still_alerts_on_blue_rain():
     source = Source()
     source.count = 3
     report, _ = persistent_rain_report('sao-paulo', 1, source)

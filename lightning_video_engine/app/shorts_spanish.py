@@ -18,8 +18,6 @@ def localize_report(report, observed_test=False):
             reasons.append('lluvia detectada por radar y descargas eléctricas recientes en la región')
         if any('chuva forte persistente' in x for x in report['motivos']):
             reasons.append('lluvia fuerte persistente en la escala del radar en la zona vigilada')
-        if any('chuva moderada persistente' in x for x in report['motivos']):
-            reasons.append('lluvia moderada persistente en la escala del radar en la zona vigilada')
         if any('atividade elétrica intensa' in x for x in report['motivos']):
             count=report['raios'].get('raios_15km')
             reasons.append(f'actividad eléctrica intensa: {count} descargas observadas en un radio de 15 kilómetros')

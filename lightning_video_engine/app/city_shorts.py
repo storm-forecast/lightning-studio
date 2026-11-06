@@ -123,11 +123,10 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
     near = lightning.get('mais_proximo')
     recent_lightning = bool(lightning_fresh and near and near.get('km', float('inf')) <= 40 and
                             0 <= near.get('minutos_atras', float('inf')) <= 15)
-    # São Paulo state needs the radar's yellow: blue rain alone published "storm" alerts for drizzle.
-    min_rain_class = 2 if state == 'SP' else 1
+    # Needs the radar's yellow: blue rain alone published "storm" alerts for drizzle. Where no
+    # radar answers, radar_fresh is False and this rule stays silent; lightning rules still apply.
     try:
-        persistent_rain_minutes = (rain_duration(lat, lon, min_rain_class)
-                                   if radar_fresh and radar['classe'] >= min_rain_class else None)
+        persistent_rain_minutes = rain_duration(lat, lon, 2) if radar_fresh and radar['classe'] >= 2 else None
     except (OSError, ValueError, KeyError, TypeError):
         persistent_rain_minutes = None
     persistent_rain = bool(persistent_rain_minutes is not None and persistent_rain_minutes >= 10)
@@ -137,8 +136,7 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
     if not flood_only and radar_fresh and recent_lightning:
         reasons.append('chuva detectada no radar e raios recentes na região')
     if not flood_only and radar_fresh and persistent_rain:
-        intensity = 'forte' if radar['classe'] >= 2 else 'moderada'
-        reasons.append(f'chuva {intensity} persistente na escala do radar na área monitorada')
+        reasons.append('chuva forte persistente na escala do radar na área monitorada')
     # A single fresh, intense local lightning observation is sufficient: a
     # prior scan may be unavailable after a scheduled-run delay.
     close_count = lightning.get('raios_15km')

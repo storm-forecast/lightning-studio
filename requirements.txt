@@ -8,3 +8,4 @@ gdown>=5.2,<6
 
 numpy>=1.26,<3  # radar decoding for city nowcasting shorts
 shapely>=2,<3  # São Paulo flood zones intersecting municipal boundaries
+h5py>=3.10,<4  # GOES-19 infrared scans behind the alert Shorts

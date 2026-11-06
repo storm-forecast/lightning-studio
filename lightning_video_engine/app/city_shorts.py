@@ -375,6 +375,12 @@ def render(directory, report, resources):
     (directory / 'alerta.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))
     asyncio.run(asyncio.wait_for(edge_tts.Communicate(report['roteiro'], report.get('voz', 'pt-BR-FranciscaNeural'))
                                  .save(str(directory / 'voz.mp3')), timeout=120))
+    try:
+        from .alert_clouds import render_clouds
+        render_clouds(directory, report, resources)
+        return
+    except Exception as exc:
+        print('Nuvens em movimento indisponíveis; usando o layout estático:', exc, flush=True)
     lat, lon = report['lat'], report['lon']
     dx = 0.55 / np.cos(np.radians(lat)) * (620/420)
     west, east, south, north = lon - dx, lon + dx, lat - .55, lat + .55

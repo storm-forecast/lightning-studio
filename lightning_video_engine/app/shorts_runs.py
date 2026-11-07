@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as PassTimeout, 
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .city_shorts import CITIES, Monitor, utc_now
+from .city_shorts import CITIES, MONITORED, Monitor, utc_now
 from .instagram import cross_post
 from .sp_flood_shorts import SP_FLOOD_CITIES
 from .youtube import QuotaExceeded, block_quota, publish_short
@@ -44,7 +44,7 @@ def scan_cities(monitor, source, flood_areas=(), *, workers=6, deadline=240):
 
     reports, errors = {}, []
     pool = ThreadPoolExecutor(workers, thread_name_prefix='city-scan')
-    futures = {pool.submit(evaluate, key): key for key in CITIES}
+    futures = {pool.submit(evaluate, key): key for key in MONITORED}
     try:
         for future in as_completed(futures, timeout=deadline):
             try:
@@ -59,7 +59,7 @@ def scan_cities(monitor, source, flood_areas=(), *, workers=6, deadline=240):
                       for future, key in futures.items() if not future.done())
     finally:
         pool.shutdown(wait=False, cancel_futures=True)
-    order = list(CITIES)
+    order = list(MONITORED)
     candidates = sorted(reports, key=order.index)
     return {'candidatas': candidates, 'relatorios': {key: reports[key] for key in candidates}, 'erros': errors}
 

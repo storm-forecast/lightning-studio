@@ -80,6 +80,37 @@ CITIES = {
     **SP_FLOOD_CITIES,
 }
 
+# Cidades que o monitor automático varre. CITIES continua sendo o catálogo completo (testes, scripts).
+# 07/11/2026: comentadas as cidades cujo alerta não chegou a 500 visualizações no TROVOX TEMPO,
+# ou que nunca geraram alerta. Descomente para voltar a monitorar.
+MONITORED = [
+    'rio-de-janeiro',
+    # 'salvador',
+    # 'florianopolis',
+    # 'maceio',
+    'gramado',
+    # 'sao-paulo',
+    'curitiba',
+    # 'porto-alegre',
+    # 'santa-maria',
+    # 'novo-horizonte',
+    # 'brasilia',
+    'belo-horizonte',
+    'campo-grande',
+    # 'manaus',
+    # 'cordoba',
+    # 'buenos-aires',
+    # 'santa-cruz-de-la-sierra',
+    # 'santiago',
+    # 'bogota',
+    'guayaquil',
+    # 'asuncion',
+    # 'lima',
+    # 'montevideo',
+    'caracas',
+    # *SP_FLOOD_CITIES,  # alagamento em SP: nenhum alerta passou de 500 visualizações
+]
+
 
 def fresh(value, now):
     if not value:
@@ -266,7 +297,7 @@ class Monitor:
             return {'ocupado': True, 'resultados': []}
         try:
             results = []
-            for key in (reports if reports is not None else CITIES):
+            for key in (reports if reports is not None else MONITORED):
                 try:
                     if not self.eligible(key):
                         results.append({'cidade':key, 'suprimido':'aviso diário já reservado ou concluído'})

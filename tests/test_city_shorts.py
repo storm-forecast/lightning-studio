@@ -261,7 +261,7 @@ def test_portuguese_script_invites_subscription_and_alerts():
 
 def test_dedupe_restart(tmp_path):
     monitor=Monitor(None,tmp_path)
-    with patch('lightning_video_engine.app.city_shorts.CITIES', {'curitiba':('Curitiba','PR',-25,-49)}), patch.object(monitor,'evaluate_city', return_value={'cidade':'curitiba','gerar':True}), patch('threading.Thread.start'):
+    with patch('lightning_video_engine.app.city_shorts.CITIES', {'curitiba':('Curitiba','PR',-25,-49)}), patch('lightning_video_engine.app.city_shorts.MONITORED', ['curitiba']), patch.object(monitor,'evaluate_city', return_value={'cidade':'curitiba','gerar':True}), patch('threading.Thread.start'):
         first=monitor.check()['resultados'][0]['video_id']
         assert monitor.check()['resultados'][0]['suprimido']
     assert Monitor(None,tmp_path).get(first)['estado']=='falhou'
@@ -269,7 +269,7 @@ def test_dedupe_restart(tmp_path):
 
 def test_daily_limit_survives_new_monitor(tmp_path):
     monitor=Monitor(None,tmp_path)
-    with patch('lightning_video_engine.app.city_shorts.CITIES', {'curitiba':('Curitiba','PR',-25,-49)}), patch.object(monitor,'evaluate_city', return_value={'cidade':'curitiba','gerar':True}), patch('threading.Thread.start'):
+    with patch('lightning_video_engine.app.city_shorts.CITIES', {'curitiba':('Curitiba','PR',-25,-49)}), patch('lightning_video_engine.app.city_shorts.MONITORED', ['curitiba']), patch.object(monitor,'evaluate_city', return_value={'cidade':'curitiba','gerar':True}), patch('threading.Thread.start'):
         first=monitor.check()['resultados'][0]['video_id']
         item=monitor.get(first);item['estado']='concluido';monitor.save(item)
         assert 'suprimido' in monitor.check()['resultados'][0]

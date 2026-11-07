@@ -25,6 +25,7 @@ class ScanDeadline(unittest.TestCase):
                     release.wait(5)
                 return alert(key) if key == 'rio-de-janeiro' else dict(alert(key), gerar=False)
             with patch.object(monitor, 'eligible', return_value=True), \
+                    patch.object(shorts_runs, 'MONITORED', ['rio-de-janeiro', 'salvador']), \
                     patch.object(monitor, 'evaluate_city', side_effect=evaluate):
                 scan = shorts_runs.scan_cities(monitor, object(), deadline=1)
             release.set()
@@ -40,6 +41,7 @@ class SaoPauloFloodAlerts(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             monitor = shorts_runs.DeferredMonitor(object(), folder)
             with patch.object(monitor, 'eligible', side_effect=lambda key: key == 'sp-sao-paulo'), \
+                    patch.object(shorts_runs, 'MONITORED', ['rio-de-janeiro', 'sp-sao-paulo']), \
                     patch.object(monitor, 'evaluate_city', return_value=report), \
                     patch('lightning_video_engine.app.sp_flood_zones.confirmed_zones', return_value=self.ZONES):
                 return shorts_runs.scan_cities(monitor, object(), self.AREA, deadline=5)

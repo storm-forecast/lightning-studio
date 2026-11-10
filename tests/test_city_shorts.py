@@ -19,7 +19,7 @@ class Source:
 
 
 def test_allowlist():
-    assert len(CITIES) == 54
+    assert len(CITIES) == 57
     assert {'sao-paulo','curitiba','porto-alegre','novo-horizonte'} <= CITIES.keys()
 
 
@@ -309,7 +309,7 @@ def test_spanish_commercial_cities_and_local_clocks():
     from lightning_video_engine.app.shorts_locales import SPANISH_CITIES,city_timezone
     from lightning_video_engine.app.shorts_spanish import localize_report
     assert len(SPANISH_CITIES)==10
-    assert len(set(CITIES)-set(SPANISH_CITIES))==44
+    assert len(set(CITIES)-set(SPANISH_CITIES))==47
     for key,(country,tz) in SPANISH_CITIES.items():
         assert key in CITIES
         ZoneInfo(tz)

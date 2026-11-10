@@ -77,6 +77,9 @@ CITIES = {
     'lima': ('Lima', 'Perú', -12.0464, -77.0428),
     'montevideo': ('Montevideo', 'Uruguay', -34.9011, -56.1645),
     'caracas': ('Caracas', 'Venezuela', 10.4806, -66.9036),
+    'maringa': ('Maringá', 'PR', -23.420, -51.933),
+    'londrina': ('Londrina', 'PR', -23.304, -51.169),
+    'chapeco': ('Chapecó', 'SC', -27.100, -52.615),
     **SP_FLOOD_CITIES,
 }
 
@@ -86,14 +89,14 @@ CITIES = {
 MONITORED = [
     'rio-de-janeiro',
     # 'salvador',
-    # 'florianopolis',
+    'florianopolis',  # 10/11/2026: Região Sul reativada a pedido
     # 'maceio',
     'gramado',
     # 'sao-paulo',
     'curitiba',
-    # 'porto-alegre',
-    # 'santa-maria',
-    # 'novo-horizonte',
+    'porto-alegre',
+    'santa-maria',
+    'novo-horizonte',
     # 'brasilia',
     'belo-horizonte',
     'campo-grande',
@@ -108,6 +111,9 @@ MONITORED = [
     # 'lima',
     # 'montevideo',
     'caracas',
+    'maringa',  # 10/11/2026: Região Sul (Norte do PR e Oeste de SC)
+    'londrina',
+    'chapeco',
     # *SP_FLOOD_CITIES,  # alagamento em SP: nenhum alerta passou de 500 visualizações
 ]
 

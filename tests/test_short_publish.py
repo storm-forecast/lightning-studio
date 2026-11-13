@@ -64,3 +64,29 @@ def test_expired_alert_refused(tmp_path):
     with patch.object(youtube,'upload') as upload, pytest.raises(youtube.YouTubeError,match='expirado'):
         youtube.publish_short(tmp_path,ENV)
     upload.assert_not_called()
+
+
+def published_metadata(tmp_path, **fields):
+    report=dict({'verificado_em':datetime.now(timezone.utc).isoformat(),'gerar':True,'nome':'Curitiba','uf':'PR','roteiro':'Alerta.'},**fields)
+    (tmp_path/'alerta.json').write_text(json.dumps(report))
+    probe={'streams':[{'codec_type':'video','height':1280,'width':720}],'format':{'duration':'35'}}
+    with patch('subprocess.check_output',return_value=json.dumps(probe).encode()), patch.object(youtube,'access_token',return_value='token'), patch.object(youtube,'authorized_channel',return_value=('canal','TROVOX')), patch.object(youtube,'alerts_published_today',return_value=0), patch.object(youtube,'upload',return_value={'id':'abc','status':{'privacyStatus':'public'}}) as upload:
+        youtube.publish_short(tmp_path,ENV)
+    return upload.call_args.args[1]['snippet']
+
+def test_title_leads_with_the_lightning_count_and_is_still_counted(tmp_path):
+    snippet=published_metadata(tmp_path,raios={'raios_40km':312,'dados_atrasados':False})
+    assert snippet['title'].startswith('312 raios em 30 min perto de Curitiba (PR): alerta de tempestade | ')
+    assert youtube.ALERT_TITLE.search(snippet['title']) and len(snippet['title'])<=100
+    assert snippet['description'].startswith('⚡ Choveu forte aí? Conte nos comentários!')
+    assert 'sub_confirmation=1' in snippet['description']
+
+def test_title_without_a_count_keeps_the_plain_format(tmp_path):
+    snippet=published_metadata(tmp_path,raios={'raios_40km':5,'dados_atrasados':True})
+    assert snippet['title'].startswith('Curitiba (PR): alerta de tempestade | ')
+
+def test_spanish_title_leads_with_the_count(tmp_path):
+    snippet=published_metadata(tmp_path,nome='Córdoba',uf='AR',pais='Argentina',idioma='es-AR',raios={'raios_40km':87,'dados_atrasados':False})
+    assert snippet['title'].startswith('¡87 rayos en 30 min cerca de Córdoba, Argentina! Alerta de tormenta | ')
+    assert youtube.ALERT_TITLE.search(snippet['title'])
+    assert snippet['description'].startswith('⚡ ¿Llueve fuerte donde usted está?')

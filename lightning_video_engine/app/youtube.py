@@ -253,9 +253,26 @@ def publish_short(directory: Path, env=os.environ, *, prefix='YOUTUBE', brand='T
             raise QuotaExceeded(f'limite diário de {MAX_DAILY_ALERTS} alertas do canal atingido')
     local = started.astimezone(ZoneInfo(report.get('timezone','America/Sao_Paulo')))
     label = 'risco de alagamento' if report.get('secao') == 'alagamentos-sp' else 'alerta de tempestade'
-    title = report.get('titulo_short') or f"{report['nome']} ({report['uf']}): {label} | {local:%d/%m %H:%M} #Shorts"
+    from .city_shorts import lightning_hook
+    count = None if report.get('secao') == 'alagamentos-sp' else lightning_hook(report.get('raios'))
+    stamp = f" | {local:%d/%m %H:%M} #Shorts"   # ALERT_TITLE counts the daily alerts by this ending
+    title = f"{report['nome']} ({report['uf']}): {label}{stamp}"
+    if count:
+        for news in (f"{count} raios em 30 min perto de {report['nome']} ({report['uf']}): {label}",
+                     f"{count} raios em 30 min perto de {report['nome']} ({report['uf']})"):
+            if len(news + stamp) <= 100:
+                title = news + stamp
+                break
+    title = report.get('titulo_short') or title
+    link = 'https://www.youtube.com/@trovoxtempo?sub_confirmation=1'
+    ask = ask_es = ''
+    if brand == 'TROVOX TEMPO':
+        ask = ('⚡ Choveu forte aí? Conte nos comentários!\n'
+               f'🔔 Inscreva-se para receber o próximo alerta antes da tempestade chegar: {link}\n\n')
+        ask_es = ('⚡ ¿Llueve fuerte donde usted está? ¡Cuéntenos en los comentarios!\n'
+                  f'🔔 Suscríbase para recibir la próxima alerta antes de que llegue la tormenta: {link}\n\n')
     language = report.get('idioma', 'pt-BR')
-    description = (f"{brand} — atualização de {local:%d/%m/%Y às %H:%M}, horário local.\n"
+    description = (ask + f"{brand} — atualização de {local:%d/%m/%Y às %H:%M}, horário local.\n"
         + report['roteiro'] + '\n\nNowcasting regional, não é aviso oficial. Consulte a Defesa Civil e o INMET.'
         + '\nApresentadora e voz geradas por IA. Dados: Lightning Agent. Mapa: © OpenStreetMap contributors — https://www.openstreetmap.org/copyright'
         + '\n#Shorts #previsaodotempo #raios #nowcasting')
@@ -272,10 +289,13 @@ def publish_short(directory: Path, env=os.environ, *, prefix='YOUTUBE', brand='T
                 + '\nAI-generated narration. Data: Open-Meteo.'
                 + '\n#Shorts #rain #weather #nowcasting'))
     elif language.startswith('es'):
-        title = f"{report['nome']}, {report.get('pais', report['uf'])}: alerta de tormenta | {local:%d/%m %H:%M} #Shorts"
+        place = f"{report['nome']}, {report.get('pais', report['uf'])}"
+        title = f"{place}: alerta de tormenta{stamp}"
+        if count and len(f"¡{count} rayos en 30 min cerca de {place}! Alerta de tormenta{stamp}") <= 100:
+            title = f"¡{count} rayos en 30 min cerca de {place}! Alerta de tormenta{stamp}"
         metadata['snippet'].update(title=title[:100], defaultLanguage=report['idioma'], defaultAudioLanguage=report['idioma'],
             tags=['Shorts',report['nome'],report.get('pais',report['uf']),'tormentas','rayos','TROVOX TEMPO'],
-            description=(f"TROVOX TEMPO — {local:%d/%m/%Y %H:%M}, hora local.\n" + report['roteiro']
+            description=(ask_es + f"TROVOX TEMPO — {local:%d/%m/%Y %H:%M}, hora local.\n" + report['roteiro']
             + '\nEstimación regional. Consulte al servicio meteorológico y Protección Civil de su país.'
             + '\nPresentadora y voz generadas por IA. Datos: Lightning Agent. Mapa: © OpenStreetMap contributors — https://www.openstreetmap.org/copyright'
             + '\n#Shorts #tormentas #rayos'))

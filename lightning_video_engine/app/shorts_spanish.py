@@ -28,7 +28,12 @@ def localize_report(report, observed_test=False):
                            'en una ventana móvil de 30 minutos')
         if report.get('aproximacao_chuva'):reasons.append('ecos de lluvia fuerte acercándose en el radar')
     report['motivos']=reasons
-    text=f"Atención, {report.get('nome','Córdoba')}, {country}. Monitoreo de la zona hasta 40 kilómetros del centro. "
+    from .city_shorts import lightning_hook
+    hook=None if observed_test else lightning_hook(report.get('raios'))
+    if hook:
+        text=f"¡{hook} rayos en 30 minutos a menos de {report.get('raio_km') or 40} kilómetros de {report.get('nome','Córdoba')}! Atención, {country}. "
+    else:
+        text=f"Atención, {report.get('nome','Córdoba')}, {country}. Monitoreo de la zona hasta {report.get('raio_km') or 40} kilómetros del centro. "
     text+=('; '.join(reasons)+'. ') if reasons else 'Sin señal confirmada de aproximación. '
     near=report['raios'].get('mais_proximo')
     if near and not report['raios']['dados_atrasados']:
@@ -39,7 +44,8 @@ def localize_report(report, observed_test=False):
     point=report.get('nowcasting') or {};motion=point.get('deslocamento')
     if motion:text+=f"Movimiento estimado de las células hacia el {DIRECTIONS.get(motion['para'],motion['para'])}, a {motion['velocidade_kmh']} kilómetros por hora. "
     text+=('El riesgo es regional y no confirma impacto en todos los barrios. '+' '.join(advice)
-           +' Suscríbase a TROVOX TEMPO y active la campana para recibir alertas.')
+           +' ¿Llueve fuerte donde usted está? Cuéntenos en los comentarios. '
+           +'Y suscríbase a TROVOX TEMPO y active la campana para recibir la próxima alerta antes de que llegue la tormenta.')
     report['roteiro']=text
 
 

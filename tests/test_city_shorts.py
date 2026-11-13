@@ -255,8 +255,19 @@ def test_portuguese_script_invites_subscription_and_alerts():
     radar={'coberto':True,'neve':False,'classe':0,'hora':datetime(2026,11,1,11,55,tzinfo=timezone.utc).timestamp()}
     with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), patch('lightning_video_engine.app.city_shorts.rain_at', return_value=radar), patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026,11,1,12)):
         script=evaluate('curitiba',source)['roteiro']
-    assert 'Inscreva-se no TROVOX TEMPO' in script
-    assert 'ative o sino para receber alertas' in script
+    assert script.startswith('3 raios em 30 minutos a até 40 quilômetros de Curitiba!')
+    assert 'Conte nos comentários' in script
+    assert 'inscreva-se no TROVOX TEMPO para receber o próximo alerta' in script
+    assert 'não confirma alagamento' not in script
+
+
+def test_hook_needs_a_current_count():
+    from lightning_video_engine.app.city_shorts import lightning_hook
+    assert lightning_hook({'raios_40km': 12, 'dados_atrasados': False}) == 12
+    assert lightning_hook({'raios_40km': 12, 'dados_atrasados': True}) is None
+    assert lightning_hook({'raios_40km': 0}) is None
+    assert lightning_hook({'raios_40km': None}) is None
+    assert lightning_hook(None) is None
 
 
 def test_dedupe_restart(tmp_path):
@@ -286,7 +297,8 @@ def test_spanish_only_cordoba():
     assert 'Córdoba, Argentina' in r['roteiro']
     assert 'Protección Civil' in r['roteiro']
     assert 'lluvia detectada por radar' in r['roteiro']
-    assert 'active la campana para recibir alertas' in r['roteiro']
+    assert 'Cuéntenos en los comentarios' in r['roteiro']
+    assert 'active la campana para recibir la próxima alerta' in r['roteiro']
     assert screen_es('Raios observados')=='Descargas observadas'
     assert screen_es('APRESENTADORA')=='PRESENTADORA'
     r['motivos']=['chuva forte persistente na escala do radar na área monitorada']
@@ -318,3 +330,64 @@ def test_spanish_commercial_cities_and_local_clocks():
         assert r['nome'] in r['roteiro'] and country in r['roteiro']
         assert r['idioma'].startswith('es')
         assert r['timezone']==city_timezone(key,CITIES[key][1])
+
+
+def radar_now(**fields):
+    return dict({'coberto': True, 'hora': datetime.now(timezone.utc).timestamp()}, **fields)
+
+
+class SaoPauloLightning:
+    """Strikes `km` away, 3 minutes ago; records the radius asked for. raios_40km is the API's 40 km count."""
+    def __init__(self, km, count=7, key='sao-paulo'):
+        self.km, self.count, self.queries = km, count, []
+
+    def json(self, path, **query):
+        self.queries.append((path, query))
+        if path == '/alertas/situacao':
+            answer = {'dados_atrasados': False, 'coberto': True, 'raios_15km': 0, 'raios_40km': 300,
+                      'mais_proximo': {'km': self.km, 'minutos_atras': 3, 'direcao': 'norte'}}
+            if 'raio_km' in query:
+                answer.update(raio_km=query['raio_km'], raios_raio=self.count)
+            return answer
+        return {'agora': None}
+
+
+def radius_report(api, key='sao-paulo'):
+    centre = radar_now(classe=1, nome='moderada', neve=False)
+    with patch('lightning_video_engine.app.city_shorts.rain_at', return_value=centre), \
+         patch('lightning_video_engine.app.city_shorts.rain_duration', return_value=0), \
+         patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None):
+        return evaluate(key, api)
+
+
+def test_sao_paulo_uses_a_25_km_radius():
+    api = SaoPauloLightning(km=20)
+    report = radius_report(api)
+    assert ('/alertas/situacao', {'lat': CITIES['sao-paulo'][2], 'lon': CITIES['sao-paulo'][3], 'raio_km': 25}) in api.queries
+    assert report['gerar'] and report['raio_km'] == 25
+    assert report['raios']['raios_40km'] == 7
+    assert report['roteiro'].startswith('7 raios em 30 minutos a até 25 quilômetros de São Paulo!')
+
+
+def test_sao_paulo_ignores_storms_beyond_25_km():
+    report = radius_report(SaoPauloLightning(km=30, count=0))
+    assert not report['gerar']
+
+
+def test_sao_paulo_without_the_radius_count_claims_no_number():
+    class OldApi(SaoPauloLightning):
+        def json(self, path, **query):
+            answer = super().json(path, **query)
+            answer.pop('raios_raio', None)
+            return answer
+    report = radius_report(OldApi(km=20))
+    assert report['raios']['raios_40km'] is None
+    assert report['roteiro'].startswith('Atenção, São Paulo, SP. Monitoramento da área até 25 quilômetros')
+
+
+def test_other_cities_keep_40_km():
+    api = SaoPauloLightning(km=30)
+    report = radius_report(api, key='belo-horizonte')
+    assert all('raio_km' not in q for p, q in api.queries if p == '/alertas/situacao')
+    assert report['gerar'] and report['raio_km'] == 40
+    assert report['roteiro'].startswith('300 raios em 30 minutos a até 40 quilômetros de Belo Horizonte!')

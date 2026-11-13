@@ -120,17 +120,22 @@ def publish_short(directory: Path, env=os.environ):
     checked = datetime.fromisoformat(report['verificado_em'].replace('Z', '+00:00')) if report.get('verificado_em') else None
     local = checked.astimezone(ZoneInfo(report.get('timezone', 'America/Sao_Paulo'))) if checked else None
     when = f' | {local:%d/%m %H:%M}' if local else ''
+    from .city_shorts import lightning_hook
+    count = None if report.get('secao') == 'alagamentos-sp' else lightning_hook(report.get('raios'))
     if language.startswith('pt'):
         footer = ('\n\nNowcasting regional, não é aviso oficial. Consulte a Defesa Civil e o INMET.'
                   '\nApresentadora e voz geradas por IA. Dados: Lightning Agent.'
                   '\n#previsaodotempo #raios #chuva #nowcasting')
         label = 'risco de alagamento' if report.get('secao') == 'alagamentos-sp' else 'alerta de tempestade'
-        heading = report.get('titulo_short') or f"{report['nome']}: {label}{when} (horário local)"
+        heading = report.get('titulo_short') or (f"⚡ {count} raios em 30 min perto de {report['nome']}: {label}{when} (horário local)"
+                                                 if count else f"{report['nome']}: {label}{when} (horário local)")
     elif language.startswith('es'):
         footer = ('\n\nEstimación regional, no es un aviso oficial. Consulte al servicio meteorológico y Protección Civil de su país.'
                   '\nPresentadora y voz generadas por IA. Datos: Lightning Agent.'
                   '\n#tormentas #rayos #clima #nowcasting')
-        heading = f"{report['nome']}, {report.get('pais', report.get('uf', ''))}: alerta de tormenta{when} (hora local)"
+        place = f"{report['nome']}, {report.get('pais', report.get('uf', ''))}"
+        heading = (f"⚡ ¡{count} rayos en 30 min cerca de {place}! Alerta de tormenta{when} (hora local)"
+                   if count else f"{place}: alerta de tormenta{when} (hora local)")
     else:
         footer = '\n\nAI-generated presenter and voice. Data: Lightning Agent.\n#weather #storm #nowcasting'
         heading = report.get('titulo_short') or f"{report['nome']}: storm alert{when} (local time)"

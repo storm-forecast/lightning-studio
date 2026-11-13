@@ -169,6 +169,49 @@ def read_scan(path, grid):
                      cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE) - 273.15
 
 
+BASEMAP = ('https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap'
+           '&LAYERS=BlueMarble_ShadedRelief_Bathymetry&STYLES=&CRS=EPSG:4326&BBOX={south:.4f},{west:.4f},{north:.4f},{east:.4f}'
+           '&WIDTH={width}&HEIGHT={height}&FORMAT=image/jpeg')
+
+
+def basemap(report, cache):
+    """Land and sea in natural colour (NASA Blue Marble) under the clouds, or None when it cannot be read.
+
+    The screen grid is plain latitude and longitude, so the map is asked for exactly that box and size.
+    """
+    import io
+    lat, lon = report['lat'], report['lon']
+    per_x, per_y = view(lat)
+    box = dict(west=lon - W / 2 * per_x, east=lon + W / 2 * per_x, north=lat + CITY_Y * per_y,
+               south=lat - (H - CITY_Y) * per_y, width=W, height=H)
+    cache.mkdir(parents=True, exist_ok=True)
+    path = cache / f"bluemarble_{lat:.3f}_{lon:.3f}.jpg"
+    try:
+        if not path.exists():
+            with urllib.request.urlopen(BASEMAP.format(**box), timeout=60) as response:
+                raw = response.read()
+            Image.open(io.BytesIO(raw)).verify()
+            path.write_bytes(raw)
+        image = np.asarray(Image.open(path).convert('RGB').resize((W, H)), dtype=np.float32)
+    except Exception as exc:
+        print('Mapa de fundo indisponível; nuvens sobre fundo escuro:', exc, flush=True)
+        return None
+    if image.mean() < 8:          # an empty answer is black, not a map
+        return None
+    # A touch brighter and more saturated than the archive, so it still reads under the panels.
+    grey = image.mean(axis=2, keepdims=True)
+    return np.clip((grey + (image - grey) * 1.2) * 1.3 + 6, 0, 255)
+
+
+def compose(field, base, colours):
+    """Clouds over the map: clear sky shows the ground, cloud turns white, cold storm tops keep their colours."""
+    cloud = np.clip((4 - field) / 34, 0, 1) ** .9 * .92
+    shade = np.clip(150 + (10 - field) * 2.8, 150, 248)[..., None] * np.array([.97, .99, 1.0], np.float32)
+    out = base * (1 - cloud[..., None]) + shade * cloud[..., None]
+    storm = np.clip((-38 - field) / 10, 0, 1)[..., None]
+    return np.clip(out * (1 - storm) + colours[to_index(field)] * storm, 0, 255).astype(np.uint8)
+
+
 def palette():
     """256 colours for temperatures from +35 down to -95 degrees Celsius."""
     celsius = np.array([stop[0] for stop in STOPS], float)[::-1]
@@ -288,7 +331,7 @@ def add_lightning(frame, cells, minutes_before):
     return np.clip(out * (1 - mix) + mix * np.array([255, 240, 60], np.float32), 0, 255).astype(np.uint8)
 
 
-def write_loop(path, fields, times, cells, end, layer, clock, label):
+def write_loop(path, fields, times, cells, end, layer, clock, label, base=None):
     """A loop of one hour of clouds, rendered once and repeated for the whole narration."""
     colours = palette()
     encoder = subprocess.Popen(['ffmpeg', '-y', '-v', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W}x{H}',
@@ -297,7 +340,7 @@ def write_loop(path, fields, times, cells, end, layer, clock, label):
     alpha, rgb = layer[..., 3:4], layer[..., :3] * 255
 
     def emit(field, moment, minutes_before):
-        frame = colours[to_index(field)]
+        frame = colours[to_index(field)] if base is None else compose(field, base, colours)
         frame = add_lightning(frame, cells, minutes_before)
         frame = (frame * (1 - alpha) + rgb * alpha).astype(np.uint8)
         stamp = Image.new('RGB', (190, 66), (0, 0, 0))
@@ -373,7 +416,7 @@ def panel(report, labels, scene, time):
         motion = (report.get('nowcasting') or {}).get('deslocamento')
         count = (report.get('raios') or {}).get('raios_40km')
         cards = [] if labels.get('rain_now') else [
-            (labels['lightning'], f'{count}' if isinstance(count, int) else labels['unread'], labels['window']),
+            (labels['lightning'].replace('40', str(report.get('raio_km') or 40)), f'{count}' if isinstance(count, int) else labels['unread'], labels['window']),
             (labels['nearest'], ('< 1 km' if near['km'] < 1 else f"{near['km']:.0f} km") if near else labels['none'], near.get('direcao', '') if near else ''),
             (labels['radar'], f"{labels['rain']} {rain_name}" if rain_name else (labels['dry'] if rain.get('coberto') else labels['unread']), ''),
             (labels['motion'], f"{motion['velocidade_kmh']} km/h" if motion else labels['unknown'], motion['para'] if motion else '')]
@@ -405,6 +448,35 @@ def panel(report, labels, scene, time):
     notice = f"Official source: {report.get('fonte')}" if report.get('oficial') and labels.get('not_official') else labels.get('not_official') or labels['official']
     for index, line in enumerate((labels['source'], labels['legend'], notice)):
         draw.text((240, 1106 + index * 23), line, font=font(FONT, 17), fill=MUTED)
+    return image
+
+
+HOOK_SECONDS = 2.5
+
+
+def hook_layer(report):
+    """The big number shown over the satellite in the first seconds, or None when there is no reliable count."""
+    from .city_shorts import lightning_hook
+    language = report.get('idioma', 'pt')
+    if report.get('marca') == 'TROVOX GLOBAL' or language.startswith('en') or report.get('secao') == 'alagamentos-sp':
+        return None
+    count = lightning_hook(report.get('raios'))
+    if not count:
+        return None
+    spanish = language.startswith('es')
+    big = f"⚡ {count} {'RAYOS' if spanish else 'RAIOS'}"
+    line = f"{'en 30 min cerca de' if spanish else 'em 30 min perto de'} {report['nome']}"
+    image = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle((24, 300, W - 24, 560), 26, fill=(8, 14, 22, 215), outline=RED + (255,), width=5)
+    size = 96
+    while font(BOLD, size).getlength(big) > W - 100 and size > 48:
+        size -= 4
+    shadowed(draw, (W // 2, 400), big, size, AMBER, anchor='mm')
+    size = 36
+    while font(BOLD, size).getlength(line) > W - 100 and size > 22:
+        size -= 2
+    shadowed(draw, (W // 2, 500), line, size, anchor='mm')
     return image
 
 
@@ -442,16 +514,20 @@ def render_clouds(directory, report, resources):
     language = report.get('idioma', '')
     labels = LABELS['es' if language.startswith('es') else 'en' if language.startswith('en') else 'pt']
     write_loop(directory / 'nuvens.mp4', fields, times, cells, end, map_layer(report, nearby(report)),
-               lambda moment: moment.astimezone(zone).strftime('%H:%M'), labels['scan'])
+               lambda moment: moment.astimezone(zone).strftime('%H:%M'), labels['scan'],
+               base=basemap(report, directory.parent / 'basemap-cache'))
     checked = datetime.fromisoformat(report['verificado_em'].replace('Z', '+00:00')).astimezone(zone)
     panel(report, labels, 'facts', checked).save(directory / 'painel-1.png')
     panel(report, labels, 'protect', checked).save(directory / 'painel-2.png')
+    hook = hook_layer(report)
+    (hook or Image.new('RGBA', (W, H), (0, 0, 0, 0))).save(directory / 'gancho.png')
     print('Sincronizando apresentadora para o Short...', flush=True)
     presenter = synchronize(directory)
     change = duration * .62
     music = ROOT / 'templates/fundo-musical.wav'
     inputs = ['-stream_loop', '-1', '-i', str(directory / 'nuvens.mp4'), '-loop', '1', '-i', str(directory / 'painel-1.png'),
-              '-loop', '1', '-i', str(directory / 'painel-2.png'), '-i', str(presenter), '-i', str(directory / 'voz.mp3')]
+              '-loop', '1', '-i', str(directory / 'painel-2.png'), '-i', str(presenter), '-i', str(directory / 'voz.mp3'),
+              '-loop', '1', '-i', str(directory / 'gancho.png')]
     if music.exists():
         inputs += ['-stream_loop', '-1', '-i', str(music)]
     video = (f"[0:v]fps={FPS},setpts=PTS-STARTPTS[bg];"
@@ -460,8 +536,9 @@ def render_clouds(directory, report, resources):
              "[3:v]crop=trunc(iw*0.70/2)*2:trunc(ih*0.62/2)*2:(iw-ow)/2:ih*0.06,"
              "scale=190:230:force_original_aspect_ratio=increase,crop=190:230,setsar=1,"
              f"pad=198:238:4:4:color=0xFFB238,fps={FPS},setpts=PTS-STARTPTS[p];"
-             "[b][p]overlay=30:980[v]")
-    audio = ('[4:a]volume=1[n];[5:a]volume=0.08[m];[n][m]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[s]'
+             "[b][p]overlay=30:980[c];"
+             f"[c][5:v]overlay=0:0:enable='lt(t,{HOOK_SECONDS})':shortest=0[v]")
+    audio = ('[4:a]volume=1[n];[6:a]volume=0.08[m];[n][m]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[s]'
              if music.exists() else '[4:a]anull[s]')
     subprocess.run(['ffmpeg', '-y', '-v', 'error', *inputs, '-filter_complex', f'{video};{audio}', '-map', '[v]', '-map', '[s]',
                     '-t', f'{duration:.3f}', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '21', '-threads', '2',

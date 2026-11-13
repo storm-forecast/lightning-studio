@@ -21,8 +21,8 @@ def monitor(request: Request, x_video_token: str = Header('')):
 
 @router.get('/cidades')
 def cities(service=Depends(monitor)):
-    from .city_shorts import CITIES
-    return {'cidades': [{'id': k, 'nome': v[0], 'uf': v[1], 'lat': v[2], 'lon': v[3], 'raio_km': 40}
+    from .city_shorts import CITIES, city_radius
+    return {'cidades': [{'id': k, 'nome': v[0], 'uf': v[1], 'lat': v[2], 'lon': v[3], 'raio_km': city_radius(k)}
                         for k, v in CITIES.items()], 'automatico': os.environ.get('SHORTS_MONITOR_ENABLED', '').lower() == 'true'}
 
 

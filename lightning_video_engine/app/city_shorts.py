@@ -92,7 +92,7 @@ MONITORED = [
     'florianopolis',  # 10/11/2026: Região Sul reativada a pedido
     # 'maceio',
     'gramado',
-    # 'sao-paulo',
+    'sao-paulo',  # 13/11/2026: só a capital, num raio de 25 km (RADIUS_KM); um alerta por dia
     'curitiba',
     'porto-alegre',
     'santa-maria',
@@ -118,11 +118,42 @@ MONITORED = [
 ]
 
 
+# Raio do alerta por cidade (km); as demais usam 40. A capital paulista usa 25 para não disparar
+# com tempestades no interior ou no litoral.
+RADIUS_KM = {'sao-paulo': 25}
+
+
+def city_radius(key):
+    return RADIUS_KM.get(key, 40)
+
+
+def situation(resources, key):
+    """/alertas/situacao for the city. With a custom radius, raios_40km is replaced by the count within
+    that radius (raios_raio), or None when the API does not give it, so nothing claims a 40 km count."""
+    _, _, lat, lon = CITIES[key]
+    radius = city_radius(key)
+    if radius == 40:
+        return resources.json('/alertas/situacao', lat=lat, lon=lon)
+    lightning = dict(resources.json('/alertas/situacao', lat=lat, lon=lon, raio_km=radius))
+    count = lightning.get('raios_raio')
+    lightning['raios_40km'] = count if isinstance(count, int) and not isinstance(count, bool) else None
+    return lightning
+
+
 def fresh(value, now):
     if not value:
         return False
     t = datetime.fromisoformat(value.replace('Z', '+00:00')).replace(tzinfo=None)
     return 0 <= (now - t).total_seconds() <= 900
+
+
+def lightning_hook(lightning):
+    """Strikes within the city's radius (40 km unless RADIUS_KM says otherwise) in the last 30 minutes, when the count is complete and current; None otherwise."""
+    lightning = lightning or {}
+    count = lightning.get('raios_40km')
+    if lightning.get('dados_atrasados') or not isinstance(count, int) or isinstance(count, bool) or count < 1:
+        return None
+    return count
 
 
 def lightning_observed_at(lightning):
@@ -141,9 +172,10 @@ def lightning_observed_at(lightning):
 def evaluate(key, resources, *, lightning=None, density_reference=None):
     name, state, lat, lon = CITIES[key]
     now = utc_now()
-    lightning = lightning if lightning is not None else resources.json('/alertas/situacao', lat=lat, lon=lon)
+    radius = city_radius(key)
+    lightning = lightning if lightning is not None else situation(resources, key)
     try:
-        point = resources.json('/observado/ponto', lat=lat, lon=lon, raio_km=40).get('agora')
+        point = resources.json('/observado/ponto', lat=lat, lon=lon, raio_km=radius).get('agora')
     except (OSError, ValueError, KeyError, TypeError):
         point = None
     valid = point and any(fresh(point.get(k), now) for k in ('raios_ate', 'nuvens_de', 'cod_de', 'meteo_de'))
@@ -158,7 +190,7 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
                              .replace(tzinfo=None)).total_seconds() <= 900)
     lightning_fresh = not lightning['dados_atrasados'] and lightning['coberto']
     near = lightning.get('mais_proximo')
-    recent_lightning = bool(lightning_fresh and near and near.get('km', float('inf')) <= 40 and
+    recent_lightning = bool(lightning_fresh and near and near.get('km', float('inf')) <= radius and
                             0 <= near.get('minutos_atras', float('inf')) <= 15)
     # Needs the radar's yellow: blue rain alone published "storm" alerts for drizzle. Where no
     # radar answers, radar_fresh is False and this rule stays silent; lightning rules still apply.
@@ -205,7 +237,14 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
               'Evite áreas abertas, árvores isoladas e atividades na água.',
               'Não atravesse ruas alagadas. Acompanhe os avisos da Defesa Civil.']
     motion = point.get('deslocamento') if valid else None
-    text = (f"Atenção, {name}, {state}. Alerta preventivo de potencial de alagamento no município. " if flood_only else f"Atenção, {name}, {state}. Monitoramento da área até 40 quilômetros do centro. ")
+    hook = lightning_hook(lightning)
+    if flood_only:
+        text = f"Atenção, {name}, {state}. Alerta preventivo de potencial de alagamento no município. "
+    elif hook:
+        # The striking number comes first: most viewers decide in the first two seconds.
+        text = f"{hook} raios em 30 minutos a até {radius} quilômetros de {name}! Atenção, {state}. "
+    else:
+        text = f"Atenção, {name}, {state}. Monitoramento da área até {radius} quilômetros do centro. "
     text += '; '.join(reasons) + '. ' if reasons else ''
     if not flood_only and near and not lightning['dados_atrasados']:
         text += f"Raio mais próximo a {near['km']} quilômetros, no setor {near['direcao']}. "
@@ -213,12 +252,14 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
         text += f"Deslocamento estimado das células na região para {motion['para']}, a {motion['velocidade_kmh']} quilômetros por hora. "
     else:
         text += 'Direção de deslocamento não determinada com confiança. '
-    text += ('O risco é localizado; não confirma alagamento em todo o município nem em todos os bairros. ' + ' '.join(advice)
-             + ' Inscreva-se no TROVOX TEMPO e ative o sino para receber alertas.')
+    if flood_only:
+        text += 'O risco é localizado; não confirma alagamento em todo o município nem em todos os bairros. '
+    text += (' '.join(advice) + ' Choveu forte aí? Conte nos comentários. '
+             'E inscreva-se no TROVOX TEMPO para receber o próximo alerta antes da tempestade chegar.')
     report = {'cidade': key, 'nome': name, 'uf': state, 'lat': lat, 'lon': lon,
             'verificado_em': now.isoformat() + 'Z', 'gerar': bool(reasons), 'motivos': reasons,
             'raios': lightning, 'nowcasting': point if valid else None, 'chuva': radar,
-            'roteiro': text, 'recomendacoes': advice, 'raio_km': 40,
+            'roteiro': text, 'recomendacoes': advice, 'raio_km': radius,
             'aproximacao_chuva': incoming_rain, 'densidade': density,
             'secao': 'alagamentos-sp' if flood_only else 'nowcasting'}
     if key in SPANISH_CITIES:
@@ -257,8 +298,7 @@ class Monitor:
             db.execute('UPDATE jobs SET payload=? WHERE id=?', (json.dumps(item), item['id']))
 
     def evaluate_city(self, key):
-        _, _, lat, lon = CITIES[key]
-        lightning = self.resources.json('/alertas/situacao', lat=lat, lon=lon)
+        lightning = situation(self.resources, key)
         observed_at = lightning_observed_at(lightning)
         reference = None
         if observed_at is not None:

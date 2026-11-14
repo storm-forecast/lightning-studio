@@ -127,8 +127,9 @@ def publish_short(directory: Path, env=os.environ):
                   '\nApresentadora e voz geradas por IA. Dados: Lightning Agent.'
                   '\n#previsaodotempo #raios #chuva #nowcasting')
         label = 'risco de alagamento' if report.get('secao') == 'alagamentos-sp' else 'alerta de tempestade'
-        heading = report.get('titulo_short') or (f"⚡ {count} raios em 30 min perto de {report['nome']}: {label}{when} (horário local)"
-                                                 if count else f"{report['nome']}: {label}{when} (horário local)")
+        where = report.get('lugar_titulo') or f"perto de {report['nome']}"
+        heading = report.get('titulo_short') or (f"⚡ {count} raios em 30 min {where}: {label}{when} (horário local)"
+                                                 if count else f"{report.get('titulo_sem_raios') or report['nome']}: {label}{when} (horário local)")
     elif language.startswith('es'):
         footer = ('\n\nEstimación regional, no es un aviso oficial. Consulte al servicio meteorológico y Protección Civil de su país.'
                   '\nPresentadora y voz generadas por IA. Datos: Lightning Agent.'

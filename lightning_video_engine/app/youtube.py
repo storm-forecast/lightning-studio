@@ -256,10 +256,12 @@ def publish_short(directory: Path, env=os.environ, *, prefix='YOUTUBE', brand='T
     from .city_shorts import lightning_hook
     count = None if report.get('secao') == 'alagamentos-sp' else lightning_hook(report.get('raios'))
     stamp = f" | {local:%d/%m %H:%M} #Shorts"   # ALERT_TITLE counts the daily alerts by this ending
-    title = f"{report['nome']} ({report['uf']}): {label}{stamp}"
+    # A Região Sul state alert names the state first and the point with the most lightning after it.
+    where = report.get('lugar_titulo') or f"perto de {report['nome']} ({report['uf']})"
+    title = f"{report.get('titulo_sem_raios') or report['nome'] + ' (' + report['uf'] + ')'}: {label}{stamp}"
     if count:
-        for news in (f"{count} raios em 30 min perto de {report['nome']} ({report['uf']}): {label}",
-                     f"{count} raios em 30 min perto de {report['nome']} ({report['uf']})"):
+        for news in (f"{count} raios em 30 min {where}: {label}",
+                     f"{count} raios em 30 min {where}"):
             if len(news + stamp) <= 100:
                 title = news + stamp
                 break
@@ -278,7 +280,7 @@ def publish_short(directory: Path, env=os.environ, *, prefix='YOUTUBE', brand='T
         + '\n#Shorts #previsaodotempo #raios #nowcasting')
     metadata = {'snippet': {'title': title[:100], 'description': description[:5000],
         'categoryId': NEWS_CATEGORY, 'defaultLanguage': language, 'defaultAudioLanguage': language,
-        'tags': ['Shorts', report['nome'], 'nowcasting', 'chuva', brand]},
+        'tags': ['Shorts', report['nome'], *([report['estado_nome'], 'Região Sul'] if report.get('regiao') else []), 'nowcasting', 'chuva', brand]},
         'status': {'privacyStatus': privacy, 'selfDeclaredMadeForKids': False, 'containsSyntheticMedia': True}}
     if language.startswith('en'):
         metadata['snippet'].update(

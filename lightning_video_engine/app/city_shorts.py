@@ -83,22 +83,57 @@ CITIES = {
     **SP_FLOOD_CITIES,
 }
 
+# 13/11/2026: no Sul, o alerta deixou de ser por cidade e passou a ser por estado, com o nome da Região Sul.
+# O monitor lê os raios em volta destas cidades de cada estado e o alerta parte da que tem mais raios;
+# cada estado tem no máximo um alerta por dia (Monitor.eligible), como as cidades.
+SOUTH_STATES = {
+    'sul-pr': ('Paraná', 'PR', 'no'),
+    'sul-sc': ('Santa Catarina', 'SC', 'em'),
+    'sul-rs': ('Rio Grande do Sul', 'RS', 'no'),
+}
+SOUTH_POINTS = {
+    'PR': [('Curitiba', -25.428, -49.273), ('Ponta Grossa', -25.095, -50.162), ('Guarapuava', -25.390, -51.465),
+           ('Cascavel', -24.956, -53.455), ('Foz do Iguaçu', -25.548, -54.588), ('Maringá', -23.425, -51.939),
+           ('Londrina', -23.310, -51.163), ('Umuarama', -23.766, -53.325), ('Francisco Beltrão', -26.081, -53.055),
+           ('Paranaguá', -25.516, -48.525), ('Campo Mourão', -24.043, -52.379), ('Santo Antônio da Platina', -23.295, -50.077),
+           ('União da Vitória', -26.230, -51.086), ('Pato Branco', -26.229, -52.671), ('Telêmaco Borba', -24.324, -50.616),
+           ('Paranavaí', -23.073, -52.465)],
+    'SC': [('Florianópolis', -27.597, -48.549), ('Joinville', -26.304, -48.846), ('Blumenau', -26.919, -49.066),
+           ('Lages', -27.816, -50.326), ('Chapecó', -27.096, -52.618), ('Joaçaba', -27.178, -51.505),
+           ('São Miguel do Oeste', -26.725, -53.518), ('Criciúma', -28.677, -49.370), ('Caçador', -26.775, -51.015),
+           ('Mafra', -26.111, -49.805), ('Tubarão', -28.467, -49.007), ('Rio do Sul', -27.214, -49.643),
+           ('Concórdia', -27.234, -52.028), ('Curitibanos', -27.283, -50.584), ('São Bento do Sul', -26.250, -49.379)],
+    'RS': [('Porto Alegre', -30.033, -51.230), ('Caxias do Sul', -29.168, -51.179), ('Passo Fundo', -28.263, -52.407),
+           ('Santa Maria', -29.684, -53.807), ('Pelotas', -31.770, -52.341), ('Uruguaiana', -29.755, -57.088),
+           ('Santo Ângelo', -28.299, -54.263), ('Erechim', -27.635, -52.275), ('Bagé', -31.331, -54.107),
+           ('Santa Rosa', -27.871, -54.481), ('Frederico Westphalen', -27.359, -53.394), ('Alegrete', -29.783, -55.792),
+           ('Santa Cruz do Sul', -29.718, -52.426), ('Cruz Alta', -28.644, -53.606), ('Vacaria', -28.512, -50.934),
+           ('Torres', -29.335, -49.727), ('Camaquã', -30.851, -51.812), ('São Borja', -28.661, -56.004),
+           ('Santana do Livramento', -30.891, -55.532), ('Lajeado', -29.467, -51.961), ('Rio Grande', -32.035, -52.099),
+           ('São Gabriel', -30.336, -54.320), ('Gramado', -29.379, -50.874)],
+}
+
+
+def place_state(key):
+    """UF of a monitored key, city or southern state."""
+    return SOUTH_STATES[key][1] if key in SOUTH_STATES else CITIES[key][1]
+
 # Cidades que o monitor automático varre. CITIES continua sendo o catálogo completo (testes, scripts).
 # 07/11/2026: comentadas as cidades cujo alerta não chegou a 500 visualizações no TROVOX TEMPO,
 # ou que nunca geraram alerta. Descomente para voltar a monitorar.
 MONITORED = [
     'rio-de-janeiro',
     # 'salvador',
-    'florianopolis',  # 10/11/2026: Região Sul reativada a pedido
+    # 'florianopolis',  # 13/11/2026: o Sul passou a ter alerta por estado (sul-pr, sul-sc, sul-rs)
     # 'maceio',
-    'gramado',
+    # 'gramado',
     'sao-paulo',  # 13/11/2026: só a capital, num raio de 25 km (RADIUS_KM); um alerta por dia
-    'curitiba',
-    'porto-alegre',
-    'santa-maria',
-    'novo-horizonte',
+    # 'curitiba',
+    # 'porto-alegre',
+    # 'santa-maria',
+    # 'novo-horizonte',
     # 'brasilia',
-    'belo-horizonte',
+    # 'belo-horizonte',  # 13/11/2026: retirado a pedido
     'campo-grande',
     # 'manaus',
     # 'cordoba',
@@ -111,9 +146,12 @@ MONITORED = [
     # 'lima',
     # 'montevideo',
     'caracas',
-    'maringa',  # 10/11/2026: Região Sul (Norte do PR e Oeste de SC)
-    'londrina',
-    'chapeco',
+    # 'maringa',  # 10/11/2026: Região Sul (Norte do PR e Oeste de SC)
+    # 'londrina',
+    # 'chapeco',
+    'sul-pr',  # 13/11/2026: alerta por estado da Região Sul (SOUTH_STATES)
+    'sul-sc',
+    'sul-rs',
     # *SP_FLOOD_CITIES,  # alagamento em SP: nenhum alerta passou de 500 visualizações
 ]
 
@@ -127,10 +165,10 @@ def city_radius(key):
     return RADIUS_KM.get(key, 40)
 
 
-def situation(resources, key):
+def situation(resources, key, place=None):
     """/alertas/situacao for the city. With a custom radius, raios_40km is replaced by the count within
     that radius (raios_raio), or None when the API does not give it, so nothing claims a 40 km count."""
-    _, _, lat, lon = CITIES[key]
+    _, _, lat, lon = place or CITIES[key]
     radius = city_radius(key)
     if radius == 40:
         return resources.json('/alertas/situacao', lat=lat, lon=lon)
@@ -169,11 +207,13 @@ def lightning_observed_at(lightning):
         return None
 
 
-def evaluate(key, resources, *, lightning=None, density_reference=None):
-    name, state, lat, lon = CITIES[key]
+def evaluate(key, resources, *, lightning=None, density_reference=None, place=None, region=None):
+    """place=(name, uf, lat, lon) evaluates a point outside CITIES; region=(state name, preposition,
+    other places with lightning) opens the text as a Região Sul state alert."""
+    name, state, lat, lon = place or CITIES[key]
     now = utc_now()
     radius = city_radius(key)
-    lightning = lightning if lightning is not None else situation(resources, key)
+    lightning = lightning if lightning is not None else situation(resources, key, place)
     try:
         point = resources.json('/observado/ponto', lat=lat, lon=lon, raio_km=radius).get('agora')
     except (OSError, ValueError, KeyError, TypeError):
@@ -240,12 +280,19 @@ def evaluate(key, resources, *, lightning=None, density_reference=None):
     hook = lightning_hook(lightning)
     if flood_only:
         text = f"Atenção, {name}, {state}. Alerta preventivo de potencial de alagamento no município. "
+    elif region and hook:
+        text = f"{hook} raios em 30 minutos perto de {name}, {region[1]} {region[0]}! Alerta de tempestade na Região Sul. "
+    elif region:
+        text = f"Alerta de tempestade na Região Sul: {name}, {region[1]} {region[0]}. "
     elif hook:
         # The striking number comes first: most viewers decide in the first two seconds.
         text = f"{hook} raios em 30 minutos a até {radius} quilômetros de {name}! Atenção, {state}. "
     else:
         text = f"Atenção, {name}, {state}. Monitoramento da área até {radius} quilômetros do centro. "
     text += '; '.join(reasons) + '. ' if reasons else ''
+    if region and region[2]:
+        others = list(region[2])
+        text += 'Também há raios perto de ' + (', '.join(others[:-1]) + ' e ' + others[-1] if len(others) > 1 else others[0]) + '. '
     if not flood_only and near and not lightning['dados_atrasados']:
         text += f"Raio mais próximo a {near['km']} quilômetros, no setor {near['direcao']}. "
     if motion and not flood_only:
@@ -298,7 +345,42 @@ class Monitor:
             db.execute('UPDATE jobs SET payload=? WHERE id=?', (json.dumps(item), item['id']))
 
     def evaluate_city(self, key):
-        lightning = situation(self.resources, key)
+        if key in SOUTH_STATES:
+            return self.evaluate_state(key)
+        return self.evaluate_point(key)
+
+    def evaluate_state(self, key):
+        """A Região Sul state alert from the point of the state with the most lightning within 40 km."""
+        from concurrent.futures import ThreadPoolExecutor
+        state_name, uf, preposition = SOUTH_STATES[key]
+        points = [(name, uf, lat, lon) for name, lat, lon in SOUTH_POINTS[uf]]
+
+        def read(place):
+            try:
+                return situation(self.resources, key, place)
+            except (OSError, ValueError, KeyError, TypeError):
+                return None
+        with ThreadPoolExecutor(6, thread_name_prefix='south-scan') as pool:
+            readings = list(zip(points, pool.map(read, points)))
+        active = sorted(((place, lightning) for place, lightning in readings if lightning_hook(lightning)),
+                        key=lambda item: -lightning_hook(item[1]))
+        report = None
+        # The three points with the most lightning are tried in turn: the radar may cancel one of them.
+        for place, lightning in active[:3] or [(points[0], None)]:
+            others = [other[0] for other, _ in active if other is not place][:2]
+            report = self.evaluate_point(key, place=place, lightning=lightning,
+                                         region=(state_name, preposition, others), sample=f'{key}:{place[0]}')
+            if report['gerar']:
+                break
+        report.update(cidade=key, regiao='Região Sul', estado_nome=state_name,
+                      titulo_tela=f'{state_name} • Região Sul',
+                      lugar_titulo=f"{preposition} {state_name}, perto de {report['nome']}",
+                      titulo_sem_raios=f'{state_name}, Região Sul')
+        return report
+
+    def evaluate_point(self, key, *, place=None, lightning=None, region=None, sample=None):
+        sample = sample or key
+        lightning = lightning if lightning is not None else situation(self.resources, key, place)
         observed_at = lightning_observed_at(lightning)
         reference = None
         if observed_at is not None:
@@ -306,15 +388,15 @@ class Monitor:
                 row = db.execute('SELECT observed_at,count_15 FROM lightning_samples '
                                  'WHERE city=? AND observed_at BETWEEN ? AND ? '
                                  'ORDER BY observed_at DESC LIMIT 1',
-                                 (key, observed_at - 1800, observed_at - 300)).fetchone()
+                                 (sample, observed_at - 1800, observed_at - 300)).fetchone()
             if row:
                 reference = {'observed_at': row[0], 'count_15': row[1]}
-        report = evaluate(key, self.resources, lightning=lightning, density_reference=reference)
+        report = evaluate(key, self.resources, lightning=lightning, density_reference=reference, place=place, region=region)
         current = lightning.get('raios_15km')
         if observed_at is not None and isinstance(current, int) and current >= 0:
             with self.db() as db:
                 db.execute('INSERT OR IGNORE INTO lightning_samples VALUES (?,?,?)',
-                           (key, observed_at, current))
+                           (sample, observed_at, current))
                 db.execute('DELETE FROM lightning_samples WHERE observed_at<?',
                            (datetime.now(timezone.utc).timestamp() - 7200,))
         return report
@@ -326,11 +408,11 @@ class Monitor:
         if seed.exists():
             record = json.loads(seed.read_text()).get(key)
             if record:
-                tz = ZoneInfo(city_timezone(key, CITIES[key][1]))
+                tz = ZoneInfo(city_timezone(key, place_state(key)))
                 published = datetime.fromisoformat(record['published_at'].replace('Z','+00:00'))
                 if published.astimezone(tz).date() == datetime.now(tz).date():
                     return False
-        tz = ZoneInfo(city_timezone(key, CITIES[key][1]))
+        tz = ZoneInfo(city_timezone(key, place_state(key)))
         midnight = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
         with self.db() as db:
             rows = db.execute('SELECT created,payload FROM jobs WHERE city=?', (key,)).fetchall()
@@ -355,7 +437,7 @@ class Monitor:
                         continue
                     if report['gerar']:
                         with self.db() as db:
-                            tz = ZoneInfo(city_timezone(key, CITIES[key][1]))
+                            tz = ZoneInfo(city_timezone(key, place_state(key)))
                             now_local = datetime.now(tz)
                             midnight = now_local.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
                             recent = db.execute('SELECT payload FROM jobs WHERE city=? AND created>=?',

@@ -391,3 +391,49 @@ def test_other_cities_keep_40_km():
     assert all('raio_km' not in q for p, q in api.queries if p == '/alertas/situacao')
     assert report['gerar'] and report['raio_km'] == 40
     assert report['roteiro'].startswith('300 raios em 30 minutos a até 40 quilômetros de Belo Horizonte!')
+
+
+def test_south_is_monitored_by_state_and_belo_horizonte_is_not():
+    from lightning_video_engine.app.city_shorts import MONITORED, SOUTH_POINTS, SOUTH_STATES
+    assert {'sul-pr', 'sul-sc', 'sul-rs'} <= set(MONITORED)
+    south_cities = {key for key, city in CITIES.items() if city[1] in ('PR', 'SC', 'RS')}
+    assert not south_cities & set(MONITORED)
+    assert 'belo-horizonte' not in MONITORED
+    assert set(SOUTH_POINTS) == {uf for _, uf, _ in SOUTH_STATES.values()}
+
+
+def test_state_alert_starts_from_the_point_with_most_lightning(tmp_path):
+    counts = {-24.956: 41, -23.425: 7}   # Cascavel and Maringá; every other point has none
+
+    class StateSource:
+        def json(self, path, **query):
+            if path == '/alertas/situacao':
+                count = counts.get(query['lat'], 0)
+                return {'dados_atrasados': False, 'coberto': True, 'raios_40km': count, 'raios_15km': count,
+                        'mais_proximo': {'km': 6, 'minutos_atras': 3, 'direcao': 'oeste'} if count else None}
+            return {'agora': {'risco': 'alta', 'nuvens_de': '2026-11-01T12:00:00Z'}}
+
+    radar = {'coberto': True, 'neve': False, 'classe': 1, 'hora': datetime(2026, 11, 1, 11, 55, tzinfo=timezone.utc).timestamp()}
+    monitor = Monitor(StateSource(), tmp_path)
+    with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), \
+         patch('lightning_video_engine.app.city_shorts.rain_at', return_value=radar), \
+         patch('lightning_video_engine.app.city_shorts.rain_duration', return_value=0), \
+         patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026, 11, 1, 12)):
+        report = monitor.evaluate_city('sul-pr')
+    assert report['gerar'] and report['cidade'] == 'sul-pr'
+    assert (report['nome'], report['uf'], report['lat']) == ('Cascavel', 'PR', -24.956)
+    assert report['roteiro'].startswith('41 raios em 30 minutos perto de Cascavel, no Paraná! Alerta de tempestade na Região Sul.')
+    assert 'Também há raios perto de Maringá.' in report['roteiro']
+    assert report['lugar_titulo'] == 'no Paraná, perto de Cascavel'
+    assert report['titulo_tela'] == 'Paraná • Região Sul'
+    assert monitor.eligible('sul-pr')
+
+
+def test_quiet_state_does_not_alert(tmp_path):
+    source = Source()
+    radar = {'coberto': True, 'neve': False, 'classe': 0, 'hora': datetime(2026, 11, 1, 11, 55, tzinfo=timezone.utc).timestamp()}
+    with patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), \
+         patch('lightning_video_engine.app.city_shorts.rain_at', return_value=radar), \
+         patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026, 11, 1, 12)):
+        report = Monitor(source, tmp_path).evaluate_city('sul-rs')
+    assert not report['gerar'] and report['cidade'] == 'sul-rs'

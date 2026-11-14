@@ -400,7 +400,7 @@ def panel(report, labels, scene, time):
     width = int(face.getlength(chip)) + 28
     draw.rounded_rectangle((32, 70, 32 + width, 106), 8, fill=RED + (255,))
     draw.text((46, 76), chip, font=face, fill=(255, 255, 255, 255))
-    name = f"{report['nome']}, {report['uf']}"
+    name = report.get('titulo_tela') or f"{report['nome']}, {report['uf']}"
     size = 50
     while font(BOLD, size).getlength(name) > 650 and size > 28:
         size -= 2
@@ -485,8 +485,10 @@ def nearby(report):
         from .world_alerts import CITIES as WORLD
         return [(city[0].split(',')[0], city[2], city[3]) for key, city in WORLD.items() if key != report['cidade']]
     from .city_shorts import CITIES
+    # A state alert is centred on a catalogue city, which already has the centre marker and its name.
     return [(city[0], city[2], city[3]) for key, city in CITIES.items()
-            if key != report['cidade'] and not key.startswith('sp-')]
+            if key != report['cidade'] and not key.startswith('sp-')
+            and abs(city[2] - report['lat']) + abs(city[3] - report['lon']) > 0.05]
 
 
 def render_clouds(directory, report, resources):

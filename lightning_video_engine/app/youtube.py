@@ -19,6 +19,8 @@ UPLOAD = 'https://www.googleapis.com/upload/youtube/v3/videos'
 # upload publishes; readonly lets us confirm which channel the token belongs to.
 SCOPES = ('https://www.googleapis.com/auth/youtube.upload',
           'https://www.googleapis.com/auth/youtube.readonly',
+          # Edits titles/descriptions of videos already published (scripts/add_channel_link.py).
+          'https://www.googleapis.com/auth/youtube.force-ssl',
           # Read-only channel analytics (subscribers by country/video, traffic sources, retention).
           'https://www.googleapis.com/auth/yt-analytics.readonly')
 PRIVACY = {'private', 'unlisted', 'public'}
@@ -133,7 +135,27 @@ def bulletin_metadata(directory: Path, presented_at: datetime, *, timezone_name=
             'status': status}
 
 
-def upload(video: Path, metadata, token):
+# Every TROVOX TEMPO video opens its description with the channel link (request of 20/11/2026).
+TEMPO_CHANNEL_ID = 'UCOrGMudYslWWWmpW8pu3UDg'
+CHANNEL_URL = f'https://www.youtube.com/channel/{TEMPO_CHANNEL_ID}'
+CHANNEL_LINE = f'▶️ TROVOX TEMPO: {CHANNEL_URL}'
+
+
+def with_channel_link(description):
+    """The description with the channel line on top; unchanged when it already carries the link."""
+    description = description or ''
+    if CHANNEL_URL in description:
+        return description
+    return (CHANNEL_LINE + '\n\n' + description)[:5000]
+
+
+def upload(video: Path, metadata, token, channel=None):
+    """Resumable upload. On the TROVOX TEMPO channel (looked up when not given) the description gains the channel link."""
+    if channel is None:
+        channel = authorized_channel(token)[0]
+    if channel == TEMPO_CHANNEL_ID:
+        metadata = json.loads(json.dumps(metadata))
+        metadata.setdefault('snippet', {})['description'] = with_channel_link(metadata['snippet'].get('description'))
     size = video.stat().st_size
     headers, _ = _request(f'{UPLOAD}?uploadType=resumable&part=snippet,status',
                           data=json.dumps(metadata).encode(), method='POST',
@@ -186,7 +208,7 @@ def publish_bulletin(directory: Path, presented_at: datetime, env=os.environ, pu
     metadata = bulletin_metadata(directory, presented_at,
                                  timezone_name=env.get('VIDEO_TIMEZONE', 'America/Belem'),
                                  privacy=env.get('YOUTUBE_PRIVACY', 'private'), publish_at=publish_at)
-    result = upload(video, metadata, token)
+    result = upload(video, metadata, token, channel)
     if not result.get('id'):
         raise YouTubeError('YouTube não confirmou o identificador do vídeo')
     expected_privacy = metadata['status']['privacyStatus']
@@ -313,7 +335,7 @@ def publish_short(directory: Path, env=os.environ, *, prefix='YOUTUBE', brand='T
             + '\nEstimación regional. Consulte al servicio meteorológico y Protección Civil de su país.'
             + '\nPresentadora y voz generadas por IA. Datos: Lightning Agent. Mapa: © OpenStreetMap contributors — https://www.openstreetmap.org/copyright'
             + '\n#Shorts #tormentas #rayos'))
-    result = upload(video, metadata, token)
+    result = upload(video, metadata, token, channel)
     if not result.get('id'):
         raise YouTubeError('upload sem identificador de vídeo')
     record = {'video_id': result['id'], 'url': 'https://www.youtube.com/shorts/' + result['id'],

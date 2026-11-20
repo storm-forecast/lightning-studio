@@ -145,3 +145,24 @@ def test_bulletins_stay_off_youtube_by_default(tmp_path):
         assert youtube.publish_bulletin(tmp_path, AT, off) is None
     upload.assert_not_called()
     token.assert_not_called()
+
+
+def test_channel_link_tops_tempo_descriptions_once():
+    once = youtube.with_channel_link('Alerta.')
+    assert once.startswith(youtube.CHANNEL_LINE) and once.endswith('Alerta.')
+    assert youtube.with_channel_link(once) == once
+    assert len(youtube.with_channel_link('x' * 6000)) == 5000
+
+
+def test_upload_adds_the_link_only_on_tempo(tmp_path):
+    video = tmp_path / 'v.mp4'; video.write_bytes(b'mp4')
+    sent = []
+    def fake(url, data=None, headers=None, method=None):
+        if method == 'POST':
+            sent.append(json.loads(data))
+            return {'Location': 'https://upload'}, {}
+        return {}, {'id': 'abc'}
+    for channel, expected in ((youtube.TEMPO_CHANNEL_ID, True), ('UCglobal', False)):
+        with patch.object(youtube, '_request', side_effect=fake):
+            youtube.upload(video, {'snippet': {'title': 't', 'description': 'Texto.'}}, 'tok', channel)
+        assert (youtube.CHANNEL_URL in sent[-1]['snippet']['description']) is expected

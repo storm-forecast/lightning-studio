@@ -147,10 +147,12 @@ def test_bulletins_stay_off_youtube_by_default(tmp_path):
     token.assert_not_called()
 
 
-def test_channel_link_tops_tempo_descriptions_once():
+def test_links_top_tempo_descriptions_once_and_replace_the_old_line():
     once = youtube.with_channel_link('Alerta.')
-    assert once.startswith(youtube.CHANNEL_LINE) and once.endswith('Alerta.')
+    assert once.startswith(youtube.LINKS) and once.endswith('Alerta.')
     assert youtube.with_channel_link(once) == once
+    old = youtube.OLD_CHANNEL_LINE + '\n\nTexto antigo.'
+    assert youtube.with_channel_link(old) == youtube.LINKS + '\n\nTexto antigo.'
     assert len(youtube.with_channel_link('x' * 6000)) == 5000
 
 
@@ -165,4 +167,4 @@ def test_upload_adds_the_link_only_on_tempo(tmp_path):
     for channel, expected in ((youtube.TEMPO_CHANNEL_ID, True), ('UCglobal', False)):
         with patch.object(youtube, '_request', side_effect=fake):
             youtube.upload(video, {'snippet': {'title': 't', 'description': 'Texto.'}}, 'tok', channel)
-        assert (youtube.CHANNEL_URL in sent[-1]['snippet']['description']) is expected
+        assert youtube.has_links(sent[-1]['snippet']['description']) is expected

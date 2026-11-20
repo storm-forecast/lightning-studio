@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Put the TROVOX TEMPO channel link on top of the description of every video already published.
+"""Put the YouTube and Instagram links on top of the description of every TROVOX TEMPO video already published.
 
 Each edit costs 50 units of the 10,000-unit daily YouTube quota (an upload costs 1,600), so at most
 --max videos are edited per run; videos that already carry the link are skipped, and the next run
@@ -19,8 +19,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
-from lightning_video_engine.app.youtube import (API, CHANNEL_URL, TEMPO_CHANNEL_ID, YouTubeError, _request,
-                                                access_token, authorized_channel, with_channel_link)
+from lightning_video_engine.app.youtube import (API, TEMPO_CHANNEL_ID, YouTubeError, _request, access_token,
+                                                authorized_channel, has_links, with_channel_link)
 
 p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 p.add_argument('--max', type=int, default=60, help='máximo de vídeos editados nesta rodada (50 unidades cada)')
@@ -54,9 +54,9 @@ while True:
 pending = []
 for k in range(0, len(ids), 50):
     for video in get('videos', part='snippet', id=','.join(ids[k:k + 50])).get('items', []):
-        if CHANNEL_URL not in video['snippet'].get('description', ''):
+        if not has_links(video['snippet'].get('description', '')):
             pending.append(video)
-print(f'{len(ids)} vídeos no canal; {len(pending)} sem o link do canal')
+print(f'{len(ids)} vídeos no canal; {len(pending)} sem os links do YouTube e do Instagram')
 
 done = 0
 for video in pending[:a.max]:

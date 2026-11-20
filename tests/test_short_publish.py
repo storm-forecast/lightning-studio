@@ -75,11 +75,12 @@ def published_metadata(tmp_path, **fields):
     return upload.call_args.args[1]['snippet']
 
 def test_title_leads_with_the_lightning_count_and_is_still_counted(tmp_path):
-    snippet=published_metadata(tmp_path,raios={'raios_40km':312,'dados_atrasados':False})
+    snippet=published_metadata(tmp_path,raios={'raios_40km':312,'dados_atrasados':False},roteiro='312 raios em 30 minutos a até 40 quilômetros de Curitiba! Atenção, PR.')
     assert snippet['title'].startswith('312 raios em 30 min perto de Curitiba (PR): alerta de tempestade | ')
     assert youtube.ALERT_TITLE.search(snippet['title']) and len(snippet['title'])<=100
-    assert snippet['description'].startswith('⚡ Choveu forte aí? Conte nos comentários!')
-    assert 'sub_confirmation=1' in snippet['description']
+    assert snippet['description'].startswith(youtube.LINKS)
+    assert '⚡ Choveu forte aí? Conte nos comentários!' in snippet['description']
+    assert '312 raios' in snippet['description'] and len(snippet['description']) < 600
 
 def test_title_without_a_count_keeps_the_plain_format(tmp_path):
     snippet=published_metadata(tmp_path,raios={'raios_40km':5,'dados_atrasados':True})
@@ -89,4 +90,5 @@ def test_spanish_title_leads_with_the_count(tmp_path):
     snippet=published_metadata(tmp_path,nome='Córdoba',uf='AR',pais='Argentina',idioma='es-AR',raios={'raios_40km':87,'dados_atrasados':False})
     assert snippet['title'].startswith('¡87 rayos en 30 min cerca de Córdoba, Argentina! Alerta de tormenta | ')
     assert youtube.ALERT_TITLE.search(snippet['title'])
-    assert snippet['description'].startswith('⚡ ¿Llueve fuerte donde usted está?')
+    assert snippet['description'].startswith(youtube.LINKS)
+    assert '⚡ ¿Llueve fuerte donde usted está?' in snippet['description']

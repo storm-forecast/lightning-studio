@@ -135,18 +135,27 @@ def bulletin_metadata(directory: Path, presented_at: datetime, *, timezone_name=
             'status': status}
 
 
-# Every TROVOX TEMPO video opens its description with the channel link (request of 20/11/2026).
+# Every TROVOX TEMPO description opens with clickable YouTube and Instagram links (requests of 20/11/2026).
 TEMPO_CHANNEL_ID = 'UCOrGMudYslWWWmpW8pu3UDg'
 CHANNEL_URL = f'https://www.youtube.com/channel/{TEMPO_CHANNEL_ID}'
-CHANNEL_LINE = f'▶️ TROVOX TEMPO: {CHANNEL_URL}'
+SUBSCRIBE_URL = CHANNEL_URL + '?sub_confirmation=1'
+INSTAGRAM_URL = 'https://www.instagram.com/trovoxtempo'
+LINKS = f'▶️ YouTube: {SUBSCRIBE_URL}\n📸 Instagram: {INSTAGRAM_URL}'
+OLD_CHANNEL_LINE = f'▶️ TROVOX TEMPO: {CHANNEL_URL}'
+
+
+def has_links(description):
+    return SUBSCRIBE_URL in (description or '') and INSTAGRAM_URL in (description or '')
 
 
 def with_channel_link(description):
-    """The description with the channel line on top; unchanged when it already carries the link."""
+    """The description with the links block on top (replacing the older channel-only line); unchanged when present."""
     description = description or ''
-    if CHANNEL_URL in description:
+    if has_links(description):
         return description
-    return (CHANNEL_LINE + '\n\n' + description)[:5000]
+    if description.startswith(OLD_CHANNEL_LINE):
+        description = description[len(OLD_CHANNEL_LINE):].lstrip('\n')
+    return (LINKS + '\n\n' + description)[:5000]
 
 
 def upload(video: Path, metadata, token, channel=None):
@@ -300,18 +309,16 @@ def publish_short(directory: Path, env=os.environ, *, prefix='YOUTUBE', brand='T
                 title = news + stamp
                 break
     title = report.get('titulo_short') or title
-    link = 'https://www.youtube.com/@trovoxtempo?sub_confirmation=1'
-    ask = ask_es = ''
-    if brand == 'TROVOX TEMPO':
-        ask = ('⚡ Choveu forte aí? Conte nos comentários!\n'
-               f'🔔 Inscreva-se para receber o próximo alerta antes da tempestade chegar: {link}\n\n')
-        ask_es = ('⚡ ¿Llueve fuerte donde usted está? ¡Cuéntenos en los comentarios!\n'
-                  f'🔔 Suscríbase para recibir la próxima alerta antes de que llegue la tormenta: {link}\n\n')
+    tempo = brand == 'TROVOX TEMPO'
+    lead = report['roteiro'].split('! ')[0].split('. ')[0].strip().rstrip('.!')
+    lead += '!' if lead.startswith('¡') else '.'
+    links = LINKS + '\n\n' if tempo else ''
     language = report.get('idioma', 'pt-BR')
-    description = (ask + f"{brand} — atualização de {local:%d/%m/%Y às %H:%M}, horário local.\n"
-        + report['roteiro'] + '\n\nNowcasting regional, não é aviso oficial. Consulte a Defesa Civil e o INMET.'
-        + '\nApresentadora e voz geradas por IA. Dados: Lightning Agent. Mapa: © OpenStreetMap contributors — https://www.openstreetmap.org/copyright'
-        + '\n#Shorts #previsaodotempo #raios #nowcasting')
+    # Short on purpose: links first, the comment question, one line of the alert and the notices.
+    description = (links + ('⚡ Choveu forte aí? Conte nos comentários!\n' if tempo else '') + lead
+        + f"\n{brand} · {local:%d/%m %H:%M}, horário local."
+        + '\n\nNão é aviso oficial: siga a Defesa Civil e o INMET. Apresentadora e voz por IA. Mapa © OpenStreetMap.'
+        + '\n#Shorts #previsaodotempo #raios')
     metadata = {'snippet': {'title': title[:100], 'description': description[:5000],
         'categoryId': NEWS_CATEGORY, 'defaultLanguage': language, 'defaultAudioLanguage': language,
         'tags': ['Shorts', report['nome'], *([report['estado_nome'], 'Região Sul'] if report.get('regiao') else []), 'nowcasting', 'chuva', brand]},
@@ -331,9 +338,9 @@ def publish_short(directory: Path, env=os.environ, *, prefix='YOUTUBE', brand='T
             title = f"¡{count} rayos en 30 min cerca de {place}! Alerta de tormenta{stamp}"
         metadata['snippet'].update(title=title[:100], defaultLanguage=report['idioma'], defaultAudioLanguage=report['idioma'],
             tags=['Shorts',report['nome'],report.get('pais',report['uf']),'tormentas','rayos','TROVOX TEMPO'],
-            description=(ask_es + f"TROVOX TEMPO — {local:%d/%m/%Y %H:%M}, hora local.\n" + report['roteiro']
-            + '\nEstimación regional. Consulte al servicio meteorológico y Protección Civil de su país.'
-            + '\nPresentadora y voz generadas por IA. Datos: Lightning Agent. Mapa: © OpenStreetMap contributors — https://www.openstreetmap.org/copyright'
+            description=(links + '⚡ ¿Llueve fuerte donde usted está? ¡Cuéntenos en los comentarios!\n' + lead
+            + f"\nTROVOX TEMPO · {local:%d/%m %H:%M}, hora local."
+            + '\n\nNo es aviso oficial: siga a Protección Civil. Presentadora y voz por IA. Mapa © OpenStreetMap.'
             + '\n#Shorts #tormentas #rayos'))
     result = upload(video, metadata, token, channel)
     if not result.get('id'):

@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from lightning_video_engine.app import youtube
 
-ENV = {'YOUTUBE_CLIENT_ID': 'id', 'YOUTUBE_CLIENT_SECRET': 'secret', 'YOUTUBE_REFRESH_TOKEN': 'refresh',
+ENV = {'BULLETIN_YOUTUBE': 'true', 'YOUTUBE_CLIENT_ID': 'id', 'YOUTUBE_CLIENT_SECRET': 'secret', 'YOUTUBE_REFRESH_TOKEN': 'refresh',
        'YOUTUBE_CHANNEL_ID': 'UCOrGMudYslWWWmpW8pu3UDg'}
 AT = datetime(2026, 10, 31, 17, 17, tzinfo=timezone.utc)
 
@@ -136,3 +136,12 @@ class QuotaStop(unittest.TestCase):
             self.assertEqual(youtube.block_quota(Path(folder), 'limite do YouTube atingido: quotaExceeded', AT), AT)
             saved = json.loads((Path(folder) / youtube.QUOTA_FILE).read_text())
             self.assertEqual(saved, {'ultimo_limite': AT.isoformat(), 'motivo': 'limite do YouTube atingido: quotaExceeded'})
+
+
+def test_bulletins_stay_off_youtube_by_default(tmp_path):
+    (tmp_path / 'boletim.mp4').write_bytes(b'mp4')
+    off = {k: v for k, v in ENV.items() if k != 'BULLETIN_YOUTUBE'}
+    with patch.object(youtube, 'upload') as upload, patch.object(youtube, 'access_token') as token:
+        assert youtube.publish_bulletin(tmp_path, AT, off) is None
+    upload.assert_not_called()
+    token.assert_not_called()

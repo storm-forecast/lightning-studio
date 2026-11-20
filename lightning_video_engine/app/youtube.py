@@ -18,7 +18,9 @@ API = 'https://www.googleapis.com/youtube/v3'
 UPLOAD = 'https://www.googleapis.com/upload/youtube/v3/videos'
 # upload publishes; readonly lets us confirm which channel the token belongs to.
 SCOPES = ('https://www.googleapis.com/auth/youtube.upload',
-          'https://www.googleapis.com/auth/youtube.readonly')
+          'https://www.googleapis.com/auth/youtube.readonly',
+          # Read-only channel analytics (subscribers by country/video, traffic sources, retention).
+          'https://www.googleapis.com/auth/yt-analytics.readonly')
 PRIVACY = {'private', 'unlisted', 'public'}
 NEWS_CATEGORY = '25'
 TAGS = ['previsão do tempo', 'boletim meteorológico', 'raios', 'chuva', 'tempo severo',
@@ -148,8 +150,18 @@ def upload(video: Path, metadata, token):
                                  'Content-Length': str(size)})[1]
 
 
+def bulletins_on_youtube(env=os.environ):
+    """Long bulletins stay off YouTube unless BULLETIN_YOUTUBE=true: they drew 4-112 views and cost
+    an upload slot a day that alert Shorts need (analysis of 15/11/2026)."""
+    return env.get('BULLETIN_YOUTUBE', '').strip().lower() in {'1', 'true', 'yes'}
+
+
 def publish_bulletin(directory: Path, presented_at: datetime, env=os.environ, publish_at=None):
-    """Upload `boletim.mp4` only when the token belongs to YOUTUBE_CHANNEL_ID."""
+    """Upload `boletim.mp4` only when the token belongs to YOUTUBE_CHANNEL_ID.
+
+    Returns None without uploading while bulletins are off YouTube (see bulletins_on_youtube)."""
+    if not bulletins_on_youtube(env):
+        return None
     video = directory / 'boletim.mp4'
     if not video.is_file():
         raise YouTubeError(f'vídeo não encontrado: {video}')

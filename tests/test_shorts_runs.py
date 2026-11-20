@@ -80,16 +80,15 @@ class SaoPauloFloodAlerts(unittest.TestCase):
         self.assertFalse(report['gerar'])
         self.assertNotIn('gatilho', report['roteiro'].lower())
 
-    def test_flood_alert_caption_does_not_say_storm(self):
+    def test_flood_alert_stays_off_instagram(self):
+        # São Paulo flood alerts are in Portuguese, and Portuguese stays on YouTube only.
         from lightning_video_engine.app import instagram
         with tempfile.TemporaryDirectory() as folder:
             directory = Path(folder)
             (directory / 'alerta.json').write_text(json.dumps({'nome': 'São Paulo', 'uf': 'SP', 'roteiro': 'Texto.', 'secao': 'alagamentos-sp'}))
             with patch.object(instagram, 'publish_reel', return_value={'url': 'x'}) as reel:
-                instagram.publish_short(directory)
-        caption = reel.call_args[0][1]
-        self.assertIn('risco de alagamento', caption)
-        self.assertNotIn('tempestade', caption)
+                self.assertIsNone(instagram.cross_post(directory, {'INSTAGRAM_ACCESS_TOKEN': 'token'}))
+        reel.assert_not_called()
 
 
 class PublishCities(unittest.TestCase):

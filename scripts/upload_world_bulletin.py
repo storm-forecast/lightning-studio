@@ -5,7 +5,11 @@ import os
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from lightning_video_engine.app.youtube import access_token, authorized_channel, upload, YouTubeError
+from lightning_video_engine.app.youtube import access_token, authorized_channel, bulletins_on_youtube, upload, YouTubeError
+
+if not bulletins_on_youtube():
+    print('Bulletin not uploaded: bulletins are off YouTube (set BULLETIN_YOUTUBE=true to re-enable)')
+    sys.exit(0)
 
 directory = Path(sys.argv[1])
 video = directory / 'bulletin.mp4'

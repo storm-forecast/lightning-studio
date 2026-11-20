@@ -18,4 +18,7 @@ started = (datetime.strptime(match.group(1), '%Y%m%dT%H%M%SZ').replace(tzinfo=ti
            else datetime.fromtimestamp((a.directory / 'boletim.mp4').stat().st_mtime, timezone.utc))
 record = publish_bulletin(a.directory, started, publish_at=(
     datetime.fromisoformat(a.publish_at.replace('Z', '+00:00')) if a.publish_at else None))
-print('Publicado:', record['url'], f"({record['privacy']})")
+if record is None:
+    print('Boletim não enviado: boletins fora do YouTube (defina BULLETIN_YOUTUBE=true para reativar)')
+else:
+    print('Publicado:', record['url'], f"({record['privacy']})")

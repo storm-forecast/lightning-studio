@@ -108,12 +108,23 @@ def publish_reel(video: Path, caption: str, env=os.environ, *, share_to_feed=Tru
     return {'media_id': media, 'url': permalink, 'account_id': account, 'username': username}
 
 
+def _language(directory: Path):
+    return json.loads((Path(directory) / 'alerta.json').read_text()).get('idioma', 'pt-BR')
+
+
+def portuguese(directory: Path):
+    """Portuguese Shorts stay off Instagram: there the audience is Spanish-speaking (analysis of 15/11/2026)."""
+    return _language(directory).lower().startswith('pt')
+
+
 def publish_short(directory: Path, env=os.environ):
     """Publish a rendered alert Short (short.mp4 + alerta.json) once, recording the result."""
     directory = Path(directory)
     saved = directory / 'instagram.json'
     if saved.exists():
         return json.loads(saved.read_text())
+    if portuguese(directory):
+        raise InstagramError('vídeos em português não são publicados no Instagram')
     report = json.loads((directory / 'alerta.json').read_text())
     language = report.get('idioma', 'pt-BR')
     # The caption carries the alert time, so a late repost is never read as a current warning.
@@ -152,6 +163,11 @@ _warned_missing_token = False
 def cross_post(directory: Path, env=os.environ):
     """Repeat a published YouTube Short on Instagram; never raises, so YouTube results are kept."""
     global _warned_missing_token
+    try:
+        if portuguese(directory):
+            return None  # Portuguese stays on YouTube only, as if Instagram were off.
+    except (OSError, ValueError):
+        pass  # An unreadable report is reported by publish_short below.
     if not env.get('INSTAGRAM_ACCESS_TOKEN'):
         # Said once per process, so a missing secret is visible in the logs without repeating every pass.
         if not _warned_missing_token:

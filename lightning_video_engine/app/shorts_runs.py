@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as PassTimeout, 
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .city_shorts import CITIES, MONITORED, Monitor, utc_now
+from .city_shorts import CITIES, MONITORED, Monitor, below_strike_minimum, utc_now
 from .instagram import cross_post
 from .sp_flood_shorts import SP_FLOOD_CITIES
 from .youtube import QuotaExceeded, block_quota, publish_short
@@ -52,7 +52,8 @@ def scan_cities(monitor, source, flood_areas=(), *, workers=6, deadline=240):
             except Exception as exc:
                 errors.append({'cidade': futures[future], 'erro': str(exc)})
                 continue
-            if report and report['gerar']:
+            # Too few strikes for a Short: skip it here so the renderer is not even installed.
+            if report and report['gerar'] and not below_strike_minimum(report):
                 reports[futures[future]] = report
     except PassTimeout:
         errors.extend({'cidade': key, 'erro': 'sem resposta no prazo da varredura'}

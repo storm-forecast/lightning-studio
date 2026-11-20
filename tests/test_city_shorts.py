@@ -437,3 +437,29 @@ def test_quiet_state_does_not_alert(tmp_path):
          patch('lightning_video_engine.app.city_shorts.utc_now', return_value=datetime(2026, 11, 1, 12)):
         report = Monitor(source, tmp_path).evaluate_city('sul-rs')
     assert not report['gerar'] and report['cidade'] == 'sul-rs'
+
+
+def test_weak_lightning_alert_is_not_queued(tmp_path, monkeypatch):
+    monkeypatch.delenv('SHORTS_MIN_STRIKES')
+    monitor=Monitor(None,tmp_path)
+    now=datetime.now(timezone.utc).isoformat()
+    weak={'cidade':'belo-horizonte','gerar':True,'verificado_em':now,'secao':'nowcasting',
+          'raios':{'raios_40km':22,'dados_atrasados':False}}
+    with patch('threading.Thread.start'):
+        result=monitor.check(reports={'belo-horizonte':weak})['resultados'][0]
+    assert 'video_id' not in result and '100 raios' in result['suprimido']
+    strong=dict(weak,raios={'raios_40km':472,'dados_atrasados':False})
+    with patch('threading.Thread.start'):
+        assert monitor.check(reports={'belo-horizonte':strong})['resultados'][0]['video_id']
+
+
+def test_strike_minimum_spares_flood_alerts_and_follows_the_setting(monkeypatch):
+    from lightning_video_engine.app.city_shorts import below_strike_minimum
+    monkeypatch.delenv('SHORTS_MIN_STRIKES')
+    assert below_strike_minimum({'raios':{'raios_40km':1,'dados_atrasados':False}})
+    assert below_strike_minimum({'raios':{'raios_40km':500,'dados_atrasados':True}})
+    assert not below_strike_minimum({'secao':'alagamentos-sp','raios':{'raios_40km':1}})
+    monkeypatch.setenv('SHORTS_MIN_STRIKES','20')
+    assert not below_strike_minimum({'raios':{'raios_40km':22,'dados_atrasados':False}})
+    monkeypatch.setenv('SHORTS_MIN_STRIKES','x')
+    assert below_strike_minimum({'raios':{'raios_40km':99,'dados_atrasados':False}})

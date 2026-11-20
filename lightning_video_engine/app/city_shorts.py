@@ -194,6 +194,25 @@ def lightning_hook(lightning):
     return count
 
 
+# Automatic Shorts below this many strikes in 30 minutes drew ~100 views and diluted the channel
+# (analysis of 20/11/2026); SHORTS_MIN_STRIKES overrides it. Flood alerts do not depend on lightning.
+DEFAULT_MIN_STRIKES = 100
+
+
+def min_strikes(env=os.environ):
+    try:
+        return max(0, int(env.get('SHORTS_MIN_STRIKES', DEFAULT_MIN_STRIKES)))
+    except ValueError:
+        return DEFAULT_MIN_STRIKES
+
+
+def below_strike_minimum(report, env=os.environ):
+    """True when a lightning alert has too few strikes to become a Short."""
+    if report.get('secao') == 'alagamentos-sp':
+        return False
+    return (lightning_hook(report.get('raios')) or 0) < min_strikes(env)
+
+
 def lightning_observed_at(lightning):
     """Timestamp of a complete, fresh 30-minute lightning observation."""
     if lightning.get('dados_atrasados') or lightning.get('janela_incompleta', True) or not lightning.get('coberto'):
@@ -435,7 +454,9 @@ class Monitor:
                                                 not fresh(report.get('verificado_em'), utc_now())):
                         results.append({'cidade':key, 'erro':'alerta expirado antes da geração', 'gerar':False})
                         continue
-                    if report['gerar']:
+                    if report['gerar'] and below_strike_minimum(report):
+                        report['suprimido'] = f'menos de {min_strikes()} raios em 30 minutos: sem Short automático'
+                    elif report['gerar']:
                         with self.db() as db:
                             tz = ZoneInfo(city_timezone(key, place_state(key)))
                             now_local = datetime.now(tz)

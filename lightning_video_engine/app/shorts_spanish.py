@@ -35,6 +35,7 @@ def localize_report(report, observed_test=False):
     else:
         text=f"Atención, {report.get('nome','Córdoba')}, {country}. Monitoreo de la zona hasta {report.get('raio_km') or 40} kilómetros del centro. "
     text+=('; '.join(reasons)+'. ') if reasons else 'Sin señal confirmada de aproximación. '
+    if report.get('chuva_15km_nao_confirmada'):text+='Sin confirmación de lluvia por radar en esta zona. '
     near=report['raios'].get('mais_proximo')
     if near and not report['raios']['dados_atrasados']:
         km=str(near['km']).replace('.',',')

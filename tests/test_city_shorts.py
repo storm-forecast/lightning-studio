@@ -1,9 +1,152 @@
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 
+from lightning_video_engine.app import shorts_rain
 from lightning_video_engine.app.city_shorts import CITIES, Monitor, evaluate
+
+
+@pytest.fixture(autouse=True)
+def no_area_radar_by_default():
+    """No test reads the real radar; those about the area reading set their own."""
+    with patch('lightning_video_engine.app.city_shorts.rain_area', return_value=None):
+        yield
+
+
+class CloseLightning:
+    """Twelve strikes within 15 km, the last one 3 minutes ago."""
+    def json(self, path, **query):
+        if path == '/alertas/situacao':
+            return {'dados_atrasados': False, 'coberto': True, 'raios_15km': 12, 'raios_40km': 40,
+                    'mais_proximo': {'km': 6, 'minutos_atras': 3, 'direcao': 'sudoeste'}}
+        return {'agora': None}
+
+
+def lightning_report(*, centre=None, area=None, key='belo-horizonte'):
+    with patch('lightning_video_engine.app.city_shorts.rain_at', return_value=centre), \
+         patch('lightning_video_engine.app.city_shorts.rain_duration', return_value=0), \
+         patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), \
+         patch('lightning_video_engine.app.city_shorts.rain_area', return_value=area):
+        return evaluate(key, CloseLightning())
+
+
+def radar_now(**fields):
+    return dict({'coberto': True, 'hora': datetime.now(timezone.utc).timestamp()}, **fields)
+
+
+def test_close_lightning_alerts_with_rain_at_the_centre():
+    report = lightning_report(centre=radar_now(classe=0, nome='fraca', neve=False),
+                              area=radar_now(chuva=True, km=0.0))
+    assert report['gerar']
+    assert any('atividade elétrica intensa' in reason for reason in report['motivos'])
+    assert 'Sem confirmação de chuva' not in report['roteiro']
+
+
+def test_close_lightning_alerts_with_rain_only_within_15_km():
+    report = lightning_report(centre=radar_now(classe=None, nome=None, neve=False),
+                              area=radar_now(chuva=True, km=9.0))
+    assert report['gerar']
+    assert 'Sem confirmação de chuva' not in report['roteiro']
+
+
+def test_close_lightning_stays_silent_when_radar_sees_no_rain_within_15_km():
+    report = lightning_report(centre=radar_now(classe=None, nome=None, neve=False),
+                              area=radar_now(chuva=False, km=None))
+    assert not report['gerar']
+    assert report['motivos'] == []
+
+
+@pytest.mark.parametrize('area', [
+    None,                                                            # frame could not be read
+    {'coberto': False, 'chuva': False, 'km': None, 'hora': datetime.now(timezone.utc).timestamp()},  # no radar here
+    {'coberto': True, 'chuva': False, 'km': None,
+     'hora': (datetime.now(timezone.utc) - timedelta(minutes=20)).timestamp()},                      # old frame
+])
+def test_close_lightning_alerts_and_says_so_when_radar_cannot_answer(area):
+    report = lightning_report(area=area)
+    assert report['gerar']
+    assert 'Sem confirmação de chuva pelo radar nesta área.' in report['roteiro']
+
+
+def test_spanish_alert_carries_the_missing_radar_notice():
+    report = lightning_report(area=None, key='cordoba')
+    assert report['gerar']
+    assert 'Sin confirmación de lluvia por radar en esta zona.' in report['roteiro']
+
+
+def test_density_rise_also_needs_rain_within_15_km(tmp_path):
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    class Rising:
+        observed, count = now - timedelta(minutes=10), 2
+        def json(self, path, **query):
+            if path == '/alertas/situacao':
+                return {'coberto': True, 'dados_atrasados': False, 'janela_incompleta': False,
+                        'dados_ate': self.observed.isoformat(), 'raios_15km': self.count, 'raios_40km': self.count,
+                        'mais_proximo': {'km': 9, 'minutos_atras': 2, 'direcao': 'oeste'}}
+            return {'agora': None}
+    source = Rising()
+    monitor = Monitor(source, tmp_path)
+    with patch('lightning_video_engine.app.city_shorts.rain_at', return_value=None), \
+         patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), \
+         patch('lightning_video_engine.app.city_shorts.rain_area', return_value=radar_now(chuva=False, km=None)):
+        monitor.evaluate_city('curitiba')
+        source.observed, source.count = now, 12
+        report = monitor.evaluate_city('curitiba')
+    assert not report['gerar']
+    assert report['densidade'] is None
+
+
+def test_rain_rules_do_not_depend_on_the_area_reading():
+    centre = radar_now(classe=2, nome='forte', neve=False)
+    with patch('lightning_video_engine.app.city_shorts.rain_at', return_value=centre), \
+         patch('lightning_video_engine.app.city_shorts.rain_duration', return_value=10), \
+         patch('lightning_video_engine.app.city_shorts.rain_approach', return_value=None), \
+         patch('lightning_video_engine.app.city_shorts.rain_area') as area:
+        report = evaluate('belo-horizonte', Source())
+    assert report['gerar']
+    area.assert_not_called()
+
+
+def _tile_painting(colour, offset_px, cx, cy):
+    tile = np.zeros((shorts_rain.TILE_SIZE, shorts_rain.TILE_SIZE, 4), np.uint8)
+    tile[cy, min(cx + offset_px, shorts_rain.TILE_SIZE - 1)] = colour
+    return tile
+
+
+@pytest.mark.parametrize('colour,offset_km,expected', [
+    ((0x88, 0xdd, 0xee, 255), 9, True),      # the radar's weakest rain, inside the radius
+    ((0x88, 0xdd, 0xee, 255), 40, False),    # same rain, outside the radius
+    ((0x20, 0x20, 0x20, 255), 9, False),     # painted, but not a precipitation colour
+])
+def test_rain_near_reads_the_area_and_not_the_centre_pixel(colour, offset_km, expected):
+    lat, lon = -19.9167, -43.9345
+    tx, ty, px, py = shorts_rain._pixel_raw(lat, lon)
+    km_per_px = 40075.017 * np.cos(np.radians(lat)) / (shorts_rain.TILE_SIZE * 2 ** shorts_rain.ZOOM)
+    centre_tile = (tx, ty)
+    offset = int(offset_km / km_per_px)
+    painted = _tile_painting(colour, offset, px, py)
+    blank = np.zeros_like(painted)
+    blank[0, 0] = (0x20, 0x20, 0x20, 255)
+    frames = [{'time': 1000, 'path': '/p'}]
+    with patch.object(shorts_rain, '_get_index', return_value={'host': 'https://example.test'}), \
+         patch.object(shorts_rain, '_fresh_past', return_value=frames), \
+         patch.object(shorts_rain, '_tile', side_effect=lambda h, p, x, y: painted if (x, y) == centre_tile else blank):
+        result = shorts_rain.rain_near(lat, lon)
+    assert result['coberto'] is True
+    assert result['chuva'] is expected
+    assert result['hora'] == 1000
+    if expected:
+        assert abs(result['km'] - offset_km) < 1.5
+
+
+def test_rain_near_never_calls_an_unreadable_frame_dry():
+    frames = [{'time': 1000, 'path': '/p'}]
+    with patch.object(shorts_rain, '_get_index', return_value={'host': 'https://example.test'}), \
+         patch.object(shorts_rain, '_fresh_past', return_value=frames), \
+         patch.object(shorts_rain, '_tile', return_value=None):
+        assert shorts_rain.rain_near(-19.9167, -43.9345) is None
 
 
 class Source:
@@ -160,9 +303,10 @@ def test_lightning_density_rise_requires_two_complete_fresh_samples(tmp_path):
         assert report['gerar']
         assert report['densidade']['antes_15km']==2
         assert report['densidade']['agora_15km']==12
-        assert 'aumentou de 2 para 12 raios' in report['roteiro']
+        # 12 strikes within 15 km also trip the intense-lightning rule, whose text comes first.
+        assert any('atividade elétrica intensa' in reason for reason in report['motivos'])
         source.incomplete=True
-        assert not monitor.evaluate_city('curitiba')['gerar']
+        assert monitor.evaluate_city('curitiba')['densidade'] is None
 
 
 def test_density_sample_survives_monitor_restart(tmp_path):
@@ -225,7 +369,8 @@ def test_density_rise_rejects_reference_older_than_thirty_minutes(tmp_path):
                    ('curitiba',(now-timedelta(minutes=40)).timestamp(),1))
     with patch('lightning_video_engine.app.city_shorts.rain_at',return_value=None), \
          patch('lightning_video_engine.app.city_shorts.rain_approach',return_value=None):
-        assert not monitor.evaluate_city('curitiba')['gerar']
+        # The alert may still come from the intense-lightning rule; the old sample must not make a rise.
+        assert monitor.evaluate_city('curitiba')['densidade'] is None
 
 
 def test_confirmed_scan_survives_changed_second_read(tmp_path):

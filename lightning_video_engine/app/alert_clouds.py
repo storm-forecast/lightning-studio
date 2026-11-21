@@ -279,6 +279,9 @@ def map_layer(report, others):
         taken.append((x, y))
         draw.ellipse((x - 3, y - 3, x + 3, y + 3), fill=(244, 246, 248, 230))
         shadowed(draw, (x + 8, y - 11), name, 18, (244, 246, 248, 235), bold=False)
+    if report.get('regional'):
+        # A storm band over a region: the map shows it, and one circle around one point would say otherwise.
+        return np.asarray(layer, dtype=np.float32) / 255
     radius = 40 / 111.2 / per_y
     x, y = W / 2, CITY_Y
     for i in range(0, 60, 2):
@@ -405,7 +408,8 @@ def panel(report, labels, scene, time):
     while font(BOLD, size).getlength(name) > 650 and size > 28:
         size -= 2
     shadowed(draw, (32, 118), name, size)
-    shadowed(draw, (32, 182), time.strftime('%b %d, %Y • %H:%M' if labels.get('rain_now') else '%d/%m/%Y • %H:%M'), 25, MUTED, bold=False)
+    moment = time.strftime('%b %d, %Y • %H:%M' if labels.get('rain_now') else '%d/%m/%Y • %H:%M')
+    shadowed(draw, (32, 182), f"{report['subtitulo']} • {moment}" if report.get('subtitulo') else moment, 23 if report.get('subtitulo') else 25, MUTED, bold=False)
     if scene == 'facts':
         shadowed(draw, (32, 712), labels['now'], 22, AMBER)
         near = (report.get('raios') or {}).get('mais_proximo')

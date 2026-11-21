@@ -34,6 +34,11 @@ def rain_duration(lat, lon, min_class=2):
     return rain_minutes_at(lat, lon, min_class=min_class)
 
 
+def rain_area(lat, lon):
+    from .shorts_rain import rain_near
+    return rain_near(lat, lon)
+
+
 class AgentSource:
     def __init__(self, api):
         self.api = api.rstrip('/')
@@ -270,8 +275,6 @@ def evaluate(key, resources, *, lightning=None, density_reference=None, place=No
     close_count = lightning.get('raios_15km')
     intense_lightning = bool(recent_lightning and isinstance(close_count, int) and close_count >= 10 and
                              near.get('km', float('inf')) <= 15 and near.get('minutos_atras', float('inf')) <= 10)
-    if not flood_only and intense_lightning:
-        reasons.append(f'atividade elétrica intensa: {close_count} raios observados em até 15 quilômetros')
     density = None
     current_at = lightning_observed_at(lightning)
     if not flood_only and density_reference and current_at is not None:
@@ -284,9 +287,25 @@ def evaluate(key, resources, *, lightning=None, density_reference=None, place=No
                 0 <= near.get('minutos_atras', float('inf')) <= 10):
             density = {'antes_15km': before, 'agora_15km': current,
                        'intervalo_min': round(elapsed), 'janela_min': 30}
-            if not reasons:
-                reasons.append(f'A atividade elétrica aumentou de {before} para {current} raios '
-                               'na área de 15 quilômetros, na janela móvel de 30 minutos')
+    # The lightning rules need rain within 15 km when a radar can say so. A radar that sees nothing
+    # there cancels them; no radar, or an unreadable or old frame, does not, and the text says so.
+    nearby_rain, rain_unconfirmed = None, False
+    if not flood_only and (intense_lightning or density):
+        try:
+            nearby_rain = rain_area(lat, lon)
+        except (OSError, ValueError, KeyError, TypeError):
+            nearby_rain = None
+        confirmed = bool(nearby_rain and nearby_rain.get('coberto') and nearby_rain.get('hora') is not None and
+                         0 <= (now - datetime.fromtimestamp(nearby_rain['hora'], timezone.utc)
+                               .replace(tzinfo=None)).total_seconds() <= 900)
+        if confirmed and not nearby_rain['chuva']:
+            intense_lightning, density = False, None
+        rain_unconfirmed = not confirmed and not radar_fresh
+    if not flood_only and intense_lightning:
+        reasons.append(f'atividade elétrica intensa: {close_count} raios observados em até 15 quilômetros')
+    if density and not reasons:
+        reasons.append(f"A atividade elétrica aumentou de {density['antes_15km']} para {density['agora_15km']} raios "
+                       'na área de 15 quilômetros, na janela móvel de 30 minutos')
     try:
         incoming_rain = rain_approach(lat, lon) if reasons else None
     except (OSError, ValueError, KeyError, TypeError):
@@ -312,6 +331,8 @@ def evaluate(key, resources, *, lightning=None, density_reference=None, place=No
     if region and region[2]:
         others = list(region[2])
         text += 'Também há raios perto de ' + (', '.join(others[:-1]) + ' e ' + others[-1] if len(others) > 1 else others[0]) + '. '
+    if rain_unconfirmed:
+        text += 'Sem confirmação de chuva pelo radar nesta área. '
     if not flood_only and near and not lightning['dados_atrasados']:
         text += f"Raio mais próximo a {near['km']} quilômetros, no setor {near['direcao']}. "
     if motion and not flood_only:
@@ -327,6 +348,7 @@ def evaluate(key, resources, *, lightning=None, density_reference=None, place=No
             'raios': lightning, 'nowcasting': point if valid else None, 'chuva': radar,
             'roteiro': text, 'recomendacoes': advice, 'raio_km': radius,
             'aproximacao_chuva': incoming_rain, 'densidade': density,
+            'chuva_15km': nearby_rain, 'chuva_15km_nao_confirmada': rain_unconfirmed,
             'secao': 'alagamentos-sp' if flood_only else 'nowcasting'}
     if key in SPANISH_CITIES:
         from .shorts_spanish import localize_report

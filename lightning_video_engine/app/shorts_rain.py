@@ -166,6 +166,55 @@ def rain_at(lat: float, lon: float) -> Optional[dict]:
             "neve": neve, "hora": frame["time"]}
 
 
+AREA_RAIN_KM = 15      # same radius the lightning rules count strikes in
+
+
+@heavy
+def rain_near(lat: float, lon: float, radius_km: float = AREA_RAIN_KM) -> Optional[dict]:
+    """Whether the current frame paints any precipitation within ``radius_km`` of the point.
+
+    A lightning rule asks this instead of :func:`rain_at` because the storm may be over the next
+    neighbourhood while the city's single centre pixel stays dry. `coberto` False means no radar
+    looks there, and None means the frame could not be read in full: neither one is "no rain".
+    """
+    import math
+
+    index = _get_index()
+    past = _fresh_past(index)
+    if not past:
+        return None
+    frame = past[-1]
+    tx, ty, px, py = _pixel_raw(lat, lon)
+    cx, cy = tx * TILE_SIZE + px, ty * TILE_SIZE + py
+    km_per_pixel = 40075.017 * math.cos(math.radians(lat)) / (TILE_SIZE * 2 ** ZOOM)
+    radius = radius_km / km_per_pixel
+    coberto, incompleto, nearest = False, False, None
+    for x in range(int((cx - radius) // TILE_SIZE), int((cx + radius) // TILE_SIZE) + 1):
+        for y in range(int((cy - radius) // TILE_SIZE), int((cy + radius) // TILE_SIZE) + 1):
+            data = _tile(index["host"], frame["path"], x, y)
+            if data is None:
+                incompleto = True
+                continue
+            coberto = coberto or bool((data[..., 3] > 0).any())
+            x0, y0 = max(int(cx - radius) - x * TILE_SIZE, 0), max(int(cy - radius) - y * TILE_SIZE, 0)
+            sub = data[y0:min(int(cy + radius) + 1 - y * TILE_SIZE, TILE_SIZE),
+                       x0:min(int(cx + radius) + 1 - x * TILE_SIZE, TILE_SIZE)]
+            rows, cols = np.nonzero(sub[..., 3] > 0)
+            distance = np.hypot(rows + y0 + y * TILE_SIZE - cy, cols + x0 + x * TILE_SIZE - cx)
+            inside = distance <= radius
+            if not inside.any():
+                continue
+            colours = sub[rows[inside], cols[inside], :3].astype(np.int16)
+            painted = np.abs(colours[:, None, :] - _COLORS[None, :, :]).max(axis=2).min(axis=1) <= TOL
+            if painted.any():
+                km = float(distance[inside][painted].min()) * km_per_pixel
+                nearest = km if nearest is None else min(nearest, km)
+    if nearest is None and incompleto:
+        return None
+    return {"coberto": coberto or nearest is not None, "chuva": nearest is not None,
+            "km": round(nearest, 1) if nearest is not None else None, "hora": frame["time"]}
+
+
 @heavy
 def rain_at_many(points) -> list:
     """One current radar reading per point, loading each needed tile only once.
